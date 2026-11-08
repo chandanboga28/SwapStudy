@@ -8,6 +8,7 @@ import {
   fetchUserSessions,
   fetchCreditTransactions,
   createSkillListing,
+  deleteSkillListing,
   bookSessionWithEscrow,
   acceptSession as acceptSessionApi,
   declineOrCancelSession as declineSessionApi,
@@ -23,6 +24,7 @@ interface AppContextType {
   reviews: Review[];
   isLoading: boolean;
   addSkill: (skillData: Omit<Skill, 'id' | 'teacherId' | 'teacherName' | 'teacherAvatar' | 'teacherUniversity' | 'teacherMajor' | 'teacherRating' | 'reviewsCount'>) => Promise<{ success: boolean; error?: string; skill?: Skill }>;
+  deleteSkill: (skillId: string) => Promise<{ success: boolean; error?: string }>;
   bookSession: (params: {
     skillId: string;
     date: string;
@@ -158,6 +160,22 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     return { success: false, error: res.error || 'Failed to create skill listing in database.' };
   };
 
+  // Delete skill listing
+  const deleteSkill = async (skillId: string): Promise<{ success: boolean; error?: string }> => {
+    if (!isSupabaseConfigured) {
+      setSkills((prev) => prev.filter((s) => s.id !== skillId));
+      return { success: true };
+    }
+
+    const res = await deleteSkillListing(skillId);
+    if (res.success) {
+      setSkills((prev) => prev.filter((s) => s.id !== skillId));
+      await loadAppData();
+      return { success: true };
+    }
+    return { success: false, error: res.error };
+  };
+
   // Book session with credit escrow
   const bookSession = async (params: {
     skillId: string;
@@ -257,6 +275,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
     const res = await declineSessionApi(sessionId, reason);
     if (res.success) {
+      setSessions((prev) =>
+        prev.map((s) => (s.id === sessionId ? { ...s, status: 'declined' } : s))
+      );
       await loadAppData();
       await refreshUser();
       return { success: true };
@@ -275,6 +296,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
     const res = await declineSessionApi(sessionId, 'Cancelled by learner');
     if (res.success) {
+      setSessions((prev) =>
+        prev.map((s) => (s.id === sessionId ? { ...s, status: 'cancelled' } : s))
+      );
       await loadAppData();
       await refreshUser();
       return { success: true };
@@ -323,6 +347,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         reviews,
         isLoading,
         addSkill,
+        deleteSkill,
         bookSession,
         acceptSession,
         declineSession,

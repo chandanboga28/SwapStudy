@@ -15,11 +15,12 @@ import {
   Star,
   Check,
   AlertCircle,
+  XCircle,
 } from 'lucide-react';
 
 export default function SessionsPage() {
   const { user } = useAuth();
-  const { sessions, acceptSession, declineSession } = useApp();
+  const { sessions, acceptSession, declineSession, cancelSession } = useApp();
 
   const [activeTab, setActiveTab] = useState<'learning' | 'teaching'>('learning');
   const [statusFilter, setStatusFilter] = useState<'all' | SessionStatus>('all');
@@ -83,6 +84,36 @@ export default function SessionsPage() {
         setToastMessage(res.error || 'Failed to decline session.');
         setToastType('error');
       }
+    } finally {
+      setProcessingId(null);
+      setTimeout(() => setToastMessage(null), 4500);
+    }
+  };
+
+  const handleCancel = async (id: string, skillTitle?: string) => {
+    if (
+      !window.confirm(
+        `Are you sure you want to cancel your session request${
+          skillTitle ? ` for "${skillTitle}"` : ''
+        }? Your credits held in escrow will be refunded to your wallet immediately.`
+      )
+    ) {
+      return;
+    }
+
+    setProcessingId(id);
+    try {
+      const res = await cancelSession(id);
+      if (res.success) {
+        setToastMessage('Session request cancelled and credits returned to your wallet.');
+        setToastType('success');
+      } else {
+        setToastMessage(res.error || 'Failed to cancel session.');
+        setToastType('error');
+      }
+    } catch (err: unknown) {
+      setToastMessage(err instanceof Error ? err.message : 'An unexpected error occurred.');
+      setToastType('error');
     } finally {
       setProcessingId(null);
       setTimeout(() => setToastMessage(null), 4500);
@@ -311,6 +342,21 @@ export default function SessionsPage() {
                             Decline
                           </button>
                         </>
+                      )}
+
+                      {isLearner && sess.status === 'pending' && (
+                        <button
+                          disabled={processingId === sess.id}
+                          onClick={() => handleCancel(sess.id, sess.skillTitle)}
+                          className="px-3 py-1.5 rounded-lg border border-rose-200 text-rose-600 hover:bg-rose-50 disabled:opacity-60 disabled:cursor-not-allowed text-xs font-semibold flex items-center gap-1 shadow-2xs transition-colors"
+                        >
+                          {processingId === sess.id ? (
+                            <span className="w-3 h-3 border-2 border-rose-300 border-t-rose-600 rounded-full animate-spin" />
+                          ) : (
+                            <XCircle className="w-3 h-3" />
+                          )}
+                          Cancel Request
+                        </button>
                       )}
 
                       {sess.status === 'confirmed' && sess.meetingLink && (

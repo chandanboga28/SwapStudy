@@ -100,6 +100,7 @@ BEGIN
         (p.proname = 'fn_mark_conversation_read' AND oidvectortypes(p.proargtypes) = 'uuid') OR
         (p.proname = 'fn_book_session_with_escrow' AND oidvectortypes(p.proargtypes) = 'uuid, date, text, text') OR
         (p.proname = 'fn_accept_session' AND oidvectortypes(p.proargtypes) = 'uuid') OR
+        (p.proname = 'fn_delete_skill' AND oidvectortypes(p.proargtypes) = 'uuid') OR
         (p.proname = 'fn_decline_or_cancel_session' AND oidvectortypes(p.proargtypes) = 'uuid, text') OR
         (p.proname = 'fn_complete_session' AND oidvectortypes(p.proargtypes) = 'uuid, integer, text') OR
         (p.proname = 'fn_after_learning_group_insert' AND oidvectortypes(p.proargtypes) = '') OR
@@ -2108,6 +2109,61 @@ BEGIN
 END;
 $$;
 
+-- D. Atomic Skill Listing Deletion: ONLY owner can delete, provided no active/confirmed sessions exist
+CREATE OR REPLACE FUNCTION public.fn_delete_skill(
+  p_skill_id uuid
+)
+RETURNS boolean
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+DECLARE
+  v_caller_id uuid;
+  v_teacher_id uuid;
+  v_active_sessions_count int;
+BEGIN
+  -- 1. Authenticate caller
+  v_caller_id := auth.uid();
+  IF v_caller_id IS NULL THEN
+    RAISE EXCEPTION 'Authentication required.';
+  END IF;
+
+  -- 2. Verify skill exists and acquire row lock
+  SELECT teacher_id
+  INTO v_teacher_id
+  FROM public.skills
+  WHERE id = p_skill_id
+  FOR UPDATE;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Skill listing not found.';
+  END IF;
+
+  -- 3. Verify teacher ownership
+  IF v_caller_id <> v_teacher_id THEN
+    RAISE EXCEPTION 'Only the teacher who created this skill listing can delete it.';
+  END IF;
+
+  -- 4. Check for active or confirmed sessions
+  SELECT count(*)
+  INTO v_active_sessions_count
+  FROM public.sessions
+  WHERE skill_id = p_skill_id
+    AND status IN ('pending', 'confirmed');
+
+  IF v_active_sessions_count > 0 THEN
+    RAISE EXCEPTION 'Cannot delete skill listing: there are % active or confirmed session(s) booked for this skill. Please complete or decline them first.', v_active_sessions_count;
+  END IF;
+
+  -- 5. Delete the skill listing
+  DELETE FROM public.skills
+  WHERE id = p_skill_id;
+
+  RETURN true;
+END;
+$$;
+
 -- Restrict execution permissions on privileged procedures
 REVOKE ALL ON FUNCTION public.fn_book_session_with_escrow FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.fn_book_session_with_escrow TO authenticated;
@@ -2120,6 +2176,9 @@ GRANT EXECUTE ON FUNCTION public.fn_accept_session TO authenticated;
 
 REVOKE ALL ON FUNCTION public.fn_complete_session FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.fn_complete_session TO authenticated;
+
+REVOKE ALL ON FUNCTION public.fn_delete_skill FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.fn_delete_skill TO authenticated;
 
 -- ==============================================================================
 -- 9. ROW LEVEL SECURITY (RLS) POLICIES (Enforces Strict College Isolation)
@@ -2690,6 +2749,7 @@ BEGIN
         (p.proname = 'fn_mark_conversation_read' AND oidvectortypes(p.proargtypes) = 'uuid') OR
         (p.proname = 'fn_book_session_with_escrow' AND oidvectortypes(p.proargtypes) = 'uuid, date, text, text') OR
         (p.proname = 'fn_accept_session' AND oidvectortypes(p.proargtypes) = 'uuid') OR
+        (p.proname = 'fn_delete_skill' AND oidvectortypes(p.proargtypes) = 'uuid') OR
         (p.proname = 'fn_decline_or_cancel_session' AND oidvectortypes(p.proargtypes) = 'uuid, text') OR
         (p.proname = 'fn_complete_session' AND oidvectortypes(p.proargtypes) = 'uuid, integer, text') OR
         (p.proname = 'fn_after_learning_group_insert' AND oidvectortypes(p.proargtypes) = '') OR

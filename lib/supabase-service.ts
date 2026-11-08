@@ -269,6 +269,62 @@ export async function createSkillListing(
   }
 }
 
+export async function deleteSkillListing(
+  skillId: string
+): Promise<{ success: boolean; error?: string }> {
+  if (!supabase) return { success: false, error: 'Database not connected' };
+
+  try {
+    // 1. Try atomic procedure fn_delete_skill
+    const { error: rpcError } = await supabase.rpc('fn_delete_skill', {
+      p_skill_id: skillId,
+    });
+
+    if (!rpcError) {
+      return { success: true };
+    }
+
+    // If RPC returned an explicit business error (e.g., active sessions or unauthorized), return it
+    if (rpcError.code !== 'PGRST202') {
+      return { success: false, error: rpcError.message };
+    }
+
+    // 2. Fallback check & direct delete (before SQL migration is applied)
+    // Prevent deletion of skills that have active or confirmed sessions
+    const { data: activeSessions, error: sessionCheckError } = await supabase
+      .from('sessions')
+      .select('id, status')
+      .eq('skill_id', skillId)
+      .in('status', ['pending', 'confirmed'])
+      .limit(1);
+
+    if (sessionCheckError) {
+      return { success: false, error: sessionCheckError.message };
+    }
+
+    if (activeSessions && activeSessions.length > 0) {
+      return {
+        success: false,
+        error: 'Cannot delete skill listing: there are active or confirmed sessions booked for this skill. Please complete or decline them first.',
+      };
+    }
+
+    // Execute DELETE (protected by "Teachers can manage their own skills" RLS policy)
+    const { error: deleteError } = await supabase
+      .from('skills')
+      .delete()
+      .eq('id', skillId);
+
+    if (deleteError) {
+      return { success: false, error: deleteError.message };
+    }
+
+    return { success: true };
+  } catch (err: any) {
+    return { success: false, error: err.message || 'Failed to delete skill listing' };
+  }
+}
+
 // ==============================================================================
 // 3. SESSIONS & ESCROW
 // ==============================================================================

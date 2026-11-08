@@ -28,12 +28,13 @@ import {
   Users,
   MessageSquare,
   AlertCircle,
+  XCircle,
 } from 'lucide-react';
 import { useMessaging } from '@/context/MessagingContext';
 
 export default function DashboardPage() {
   const { user, allUsers } = useAuth();
-  const { sessions, skills, transactions, acceptSession, declineSession } = useApp();
+  const { sessions, skills, transactions, acceptSession, declineSession, cancelSession } = useApp();
   const { totalUnreadCount } = useMessaging();
 
   const [reviewingSession, setReviewingSession] = useState<Session | null>(null);
@@ -78,6 +79,11 @@ export default function DashboardPage() {
     (s) => s.teacherId === user.id && s.status === 'pending'
   );
 
+  // Sessions where user is learner awaiting teacher confirmation
+  const pendingLearnerRequests = sessions.filter(
+    (s) => s.learnerId === user.id && s.status === 'pending'
+  );
+
   // Confirmed upcoming sessions
   const upcomingSessions = sessions.filter(
     (s) =>
@@ -101,6 +107,36 @@ export default function DashboardPage() {
         setNotification(res.error || 'Failed to accept session.');
         setNotificationType('error');
       }
+    } finally {
+      setProcessingSessionId(null);
+      setTimeout(() => setNotification(null), 4500);
+    }
+  };
+
+  const handleCancel = async (sessionId: string, skillTitle?: string) => {
+    if (
+      !window.confirm(
+        `Are you sure you want to cancel your booking request${
+          skillTitle ? ` for "${skillTitle}"` : ''
+        }? Your credits held in escrow will be refunded to your wallet immediately.`
+      )
+    ) {
+      return;
+    }
+
+    setProcessingSessionId(sessionId);
+    try {
+      const res = await cancelSession(sessionId);
+      if (res.success) {
+        setNotification('Booking request cancelled. Your credits held in escrow have been refunded.');
+        setNotificationType('success');
+      } else {
+        setNotification(res.error || 'Failed to cancel booking request.');
+        setNotificationType('error');
+      }
+    } catch (err: unknown) {
+      setNotification(err instanceof Error ? err.message : 'An unexpected error occurred.');
+      setNotificationType('error');
     } finally {
       setProcessingSessionId(null);
       setTimeout(() => setNotification(null), 4500);
@@ -443,6 +479,75 @@ export default function DashboardPage() {
                           className="py-1.5 px-3 rounded-md border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-60 disabled:cursor-not-allowed text-[11px] font-medium transition-colors"
                         >
                           Decline
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Learner Pending Bookings Card */}
+            {pendingLearnerRequests.length > 0 && (
+              <div className="p-4 rounded-xl bg-blue-50/80 border border-blue-200/90 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
+                    <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
+                      Your Pending Booking Requests ({pendingLearnerRequests.length})
+                    </h3>
+                  </div>
+                  <span className="text-[11px] text-blue-800 font-medium">
+                    Awaiting instructor confirmation
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {pendingLearnerRequests.map((req) => (
+                    <div
+                      key={req.id}
+                      className="bg-white p-3.5 rounded-lg border border-blue-200/60 text-xs space-y-2.5"
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="font-semibold text-slate-900">{req.skillTitle}</span>
+                        <span className="font-medium text-amber-700 bg-amber-50 px-2 py-0.5 rounded text-[11px] border border-amber-200/80">
+                          {req.credits} Cr in Escrow
+                        </span>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <img
+                          src={req.teacherAvatar}
+                          alt={req.teacherName}
+                          className="w-6 h-6 rounded-full object-cover"
+                        />
+                        <div className="text-[11px]">
+                          <span className="font-medium text-slate-800">{req.teacherName}</span>
+                          <span className="text-slate-400"> • {req.date} at {req.time}</span>
+                        </div>
+                      </div>
+
+                      {req.learnerNotes && (
+                        <p className="text-[11px] text-slate-500 bg-slate-50 p-2 rounded border border-slate-100 italic">
+                          &ldquo;{req.learnerNotes}&rdquo;
+                        </p>
+                      )}
+
+                      <div className="flex items-center justify-between pt-1">
+                        <span className="text-[10px] text-slate-400">
+                          Cancel anytime before confirmation
+                        </span>
+                        <button
+                          disabled={processingSessionId === req.id}
+                          onClick={() => handleCancel(req.id, req.skillTitle)}
+                          className="py-1.5 px-3 rounded-md border border-rose-200 text-rose-600 hover:bg-rose-50 disabled:opacity-60 disabled:cursor-not-allowed text-[11px] font-semibold flex items-center gap-1 transition-colors shadow-2xs"
+                        >
+                          {processingSessionId === req.id ? (
+                            <span className="w-3 h-3 border-2 border-rose-300 border-t-rose-600 rounded-full animate-spin" />
+                          ) : (
+                            <XCircle className="w-3 h-3" />
+                          )}
+                          Cancel Request
                         </button>
                       </div>
                     </div>

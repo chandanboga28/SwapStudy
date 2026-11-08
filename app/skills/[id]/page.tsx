@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, Suspense } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
@@ -17,15 +17,21 @@ import {
   Calendar,
   ShieldCheck,
   Video,
+  Trash2,
+  AlertCircle,
+  Check,
 } from 'lucide-react';
 
 function SkillDetailContent() {
   const params = useParams();
+  const router = useRouter();
   const skillId = params.id as string;
 
-  const { skills, reviews } = useApp();
+  const { skills, reviews, deleteSkill } = useApp();
   const { user } = useAuth();
   const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [actionNotice, setActionNotice] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
   const skill = skills.find((s) => s.id === skillId);
 
@@ -53,6 +59,39 @@ function SkillDetailContent() {
   const isOwnSkill = user?.id === skill.teacherId;
   const hasCredits = (user?.credits || 0) >= skill.hourlyCredits;
 
+  const handleDelete = async () => {
+    if (!window.confirm(`Are you sure you want to delete "${skill.title}"? This cannot be undone.`)) {
+      return;
+    }
+
+    setIsDeleting(true);
+    setActionNotice(null);
+    try {
+      const res = await deleteSkill(skill.id);
+      if (res.success) {
+        setActionNotice({
+          type: 'success',
+          message: `Skill listing "${skill.title}" was successfully deleted. Redirecting...`,
+        });
+        setTimeout(() => {
+          router.push('/teach');
+        }, 1200);
+      } else {
+        setActionNotice({
+          type: 'error',
+          message: res.error || 'Failed to delete skill listing.',
+        });
+      }
+    } catch (err: unknown) {
+      setActionNotice({
+        type: 'error',
+        message: err instanceof Error ? err.message : 'An unexpected error occurred while deleting.',
+      });
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   return (
     <div className="min-h-screen py-8 bg-[#F8FAFC]">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
@@ -64,6 +103,32 @@ function SkillDetailContent() {
           <ArrowLeft className="w-3.5 h-3.5" />
           Back to Explore Skills
         </Link>
+
+        {/* Action Notice */}
+        {actionNotice && (
+          <div
+            className={`p-3.5 rounded-xl text-xs font-medium flex items-center justify-between shadow-sm animate-in fade-in ${
+              actionNotice.type === 'error'
+                ? 'bg-rose-50 text-rose-800 border border-rose-200'
+                : 'bg-emerald-50 text-emerald-800 border border-emerald-200'
+            }`}
+          >
+            <span className="flex items-center gap-2">
+              {actionNotice.type === 'error' ? (
+                <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+              ) : (
+                <Check className="w-4 h-4 text-emerald-600 shrink-0" />
+              )}
+              {actionNotice.message}
+            </span>
+            <button
+              onClick={() => setActionNotice(null)}
+              className="text-slate-400 hover:text-slate-600 ml-2"
+            >
+              ✕
+            </button>
+          </div>
+        )}
 
         {/* Hero Card */}
         <div className="card-subtle rounded-xl p-6 sm:p-7 space-y-5">
@@ -116,9 +181,28 @@ function SkillDetailContent() {
 
             <div>
               {isOwnSkill ? (
-                <span className="px-3 py-1.5 rounded-lg bg-slate-100 text-slate-400 text-xs font-medium">
-                  Your listing
-                </span>
+                <div className="flex items-center gap-2">
+                  <span className="px-3 py-1.5 rounded-lg bg-slate-100 text-slate-500 text-xs font-medium">
+                    Your listing
+                  </span>
+                  <button
+                    onClick={handleDelete}
+                    disabled={isDeleting}
+                    className="px-3 py-1.5 rounded-lg border border-rose-200 text-rose-600 hover:bg-rose-50 disabled:opacity-50 text-xs font-semibold flex items-center gap-1.5 transition-colors shadow-2xs"
+                  >
+                    {isDeleting ? (
+                      <>
+                        <span className="w-3 h-3 border-2 border-rose-300 border-t-rose-600 rounded-full animate-spin" />
+                        Deleting...
+                      </>
+                    ) : (
+                      <>
+                        <Trash2 className="w-3.5 h-3.5" />
+                        Delete Listing
+                      </>
+                    )}
+                  </button>
+                </div>
               ) : (
                 <button
                   onClick={() => setIsBookingModalOpen(true)}

@@ -12,6 +12,8 @@ import {
   X,
   CheckCircle2,
   AlertCircle,
+  Trash2,
+  Check,
 } from 'lucide-react';
 
 const CATEGORIES: SkillCategory[] = [
@@ -27,7 +29,7 @@ const LEVELS: SkillLevel[] = ['Beginner', 'Intermediate', 'Advanced', 'All Level
 
 export default function TeachSkillPage() {
   const { user } = useAuth();
-  const { addSkill, skills } = useApp();
+  const { addSkill, deleteSkill, skills } = useApp();
 
   const [title, setTitle] = useState('');
   const [category, setCategory] = useState<SkillCategory>('Programming & Tech');
@@ -46,6 +48,8 @@ export default function TeachSkillPage() {
   const [isSuccess, setIsSuccess] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [createdSkillId, setCreatedSkillId] = useState<string | null>(null);
+  const [deletingSkillId, setDeletingSkillId] = useState<string | null>(null);
+  const [deleteNotice, setDeleteNotice] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
   if (!user) {
     return (
@@ -124,6 +128,37 @@ export default function TeachSkillPage() {
       setError(err instanceof Error ? err.message : 'An unexpected error occurred while publishing.');
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleDeleteListing = async (skillId: string, skillTitle: string) => {
+    if (!window.confirm(`Are you sure you want to delete "${skillTitle}"? This cannot be undone.`)) {
+      return;
+    }
+
+    setDeletingSkillId(skillId);
+    setDeleteNotice(null);
+    try {
+      const res = await deleteSkill(skillId);
+      if (res.success) {
+        setDeleteNotice({
+          type: 'success',
+          message: `Successfully deleted "${skillTitle}".`,
+        });
+      } else {
+        setDeleteNotice({
+          type: 'error',
+          message: res.error || 'Failed to delete skill listing.',
+        });
+      }
+    } catch (err: unknown) {
+      setDeleteNotice({
+        type: 'error',
+        message: err instanceof Error ? err.message : 'An unexpected error occurred while deleting.',
+      });
+    } finally {
+      setDeletingSkillId(null);
+      setTimeout(() => setDeleteNotice(null), 5000);
     }
   };
 
@@ -390,9 +425,37 @@ export default function TeachSkillPage() {
         {/* Existing Listings Preview */}
         {myTaughtSkills.length > 0 && (
           <div className="card-subtle rounded-xl p-5 space-y-3">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-900">
-              Your Active Listings ({myTaughtSkills.length})
-            </h3>
+            <div className="flex items-center justify-between">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-900">
+                Your Active Listings ({myTaughtSkills.length})
+              </h3>
+            </div>
+
+            {deleteNotice && (
+              <div
+                className={`p-3 rounded-lg text-xs font-medium flex items-center justify-between ${
+                  deleteNotice.type === 'error'
+                    ? 'bg-rose-50 text-rose-800 border border-rose-200'
+                    : 'bg-emerald-50 text-emerald-800 border border-emerald-200'
+                }`}
+              >
+                <span className="flex items-center gap-1.5">
+                  {deleteNotice.type === 'error' ? (
+                    <AlertCircle className="w-3.5 h-3.5 text-rose-600 shrink-0" />
+                  ) : (
+                    <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                  )}
+                  {deleteNotice.message}
+                </span>
+                <button
+                  onClick={() => setDeleteNotice(null)}
+                  className="text-slate-400 hover:text-slate-600 ml-2"
+                >
+                  ✕
+                </button>
+              </div>
+            )}
+
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
               {myTaughtSkills.map((sk) => (
                 <div
@@ -405,12 +468,27 @@ export default function TeachSkillPage() {
                       {sk.hourlyCredits} Credits • {sk.category}
                     </p>
                   </div>
-                  <Link
-                    href={`/skills/${sk.id}`}
-                    className="font-semibold text-emerald-700 hover:underline shrink-0 text-xs"
-                  >
-                    View →
-                  </Link>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <Link
+                      href={`/skills/${sk.id}`}
+                      className="font-semibold text-emerald-700 hover:underline text-xs"
+                    >
+                      View →
+                    </Link>
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteListing(sk.id, sk.title)}
+                      disabled={deletingSkillId === sk.id}
+                      className="p-1 rounded text-slate-400 hover:text-rose-600 hover:bg-rose-50 disabled:opacity-50 transition-colors"
+                      title={`Delete "${sk.title}"`}
+                    >
+                      {deletingSkillId === sk.id ? (
+                        <span className="w-3.5 h-3.5 border-2 border-rose-300 border-t-rose-600 rounded-full animate-spin inline-block" />
+                      ) : (
+                        <Trash2 className="w-3.5 h-3.5" />
+                      )}
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
