@@ -7,6 +7,197 @@
 
 BEGIN;
 
+-- ==============================================================================
+-- 0. PRE-MIGRATION BASELINE & STRICT COLLISION GUARDS (Conservative Policy)
+-- Enforces all-or-nothing greenfield deployment. Aborts if any target table,
+-- view, function signature, trigger name, policy name, or constraint exists.
+-- ==============================================================================
+
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM pg_class c 
+    JOIN pg_namespace n ON c.relnamespace = n.oid 
+    WHERE n.nspname = 'public' AND c.relname = '_swapstudy_migration_baseline'
+  ) THEN
+    RAISE EXCEPTION 'Aborting migration: public._swapstudy_migration_baseline already exists. A previous migration is active or was not rolled back.';
+  END IF;
+END $$;
+
+CREATE TABLE public._swapstudy_migration_baseline (
+  id serial PRIMARY KEY,
+  captured_at timestamptz NOT NULL DEFAULT now(),
+  category text NOT NULL,
+  schema_name text NOT NULL,
+  object_name text NOT NULL,
+  sub_object_name text,
+  pre_existed boolean NOT NULL DEFAULT true,
+  metadata jsonb
+);
+
+REVOKE ALL ON TABLE public._swapstudy_migration_baseline FROM PUBLIC, anon, authenticated;
+GRANT ALL ON TABLE public._swapstudy_migration_baseline TO postgres, service_role;
+
+DO $$
+DECLARE
+  v_obj text;
+  v_rec RECORD;
+BEGIN
+  -- Guard 1: View public.users collision
+  IF EXISTS (
+    SELECT 1 FROM pg_class c 
+    JOIN pg_namespace n ON c.relnamespace = n.oid 
+    WHERE n.nspname = 'public' AND c.relname = 'users'
+  ) THEN
+    RAISE EXCEPTION 'Aborting migration: object public.users already exists. SwapStudy creates public.users as a compatibility view, but an existing object was found.';
+  END IF;
+
+  -- Guard 2: Conservative Table Policy (Abort if ANY of the 19 target tables already exists)
+  SELECT c.relname INTO v_obj
+  FROM pg_class c
+  JOIN pg_namespace n ON c.relnamespace = n.oid
+  WHERE n.nspname = 'public'
+    AND c.relname IN (
+      'colleges', 'profiles', 'wallets', 'credit_transactions',
+      'college_verification_requests', 'skills', 'sessions', 'reviews',
+      'student_connections', 'community_posts', 'post_comments',
+      'post_likes', 'post_bookmarks', 'learning_groups',
+      'learning_group_members', 'conversations', 'conversation_participants',
+      'messages', 'skill_swap_invitations'
+    )
+  LIMIT 1;
+
+  IF v_obj IS NOT NULL THEN
+    RAISE EXCEPTION 'Aborting migration: target table public.% already exists. The conservative migration policy requires fresh tables to guarantee clean rollback.', v_obj;
+  END IF;
+
+  -- Guard 3: Collision guard for all 25 exact function signatures using canonical type-only arguments
+  FOR v_rec IN (
+    SELECT p.proname, oidvectortypes(p.proargtypes) AS args
+    FROM pg_proc p
+    JOIN pg_namespace n ON p.pronamespace = n.oid
+    WHERE n.nspname = 'public'
+      AND (
+        (p.proname = 'fn_protect_profile_integrity' AND oidvectortypes(p.proargtypes) = '') OR
+        (p.proname = 'get_current_user_college' AND oidvectortypes(p.proargtypes) = '') OR
+        (p.proname = 'handle_new_auth_user' AND oidvectortypes(p.proargtypes) = '') OR
+        (p.proname = 'handle_user_email_sync_and_verification' AND oidvectortypes(p.proargtypes) = '') OR
+        (p.proname = 'fn_submit_college_verification' AND oidvectortypes(p.proargtypes) = 'text, text, text, text') OR
+        (p.proname = 'fn_approve_college_verification' AND oidvectortypes(p.proargtypes) = 'uuid, text') OR
+        (p.proname = 'has_accepted_connection' AND oidvectortypes(p.proargtypes) = 'uuid, uuid') OR
+        (p.proname = 'fn_before_conversation_insert' AND oidvectortypes(p.proargtypes) = '') OR
+        (p.proname = 'is_conversation_participant' AND oidvectortypes(p.proargtypes) = 'uuid, uuid') OR
+        (p.proname = 'fn_validate_conversation_participant' AND oidvectortypes(p.proargtypes) = '') OR
+        (p.proname = 'fn_protect_participant_update' AND oidvectortypes(p.proargtypes) = '') OR
+        (p.proname = 'fn_before_message_insert' AND oidvectortypes(p.proargtypes) = '') OR
+        (p.proname = 'fn_after_message_insert' AND oidvectortypes(p.proargtypes) = '') OR
+        (p.proname = 'fn_validate_skill_swap_invitation' AND oidvectortypes(p.proargtypes) = '') OR
+        (p.proname = 'fn_protect_invitation_update' AND oidvectortypes(p.proargtypes) = '') OR
+        (p.proname = 'fn_get_or_create_direct_conversation' AND oidvectortypes(p.proargtypes) = 'uuid') OR
+        (p.proname = 'fn_send_skill_swap_invitation' AND oidvectortypes(p.proargtypes) = 'uuid, uuid, text, text, text, text, integer, text') OR
+        (p.proname = 'fn_respond_to_skill_swap_invitation' AND oidvectortypes(p.proargtypes) = 'uuid, boolean') OR
+        (p.proname = 'fn_mark_conversation_read' AND oidvectortypes(p.proargtypes) = 'uuid') OR
+        (p.proname = 'fn_book_session_with_escrow' AND oidvectortypes(p.proargtypes) = 'uuid, date, text, text') OR
+        (p.proname = 'fn_decline_or_cancel_session' AND oidvectortypes(p.proargtypes) = 'uuid, text') OR
+        (p.proname = 'fn_complete_session' AND oidvectortypes(p.proargtypes) = 'uuid, integer, text') OR
+        (p.proname = 'fn_after_learning_group_insert' AND oidvectortypes(p.proargtypes) = '') OR
+        (p.proname = 'fn_protect_post_update' AND oidvectortypes(p.proargtypes) = '') OR
+        (p.proname = 'fn_check_direct_conversation_participants' AND oidvectortypes(p.proargtypes) = '')
+      )
+  ) LOOP
+    RAISE EXCEPTION 'Aborting migration: pre-existing function public.%(%) already exists. Function overwrites are prohibited.', v_rec.proname, v_rec.args;
+  END LOOP;
+
+  -- Guard 4: Collision guard for all 44 target RLS policy names
+  FOR v_rec IN (
+    SELECT c.relname AS table_name, pol.polname AS policy_name
+    FROM pg_policy pol
+    JOIN pg_class c ON pol.polrelid = c.oid
+    JOIN pg_namespace n ON c.relnamespace = n.oid
+    WHERE n.nspname = 'public'
+      AND pol.polname IN (
+        'Colleges are publicly readable', 'Students can view same-college peer profiles',
+        'Direct profile insert disabled', 'Users can update their own profile',
+        'Users can view their own wallet', 'Direct client wallet updates disabled',
+        'Users can view their own credit transactions', 'Direct client transaction inserts disabled',
+        'Students can view their own verification requests', 'Direct request inserts disabled',
+        'Direct request updates disabled', 'Skills are viewable by students at same college',
+        'Teachers can manage their own skills', 'Participants can view their sessions',
+        'Direct session mutations disabled', 'Reviews are viewable by same-college students',
+        'Direct review inserts disabled', 'Users can view their connections',
+        'Users can request connection with same-college peers', 'Receiver can respond to connection request',
+        'Posts readable by same college students', 'Authors can create posts at their verified college',
+        'Authors can update their posts', 'Authors can delete their posts',
+        'Comments readable by same-college students', 'Students can comment on same-college posts',
+        'Authors can delete their comments', 'Likes readable and manageable by owner',
+        'Bookmarks manageable by owner', 'Groups readable by same college students',
+        'Students can create learning groups',
+        'Group members readable by same college students',
+        'Students can join learning groups at their college',
+        'Users can leave or creators can manage members',
+        'Users can view conversations they participate in', 'Users can create conversations at their college',
+        'Users can view participants of their conversations', 'Users can add participants with accepted connection',
+        'Users can update their own participant state', 'Users can read messages in their conversations',
+        'Users can send messages to their conversations', 'Participants can view invitations',
+        'Users can create skill swap invitations', 'Participants can update invitation status'
+      )
+  ) LOOP
+    RAISE EXCEPTION 'Aborting migration: pre-existing policy "%" already exists on public.%. Policy overwrites are prohibited.', v_rec.policy_name, v_rec.table_name;
+  END LOOP;
+
+  -- Guard 5: Collision guard for all 12 public triggers
+  FOR v_rec IN (
+    SELECT c.relname AS table_name, t.tgname AS trigger_name
+    FROM pg_trigger t
+    JOIN pg_class c ON t.tgrelid = c.oid
+    JOIN pg_namespace n ON c.relnamespace = n.oid
+    WHERE n.nspname = 'public'
+      AND t.tgname IN (
+        'tr_protect_profile_integrity', 'tr_before_conversation_insert',
+        'tr_validate_conversation_participant', 'tr_protect_participant_update',
+        'tr_before_message_insert', 'tr_after_message_insert',
+        'tr_validate_skill_swap_invitation', 'tr_protect_invitation_update',
+        'tr_after_learning_group_insert', 'tr_protect_post_update',
+        'tr_check_direct_conv_conversations', 'tr_check_direct_conv_participants'
+      )
+  ) LOOP
+    RAISE EXCEPTION 'Aborting migration: pre-existing trigger "%" already exists on public.%. Trigger overwrites are prohibited.', v_rec.trigger_name, v_rec.table_name;
+  END LOOP;
+
+  -- Guard 6: Collision guard for triggers on auth.users
+  FOR v_rec IN (
+    SELECT t.tgname
+    FROM pg_trigger t
+    JOIN pg_class c ON t.tgrelid = c.oid
+    JOIN pg_namespace n ON c.relnamespace = n.oid
+    WHERE n.nspname = 'auth' AND c.relname = 'users'
+      AND t.tgname IN ('tr_on_auth_user_created', 'tr_on_auth_user_email_sync')
+      AND NOT t.tgisinternal
+  ) LOOP
+    RAISE EXCEPTION 'Aborting migration: trigger "%" already exists on auth.users. Overwriting triggers on auth.users is prohibited.', v_rec.tgname;
+  END LOOP;
+
+  -- Guard 7: Collision guard for fk_tx_session
+  IF EXISTS (
+    SELECT 1 FROM pg_constraint c
+    JOIN pg_namespace n ON c.connamespace = n.oid
+    WHERE n.nspname = 'public' AND c.conname = 'fk_tx_session'
+  ) THEN
+    RAISE EXCEPTION 'Aborting migration: constraint fk_tx_session already exists in schema public.';
+  END IF;
+
+  -- Baseline Snapshot: Capture pre-existing Realtime publication membership
+  IF EXISTS (SELECT 1 FROM pg_publication WHERE pubname = 'supabase_realtime') THEN
+    INSERT INTO public._swapstudy_migration_baseline (category, schema_name, object_name, pre_existed, metadata)
+    SELECT 'realtime', 'public', tablename, true, jsonb_build_object('pubname', 'supabase_realtime')
+    FROM pg_publication_tables
+    WHERE pubname = 'supabase_realtime'
+      AND schemaname = 'public'
+      AND tablename IN ('messages', 'conversations', 'conversation_participants', 'skill_swap_invitations', 'community_posts', 'post_comments');
+  END IF;
+END $$;
+
+
 -- Enable standard extensions
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
@@ -15,7 +206,7 @@ CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 -- 1. INSTITUTIONS & CAMPUSES (Colleges)
 -- ==============================================================================
 
-CREATE TABLE IF NOT EXISTS public.colleges (
+CREATE TABLE public.colleges (
   id text PRIMARY KEY,                       -- e.g. 'adypu', 'nst', 'uw'
   name text NOT NULL,                        -- e.g. 'Ajeenkya DY Patil University'
   short_name text NOT NULL,                  -- e.g. 'ADYPU'
@@ -42,7 +233,7 @@ ON CONFLICT (id) DO UPDATE SET
 -- 2. STUDENT PROFILES & AUTHENTICATED IDENTITY
 -- ==============================================================================
 
-CREATE TABLE IF NOT EXISTS public.profiles (
+CREATE TABLE public.profiles (
   id uuid PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
   email text NOT NULL UNIQUE,
   name text NOT NULL,
@@ -66,7 +257,7 @@ CREATE INDEX IF NOT EXISTS idx_profiles_college ON public.profiles(college_id);
 CREATE INDEX IF NOT EXISTS idx_profiles_email ON public.profiles(email);
 
 -- Backward compatibility view: SECURITY INVOKER guarantees caller's RLS is honored
-CREATE OR REPLACE VIEW public.users WITH (security_invoker = true) AS 
+CREATE VIEW public.users WITH (security_invoker = true) AS 
   SELECT * FROM public.profiles;
 
 -- Column-level privilege hardening: Restrict authenticated clients to safe profile attributes
@@ -155,14 +346,14 @@ GRANT EXECUTE ON FUNCTION public.get_current_user_college() TO authenticated, se
 -- 3. WALLETS, ATOMIC ESCROW & TRANSACTION AUDITING
 -- ==============================================================================
 
-CREATE TABLE IF NOT EXISTS public.wallets (
+CREATE TABLE public.wallets (
   user_id uuid PRIMARY KEY REFERENCES public.profiles(id) ON DELETE CASCADE,
   balance int NOT NULL DEFAULT 3 CHECK (balance >= 0),
   escrow_locked int NOT NULL DEFAULT 0 CHECK (escrow_locked >= 0),
   updated_at timestamptz NOT NULL DEFAULT now()
 );
 
-CREATE TABLE IF NOT EXISTS public.credit_transactions (
+CREATE TABLE public.credit_transactions (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id uuid NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
   session_id uuid, -- Linked to sessions table
@@ -323,7 +514,6 @@ BEGIN
 END;
 $$;
 
-DROP TRIGGER IF EXISTS tr_on_auth_user_confirmed ON auth.users;
 DROP TRIGGER IF EXISTS tr_on_auth_user_email_sync ON auth.users;
 CREATE TRIGGER tr_on_auth_user_email_sync
   AFTER UPDATE OF email, email_confirmed_at ON auth.users
@@ -333,7 +523,7 @@ CREATE TRIGGER tr_on_auth_user_email_sync
 -- 4. COLLEGE ONBOARDING & VERIFICATION REQUESTS
 -- ==============================================================================
 
-CREATE TABLE IF NOT EXISTS public.college_verification_requests (
+CREATE TABLE public.college_verification_requests (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id uuid NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
   college_id text NOT NULL REFERENCES public.colleges(id) ON DELETE RESTRICT,
@@ -385,6 +575,21 @@ BEGIN
   v_email_domain := lower(split_part(p_institutional_email, '@', 2));
   IF v_email_domain <> v_college_domain THEN
     RAISE EXCEPTION 'Institutional email domain (%) does not match the selected college domain (%).', v_email_domain, v_college_domain;
+  END IF;
+
+  -- 2b. Validate document URL if provided (must be an HTTPS Supabase Storage URL
+  -- in the 'college-verifications' bucket, strictly scoped to caller's own user folder).
+  IF p_document_url IS NOT NULL AND trim(p_document_url) <> '' THEN
+    IF length(p_document_url) > 2048 THEN
+      RAISE EXCEPTION 'Document URL exceeds maximum length of 2048 characters.' USING ERRCODE = '22023';
+    END IF;
+
+    IF p_document_url !~* ('^https://[a-z0-9-]+([.](supabase[.]co|supabase[.]in))/storage/v1/object/(public|authenticated|sign)/college-verifications/' 
+                           || v_caller_id::text 
+                           || '/[a-zA-Z0-9_-]+[.](pdf|jpg|jpeg|png|webp)([?][a-zA-Z0-9_=&.-]+)?$') THEN
+      RAISE EXCEPTION 'Invalid document URL: must be a valid Supabase Storage object in the college-verifications bucket under your user ID folder (%/<filename>.[pdf|jpg|png|webp]).',
+        v_caller_id USING ERRCODE = '22023';
+    END IF;
   END IF;
 
   -- 3. Check for existing pending request
@@ -471,7 +676,7 @@ GRANT EXECUTE ON FUNCTION public.fn_approve_college_verification TO service_role
 -- 5. SKILLS, SESSIONS & REVIEWS
 -- ==============================================================================
 
-CREATE TABLE IF NOT EXISTS public.skills (
+CREATE TABLE public.skills (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   teacher_id uuid NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
   college_id text NOT NULL REFERENCES public.colleges(id) ON DELETE RESTRICT,
@@ -499,7 +704,7 @@ CREATE TABLE IF NOT EXISTS public.skills (
 CREATE INDEX IF NOT EXISTS idx_skills_teacher ON public.skills(teacher_id);
 CREATE INDEX IF NOT EXISTS idx_skills_college_category ON public.skills(college_id, category);
 
-CREATE TABLE IF NOT EXISTS public.sessions (
+CREATE TABLE public.sessions (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   skill_id uuid REFERENCES public.skills(id) ON DELETE SET NULL,
   skill_title text NOT NULL,
@@ -542,7 +747,7 @@ BEGIN
   END IF;
 END $$;
 
-CREATE TABLE IF NOT EXISTS public.reviews (
+CREATE TABLE public.reviews (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   session_id uuid UNIQUE NOT NULL REFERENCES public.sessions(id) ON DELETE CASCADE,
   skill_id uuid REFERENCES public.skills(id) ON DELETE SET NULL,
@@ -560,7 +765,7 @@ CREATE INDEX IF NOT EXISTS idx_reviews_teacher ON public.reviews(teacher_id);
 -- 6. STUDENT CONNECTIONS & CAMPUS COMMUNITY
 -- ==============================================================================
 
-CREATE TABLE IF NOT EXISTS public.student_connections (
+CREATE TABLE public.student_connections (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   college_id text NOT NULL REFERENCES public.colleges(id) ON DELETE RESTRICT,
   requester_id uuid NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
@@ -602,7 +807,7 @@ $$;
 REVOKE ALL ON FUNCTION public.has_accepted_connection(uuid, uuid) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.has_accepted_connection(uuid, uuid) TO authenticated, service_role;
 
-CREATE TABLE IF NOT EXISTS public.community_posts (
+CREATE TABLE public.community_posts (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   college_id text NOT NULL REFERENCES public.colleges(id) ON DELETE CASCADE,
   author_id uuid NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
@@ -620,7 +825,34 @@ CREATE TABLE IF NOT EXISTS public.community_posts (
 
 CREATE INDEX IF NOT EXISTS idx_posts_college_category ON public.community_posts(college_id, category, created_at DESC);
 
-CREATE TABLE IF NOT EXISTS public.post_comments (
+-- Trigger: Protect community post immutability (college_id and author_id cannot be changed)
+CREATE OR REPLACE FUNCTION public.fn_protect_post_update()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+BEGIN
+  IF NEW.college_id <> OLD.college_id THEN
+    RAISE EXCEPTION 'Cannot modify post college_id.' USING ERRCODE = '42501';
+  END IF;
+
+  IF NEW.author_id <> OLD.author_id THEN
+    RAISE EXCEPTION 'Cannot modify post author_id.' USING ERRCODE = '42501';
+  END IF;
+
+  NEW.updated_at := now();
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS tr_protect_post_update ON public.community_posts;
+CREATE TRIGGER tr_protect_post_update
+  BEFORE UPDATE ON public.community_posts
+  FOR EACH ROW EXECUTE FUNCTION public.fn_protect_post_update();
+
+
+CREATE TABLE public.post_comments (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   post_id uuid NOT NULL REFERENCES public.community_posts(id) ON DELETE CASCADE,
   author_id uuid NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
@@ -630,21 +862,21 @@ CREATE TABLE IF NOT EXISTS public.post_comments (
 
 CREATE INDEX IF NOT EXISTS idx_comments_post ON public.post_comments(post_id, created_at ASC);
 
-CREATE TABLE IF NOT EXISTS public.post_likes (
+CREATE TABLE public.post_likes (
   post_id uuid NOT NULL REFERENCES public.community_posts(id) ON DELETE CASCADE,
   user_id uuid NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
   created_at timestamptz NOT NULL DEFAULT now(),
   PRIMARY KEY (post_id, user_id)
 );
 
-CREATE TABLE IF NOT EXISTS public.post_bookmarks (
+CREATE TABLE public.post_bookmarks (
   post_id uuid NOT NULL REFERENCES public.community_posts(id) ON DELETE CASCADE,
   user_id uuid NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
   created_at timestamptz NOT NULL DEFAULT now(),
   PRIMARY KEY (post_id, user_id)
 );
 
-CREATE TABLE IF NOT EXISTS public.learning_groups (
+CREATE TABLE public.learning_groups (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   college_id text NOT NULL REFERENCES public.colleges(id) ON DELETE CASCADE,
   creator_id uuid NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
@@ -658,7 +890,29 @@ CREATE TABLE IF NOT EXISTS public.learning_groups (
 
 CREATE INDEX IF NOT EXISTS idx_groups_college ON public.learning_groups(college_id);
 
-CREATE TABLE IF NOT EXISTS public.learning_group_members (
+-- Trigger: Ensure learning group creator is automatically added as the first participant
+CREATE OR REPLACE FUNCTION public.fn_after_learning_group_insert()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+BEGIN
+  INSERT INTO public.learning_group_members (group_id, user_id)
+  VALUES (NEW.id, NEW.creator_id)
+  ON CONFLICT (group_id, user_id) DO NOTHING;
+
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS tr_after_learning_group_insert ON public.learning_groups;
+CREATE TRIGGER tr_after_learning_group_insert
+  AFTER INSERT ON public.learning_groups
+  FOR EACH ROW EXECUTE FUNCTION public.fn_after_learning_group_insert();
+
+
+CREATE TABLE public.learning_group_members (
   group_id uuid NOT NULL REFERENCES public.learning_groups(id) ON DELETE CASCADE,
   user_id uuid NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
   joined_at timestamptz NOT NULL DEFAULT now(),
@@ -669,7 +923,7 @@ CREATE TABLE IF NOT EXISTS public.learning_group_members (
 -- 7. SWAPSTUDY DIRECT MESSAGING SYSTEM
 -- ==============================================================================
 
-CREATE TABLE IF NOT EXISTS public.conversations (
+CREATE TABLE public.conversations (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   college_id text NOT NULL REFERENCES public.colleges(id) ON DELETE CASCADE,
   is_group boolean NOT NULL DEFAULT false,
@@ -712,7 +966,7 @@ CREATE TRIGGER tr_before_conversation_insert
   BEFORE INSERT ON public.conversations
   FOR EACH ROW EXECUTE FUNCTION public.fn_before_conversation_insert();
 
-CREATE TABLE IF NOT EXISTS public.conversation_participants (
+CREATE TABLE public.conversation_participants (
   conversation_id uuid NOT NULL REFERENCES public.conversations(id) ON DELETE CASCADE,
   user_id uuid NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
   role text NOT NULL DEFAULT 'member' CHECK (role IN ('member', 'admin')),
@@ -803,6 +1057,20 @@ BEGIN
     END IF;
 
     IF v_existing_count = 1 THEN
+      -- Acquire transactional advisory lock ordered by UUIDs to prevent concurrent duplicate creation across all paths
+      PERFORM pg_advisory_xact_lock(hashtext(least(v_existing_user::text, NEW.user_id::text)), hashtext(greatest(v_existing_user::text, NEW.user_id::text)));
+
+      -- Prevent duplicate direct conversations across ANY creation path
+      IF EXISTS (
+        SELECT 1
+        FROM public.conversations c
+        JOIN public.conversation_participants cp1 ON cp1.conversation_id = c.id AND cp1.user_id = v_existing_user
+        JOIN public.conversation_participants cp2 ON cp2.conversation_id = c.id AND cp2.user_id = NEW.user_id
+        WHERE c.is_group = false AND c.id <> NEW.conversation_id
+      ) THEN
+        RAISE EXCEPTION 'A direct conversation already exists between these students.' USING ERRCODE = '23505';
+      END IF;
+
       -- Second participant being added: must have accepted same-college connection with first participant
       IF NOT has_accepted_connection(v_existing_user, NEW.user_id) THEN
         RAISE EXCEPTION 'Participants in a direct conversation must have an accepted same-college connection.'
@@ -844,7 +1112,7 @@ CREATE TRIGGER tr_validate_conversation_participant
 CREATE OR REPLACE FUNCTION public.fn_protect_participant_update()
 RETURNS trigger
 LANGUAGE plpgsql
-SECURITY DEFINER
+SECURITY INVOKER
 SET search_path = public, pg_temp
 AS $$
 BEGIN
@@ -852,9 +1120,23 @@ BEGIN
     RAISE EXCEPTION 'Cannot modify participant identity, role, or join timestamp.' USING ERRCODE = '42501';
   END IF;
 
-  -- Authenticated clients cannot modify another participant's row
-  IF current_user = 'authenticated' THEN
-    IF auth.uid() IS NOT NULL AND auth.uid() <> OLD.user_id THEN
+  -- Authenticated clients cannot modify another participant's row directly.
+  -- Peer unread_count increments are exclusively authorized via fn_after_message_insert(),
+  -- which runs as a nested trigger (pg_trigger_depth() >= 2) under SECURITY DEFINER (current_user = 'postgres').
+  IF auth.uid() IS NOT NULL AND auth.uid() <> OLD.user_id THEN
+    -- Block any direct UPDATE statement from modifying another participant's row
+    IF pg_trigger_depth() < 2 THEN
+      RAISE EXCEPTION 'Cannot modify another participant read status or unread count directly.' USING ERRCODE = '42501';
+    END IF;
+
+    -- Block alternate nested triggers executed in unprivileged client context
+    IF current_user = 'authenticated' THEN
+      RAISE EXCEPTION 'Cannot modify another participant read status or unread count directly.' USING ERRCODE = '42501';
+    END IF;
+
+    -- Enforce delta invariant for authorized updates to peer unread count:
+    -- peer last_read_at cannot change, unread_count must increment by exactly 1
+    IF NEW.last_read_at IS DISTINCT FROM OLD.last_read_at OR NEW.unread_count <> OLD.unread_count + 1 THEN
       RAISE EXCEPTION 'Cannot modify another participant read status or unread count.' USING ERRCODE = '42501';
     END IF;
   END IF;
@@ -872,7 +1154,58 @@ CREATE TRIGGER tr_protect_participant_update
   BEFORE UPDATE ON public.conversation_participants
   FOR EACH ROW EXECUTE FUNCTION public.fn_protect_participant_update();
 
-CREATE TABLE IF NOT EXISTS public.messages (
+-- Constraint Trigger: Verify direct conversations have exactly 2 participants at transaction commit
+CREATE OR REPLACE FUNCTION public.fn_check_direct_conversation_participants()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+DECLARE
+  v_conv_id uuid;
+  v_is_group boolean;
+  v_count integer;
+BEGIN
+  IF TG_TABLE_NAME = 'conversations' THEN
+    v_conv_id := NEW.id;
+    v_is_group := NEW.is_group;
+  ELSE
+    SELECT is_group INTO v_is_group FROM public.conversations WHERE id = COALESCE(NEW.conversation_id, OLD.conversation_id);
+    v_conv_id := COALESCE(NEW.conversation_id, OLD.conversation_id);
+  END IF;
+
+  -- Only check direct 1-to-1 conversations that still exist at transaction commit
+  IF v_is_group IS FALSE AND EXISTS (SELECT 1 FROM public.conversations WHERE id = v_conv_id) THEN
+    SELECT count(*) INTO v_count
+    FROM public.conversation_participants
+    WHERE conversation_id = v_conv_id;
+
+    IF v_count <> 2 THEN
+      RAISE EXCEPTION 'Direct conversations must have exactly 2 participants at transaction commit (found %).', v_count
+        USING ERRCODE = '23514';
+    END IF;
+  END IF;
+
+  RETURN NULL;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS tr_check_direct_conv_conversations ON public.conversations;
+CREATE CONSTRAINT TRIGGER tr_check_direct_conv_conversations
+  AFTER INSERT OR UPDATE ON public.conversations
+  DEFERRABLE INITIALLY DEFERRED
+  FOR EACH ROW
+  EXECUTE FUNCTION public.fn_check_direct_conversation_participants();
+
+DROP TRIGGER IF EXISTS tr_check_direct_conv_participants ON public.conversation_participants;
+CREATE CONSTRAINT TRIGGER tr_check_direct_conv_participants
+  AFTER INSERT OR DELETE ON public.conversation_participants
+  DEFERRABLE INITIALLY DEFERRED
+  FOR EACH ROW
+  EXECUTE FUNCTION public.fn_check_direct_conversation_participants();
+
+
+CREATE TABLE public.messages (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   conversation_id uuid NOT NULL REFERENCES public.conversations(id) ON DELETE CASCADE,
   sender_id uuid NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
@@ -905,10 +1238,8 @@ BEGIN
     END IF;
   END IF;
 
-  -- Ensure sender is included in read_by
-  IF NOT (NEW.sender_id = ANY(NEW.read_by)) THEN
-    NEW.read_by := array_append(NEW.read_by, NEW.sender_id);
-  END IF;
+  -- Ensure read_by strictly starts with ONLY the message sender
+  NEW.read_by := ARRAY[NEW.sender_id];
 
   RETURN NEW;
 END;
@@ -949,7 +1280,7 @@ CREATE TRIGGER tr_after_message_insert
   AFTER INSERT ON public.messages
   FOR EACH ROW EXECUTE FUNCTION public.fn_after_message_insert();
 
-CREATE TABLE IF NOT EXISTS public.skill_swap_invitations (
+CREATE TABLE public.skill_swap_invitations (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   message_id uuid NOT NULL REFERENCES public.messages(id) ON DELETE CASCADE,
   conversation_id uuid NOT NULL REFERENCES public.conversations(id) ON DELETE CASCADE,
@@ -1162,6 +1493,9 @@ BEGIN
     RAISE EXCEPTION 'Both students must have an accepted connection before messaging.'
       USING ERRCODE = '42501';
   END IF;
+
+  -- Acquire transaction-level advisory lock ordered by UUIDs to prevent concurrent duplicate creation and deadlocks
+  PERFORM pg_advisory_xact_lock(hashtext(least(v_caller::text, p_peer_id::text)), hashtext(greatest(v_caller::text, p_peer_id::text)));
 
   -- Check if 1-to-1 conversation already exists
   SELECT c.id INTO v_conv_id
@@ -1926,8 +2260,16 @@ CREATE POLICY "Authors can create posts at their verified college" ON public.com
 DROP POLICY IF EXISTS "Authors can update their posts" ON public.community_posts;
 CREATE POLICY "Authors can update their posts" ON public.community_posts
   FOR UPDATE TO authenticated
-  USING (author_id = auth.uid())
-  WITH CHECK (author_id = auth.uid());
+  USING (
+    author_id = auth.uid()
+    AND get_current_user_college() IS NOT NULL
+    AND college_id = get_current_user_college()
+  )
+  WITH CHECK (
+    author_id = auth.uid()
+    AND get_current_user_college() IS NOT NULL
+    AND college_id = get_current_user_college()
+  );
 
 DROP POLICY IF EXISTS "Authors can delete their posts" ON public.community_posts;
 CREATE POLICY "Authors can delete their posts" ON public.community_posts
@@ -2008,18 +2350,21 @@ CREATE POLICY "Students can create learning groups" ON public.learning_groups
     AND college_id = get_current_user_college()
   );
 
-DROP POLICY IF EXISTS "Group members manageable by users" ON public.learning_group_members;
-CREATE POLICY "Group members manageable by users" ON public.learning_group_members
-  FOR ALL TO authenticated
+DROP POLICY IF EXISTS "Group members readable by same college students" ON public.learning_group_members;
+CREATE POLICY "Group members readable by same college students" ON public.learning_group_members
+  FOR SELECT TO authenticated
   USING (
-    user_id = auth.uid()
-    AND get_current_user_college() IS NOT NULL
+    get_current_user_college() IS NOT NULL
     AND EXISTS (
       SELECT 1 FROM public.learning_groups g
       WHERE g.id = learning_group_members.group_id
         AND g.college_id = get_current_user_college()
     )
-  )
+  );
+
+DROP POLICY IF EXISTS "Students can join learning groups at their college" ON public.learning_group_members;
+CREATE POLICY "Students can join learning groups at their college" ON public.learning_group_members
+  FOR INSERT TO authenticated
   WITH CHECK (
     user_id = auth.uid()
     AND get_current_user_college() IS NOT NULL
@@ -2027,6 +2372,21 @@ CREATE POLICY "Group members manageable by users" ON public.learning_group_membe
       SELECT 1 FROM public.learning_groups g
       WHERE g.id = learning_group_members.group_id
         AND g.college_id = get_current_user_college()
+    )
+  );
+
+DROP POLICY IF EXISTS "Users can leave or creators can manage members" ON public.learning_group_members;
+CREATE POLICY "Users can leave or creators can manage members" ON public.learning_group_members
+  FOR DELETE TO authenticated
+  USING (
+    get_current_user_college() IS NOT NULL
+    AND (
+      user_id = auth.uid()
+      OR EXISTS (
+        SELECT 1 FROM public.learning_groups g
+        WHERE g.id = learning_group_members.group_id
+          AND g.creator_id = auth.uid()
+      )
     )
   );
 
@@ -2046,6 +2406,7 @@ CREATE POLICY "Users can create conversations at their college" ON public.conver
   WITH CHECK (
     get_current_user_college() IS NOT NULL
     AND college_id = get_current_user_college()
+    AND is_group = true
   );
 
 -- Conversation Participants Policies (Recursion-free using is_conversation_participant)
@@ -2135,6 +2496,15 @@ CREATE POLICY "Participants can update invitation status" ON public.skill_swap_i
 -- 10. REALTIME CONFIGURATION & EXPLICIT TABLE PRIVILEGES
 -- ==============================================================================
 
+-- Explicit table permissions for learning groups and messaging objects
+REVOKE ALL ON public.learning_groups FROM anon, PUBLIC;
+GRANT SELECT, INSERT ON public.learning_groups TO authenticated, service_role;
+REVOKE UPDATE, DELETE ON public.learning_groups FROM authenticated;
+
+REVOKE ALL ON public.learning_group_members FROM anon, PUBLIC;
+GRANT SELECT, INSERT, DELETE ON public.learning_group_members TO authenticated, service_role;
+REVOKE UPDATE ON public.learning_group_members FROM authenticated;
+
 -- Explicit table permissions for messaging objects
 REVOKE ALL ON public.conversations FROM anon, PUBLIC;
 GRANT SELECT, INSERT ON public.conversations TO authenticated, service_role;
@@ -2163,15 +2533,179 @@ ALTER TABLE public.messages REPLICA IDENTITY FULL;
 ALTER TABLE public.skill_swap_invitations REPLICA IDENTITY FULL;
 
 DO $$
+DECLARE
+  v_rt_table text;
 BEGIN
   IF EXISTS (SELECT 1 FROM pg_publication WHERE pubname = 'supabase_realtime') THEN
-    ALTER PUBLICATION supabase_realtime ADD TABLE public.messages;
-    ALTER PUBLICATION supabase_realtime ADD TABLE public.conversations;
-    ALTER PUBLICATION supabase_realtime ADD TABLE public.conversation_participants;
-    ALTER PUBLICATION supabase_realtime ADD TABLE public.skill_swap_invitations;
-    ALTER PUBLICATION supabase_realtime ADD TABLE public.community_posts;
-    ALTER PUBLICATION supabase_realtime ADD TABLE public.post_comments;
+    FOR v_rt_table IN (
+      SELECT unnest(ARRAY[
+        'messages',
+        'conversations',
+        'conversation_participants',
+        'skill_swap_invitations',
+        'community_posts',
+        'post_comments'
+      ])
+    ) LOOP
+      IF NOT EXISTS (
+        SELECT 1 FROM pg_publication_tables 
+        WHERE pubname = 'supabase_realtime' 
+          AND schemaname = 'public' 
+          AND tablename = v_rt_table
+      ) THEN
+        EXECUTE 'ALTER PUBLICATION supabase_realtime ADD TABLE public.' || quote_ident(v_rt_table);
+      END IF;
+    END LOOP;
   END IF;
 END $$;
+
+
+-- ==============================================================================
+-- 11. RECORD MIGRATION-CREATED OBJECT OIDS & EXTENDED CONFIGURATION IN BASELINE
+-- Enables exact object identity verification during rollback to prevent dropping
+-- objects replaced, disabled, or modified after this migration.
+-- ==============================================================================
+
+DO $$
+DECLARE
+  v_tbl text;
+  v_oid oid;
+  v_rec RECORD;
+BEGIN
+  -- Record Table OIDs
+  FOR v_tbl IN (
+    SELECT unnest(ARRAY[
+      'colleges', 'profiles', 'wallets', 'credit_transactions',
+      'college_verification_requests', 'skills', 'sessions', 'reviews',
+      'student_connections', 'community_posts', 'post_comments',
+      'post_likes', 'post_bookmarks', 'learning_groups',
+      'learning_group_members', 'conversations', 'conversation_participants',
+      'messages', 'skill_swap_invitations'
+    ])
+  ) LOOP
+    v_oid := ('public.' || quote_ident(v_tbl))::regclass::oid;
+    INSERT INTO public._swapstudy_migration_baseline (category, schema_name, object_name, pre_existed, metadata)
+    VALUES ('table', 'public', v_tbl, false, jsonb_build_object('oid', v_oid));
+  END LOOP;
+
+  -- Record View OID and View Definition Hash
+  v_oid := 'public.users'::regclass::oid;
+  INSERT INTO public._swapstudy_migration_baseline (category, schema_name, object_name, pre_existed, metadata)
+  VALUES ('view', 'public', 'users', false, jsonb_build_object(
+    'oid', v_oid,
+    'viewdef_hash', md5(pg_get_viewdef(v_oid))
+  ));
+
+  -- Record Function OIDs, Canonical Signatures, Body Hashes, and Security/Execution Properties
+  FOR v_rec IN (
+    SELECT 
+      p.oid AS proc_oid,
+      p.proname,
+      oidvectortypes(p.proargtypes) AS args,
+      md5(p.prosrc) AS body_hash,
+      p.prosecdef,
+      p.provolatile,
+      p.proparallel,
+      coalesce(p.proconfig::text, '') AS proconfig_text,
+      p.proisstrict,
+      p.proleakproof
+    FROM pg_proc p
+    JOIN pg_namespace n ON p.pronamespace = n.oid
+    WHERE n.nspname = 'public'
+      AND (
+        (p.proname = 'fn_protect_profile_integrity' AND oidvectortypes(p.proargtypes) = '') OR
+        (p.proname = 'get_current_user_college' AND oidvectortypes(p.proargtypes) = '') OR
+        (p.proname = 'handle_new_auth_user' AND oidvectortypes(p.proargtypes) = '') OR
+        (p.proname = 'handle_user_email_sync_and_verification' AND oidvectortypes(p.proargtypes) = '') OR
+        (p.proname = 'fn_submit_college_verification' AND oidvectortypes(p.proargtypes) = 'text, text, text, text') OR
+        (p.proname = 'fn_approve_college_verification' AND oidvectortypes(p.proargtypes) = 'uuid, text') OR
+        (p.proname = 'has_accepted_connection' AND oidvectortypes(p.proargtypes) = 'uuid, uuid') OR
+        (p.proname = 'fn_before_conversation_insert' AND oidvectortypes(p.proargtypes) = '') OR
+        (p.proname = 'is_conversation_participant' AND oidvectortypes(p.proargtypes) = 'uuid, uuid') OR
+        (p.proname = 'fn_validate_conversation_participant' AND oidvectortypes(p.proargtypes) = '') OR
+        (p.proname = 'fn_protect_participant_update' AND oidvectortypes(p.proargtypes) = '') OR
+        (p.proname = 'fn_before_message_insert' AND oidvectortypes(p.proargtypes) = '') OR
+        (p.proname = 'fn_after_message_insert' AND oidvectortypes(p.proargtypes) = '') OR
+        (p.proname = 'fn_validate_skill_swap_invitation' AND oidvectortypes(p.proargtypes) = '') OR
+        (p.proname = 'fn_protect_invitation_update' AND oidvectortypes(p.proargtypes) = '') OR
+        (p.proname = 'fn_get_or_create_direct_conversation' AND oidvectortypes(p.proargtypes) = 'uuid') OR
+        (p.proname = 'fn_send_skill_swap_invitation' AND oidvectortypes(p.proargtypes) = 'uuid, uuid, text, text, text, text, integer, text') OR
+        (p.proname = 'fn_respond_to_skill_swap_invitation' AND oidvectortypes(p.proargtypes) = 'uuid, boolean') OR
+        (p.proname = 'fn_mark_conversation_read' AND oidvectortypes(p.proargtypes) = 'uuid') OR
+        (p.proname = 'fn_book_session_with_escrow' AND oidvectortypes(p.proargtypes) = 'uuid, date, text, text') OR
+        (p.proname = 'fn_decline_or_cancel_session' AND oidvectortypes(p.proargtypes) = 'uuid, text') OR
+        (p.proname = 'fn_complete_session' AND oidvectortypes(p.proargtypes) = 'uuid, integer, text') OR
+        (p.proname = 'fn_after_learning_group_insert' AND oidvectortypes(p.proargtypes) = '') OR
+        (p.proname = 'fn_protect_post_update' AND oidvectortypes(p.proargtypes) = '') OR
+        (p.proname = 'fn_check_direct_conversation_participants' AND oidvectortypes(p.proargtypes) = '')
+      )
+  ) LOOP
+    INSERT INTO public._swapstudy_migration_baseline (category, schema_name, object_name, sub_object_name, pre_existed, metadata)
+    VALUES ('function', 'public', v_rec.proname, v_rec.args, false, jsonb_build_object(
+      'oid', v_rec.proc_oid,
+      'body_hash', v_rec.body_hash,
+      'prosecdef', v_rec.prosecdef,
+      'provolatile', v_rec.provolatile,
+      'proparallel', v_rec.proparallel,
+      'proconfig_text', v_rec.proconfig_text,
+      'proisstrict', v_rec.proisstrict,
+      'proleakproof', v_rec.proleakproof
+    ));
+  END LOOP;
+
+  -- Record Trigger OIDs and Extended Trigger Configuration (12 Public + 2 Auth)
+  FOR v_rec IN (
+    SELECT 
+      t.oid AS trigger_oid,
+      t.tgname,
+      c.oid AS table_oid,
+      c.relname AS table_name,
+      nc.nspname AS table_schema,
+      p.oid AS proc_oid,
+      p.proname AS proc_name,
+      np.nspname AS proc_schema,
+      t.tgtype,
+      t.tgenabled,
+      t.tgnargs,
+      encode(t.tgargs, 'hex') AS tgargs_hex,
+      t.tgdeferrable,
+      t.tginitdeferred
+    FROM pg_trigger t
+    JOIN pg_class c ON t.tgrelid = c.oid
+    JOIN pg_namespace nc ON c.relnamespace = nc.oid
+    JOIN pg_proc p ON t.tgfoid = p.oid
+    JOIN pg_namespace np ON p.pronamespace = np.oid
+    WHERE (
+      (nc.nspname = 'public' AND t.tgname IN (
+        'tr_protect_profile_integrity', 'tr_before_conversation_insert',
+        'tr_validate_conversation_participant', 'tr_protect_participant_update',
+        'tr_before_message_insert', 'tr_after_message_insert',
+        'tr_validate_skill_swap_invitation', 'tr_protect_invitation_update',
+        'tr_after_learning_group_insert', 'tr_protect_post_update',
+        'tr_check_direct_conv_conversations', 'tr_check_direct_conv_participants'
+      )) OR
+      (nc.nspname = 'auth' AND c.relname = 'users' AND t.tgname IN (
+        'tr_on_auth_user_created', 'tr_on_auth_user_email_sync'
+      ))
+    )
+    AND NOT t.tgisinternal
+  ) LOOP
+    INSERT INTO public._swapstudy_migration_baseline (category, schema_name, object_name, sub_object_name, pre_existed, metadata)
+    VALUES ('trigger', v_rec.table_schema, v_rec.table_name, v_rec.tgname, false, jsonb_build_object(
+      'trigger_oid', v_rec.trigger_oid,
+      'table_oid', v_rec.table_oid,
+      'proc_oid', v_rec.proc_oid,
+      'proc_schema', v_rec.proc_schema,
+      'proc_name', v_rec.proc_name,
+      'tgtype', v_rec.tgtype,
+      'tgenabled', v_rec.tgenabled,
+      'tgnargs', v_rec.tgnargs,
+      'tgargs_hex', v_rec.tgargs_hex,
+      'tgdeferrable', v_rec.tgdeferrable,
+      'tginitdeferred', v_rec.tginitdeferred
+    ));
+  END LOOP;
+END $$;
+
 
 COMMIT;

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useEffect, useState, useMemo } from 'react';
+import React, { createContext, useContext, useEffect, useState, useMemo, useCallback } from 'react';
 import {
   College,
   CommunityPost,
@@ -11,6 +11,22 @@ import {
 } from '@/types';
 import { COLLEGES, INITIAL_POSTS, INITIAL_GROUPS, INITIAL_CONNECTIONS } from '@/lib/mock-community-data';
 import { useAuth } from './AuthContext';
+import {
+  fetchColleges,
+  fetchCommunityPosts,
+  createCommunityPost,
+  togglePostLike,
+  addPostComment,
+  togglePostBookmark,
+  fetchLearningGroups,
+  createLearningGroup,
+  joinLearningGroup,
+  leaveLearningGroup,
+  fetchStudentConnections,
+  sendConnectionRequest as sendConnRequestDb,
+  respondToConnectionRequest as respondConnRequestDb,
+} from '@/lib/supabase-service';
+import { isSupabaseConfigured, supabase } from '@/lib/supabase';
 
 interface CommunityContextType {
   currentCollege: College;
@@ -45,83 +61,126 @@ interface CommunityContextType {
   acceptConnection: (targetUserIdOrConnId: string) => { success: boolean; error?: string };
   declineConnection: (targetUserIdOrConnId: string) => { success: boolean; error?: string };
   getConnectionStatus: (targetUserId: string) => 'none' | 'pending' | 'accepted' | 'declined';
+  switchCollege: (collegeId: string) => void;
+  isLoading: boolean;
 }
 
 const CommunityContext = createContext<CommunityContextType | undefined>(undefined);
 
-const POSTS_KEY = 'swapstudy_community_posts';
-const GROUPS_KEY = 'swapstudy_community_groups';
-const CONNECTIONS_KEY = 'swapstudy_community_connections';
-const SAVED_KEY = 'swapstudy_community_saved_posts';
-
 export function CommunityProvider({ children }: { children: React.ReactNode }) {
   const { user, allUsers } = useAuth();
 
-  const [allPosts, setAllPosts] = useState<CommunityPost[]>(INITIAL_POSTS);
-  const [allGroups, setAllGroups] = useState<LearningGroup[]>(INITIAL_GROUPS);
+  const [colleges, setColleges] = useState<College[]>(COLLEGES);
+  const [selectedCollegeId, setSelectedCollegeId] = useState<string>('adypu');
+  const [posts, setPosts] = useState<CommunityPost[]>(INITIAL_POSTS);
+  const [groups, setGroups] = useState<LearningGroup[]>(INITIAL_GROUPS);
   const [connections, setConnections] = useState<StudentConnection[]>(INITIAL_CONNECTIONS);
-  const [savedPostIds, setSavedPostIds] = useState<string[]>(['post-1']);
-  const [isLoaded, setIsLoaded] = useState(false);
+  const [savedPostIds, setSavedPostIds] = useState<string[]>([]);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
 
-  // Initialize from LocalStorage
+  // Sync selected college with current user's profile
   useEffect(() => {
-    try {
-      const storedPosts = localStorage.getItem(POSTS_KEY);
-      if (storedPosts) setAllPosts(JSON.parse(storedPosts));
-
-      const storedGroups = localStorage.getItem(GROUPS_KEY);
-      if (storedGroups) setAllGroups(JSON.parse(storedGroups));
-
-      const storedConnections = localStorage.getItem(CONNECTIONS_KEY);
-      if (storedConnections) setConnections(JSON.parse(storedConnections));
-
-      const storedSaved = localStorage.getItem(SAVED_KEY);
-      if (storedSaved) setSavedPostIds(JSON.parse(storedSaved));
-    } catch (e) {
-      console.warn('Failed to parse community localStorage state', e);
-    } finally {
-      setIsLoaded(true);
+    if (user?.collegeId) {
+      setSelectedCollegeId(user.collegeId);
     }
+  }, [user?.collegeId]);
+
+  // Load colleges from Supabase
+  useEffect(() => {
+    async function loadColleges() {
+      try {
+        const dbColleges = await fetchColleges();
+        if (dbColleges && dbColleges.length > 0) {
+          setColleges(dbColleges);
+        }
+      } catch (err) {
+        console.warn('Error loading colleges from DB, using defaults:', err);
+      }
+    }
+    loadColleges();
   }, []);
 
-  // Sync state to LocalStorage
-  useEffect(() => {
-    if (!isLoaded) return;
-    try {
-      localStorage.setItem(POSTS_KEY, JSON.stringify(allPosts));
-      localStorage.setItem(GROUPS_KEY, JSON.stringify(allGroups));
-      localStorage.setItem(CONNECTIONS_KEY, JSON.stringify(connections));
-      localStorage.setItem(SAVED_KEY, JSON.stringify(savedPostIds));
-    } catch (e) {
-      console.error('Failed to sync community state to localStorage', e);
-    }
-  }, [allPosts, allGroups, connections, savedPostIds, isLoaded]);
-
-  // Determine current user's college (default to 'uw')
-  const userCollegeId = user?.collegeId || 'uw';
   const currentCollege = useMemo(() => {
-    return COLLEGES.find((c) => c.id === userCollegeId) || COLLEGES[0];
-  }, [userCollegeId]);
+    return colleges.find((c) => c.id === selectedCollegeId) || colleges[0] || COLLEGES[0];
+  }, [colleges, selectedCollegeId]);
 
-  // Filter posts to current college only
-  const posts = useMemo(() => {
-    return allPosts.filter((p) => p.collegeId === currentCollege.id);
-  }, [allPosts, currentCollege.id]);
+  // Fetch community data when current college or user changes
+  const refreshCommunityData = useCallback(async () => {
+    if (!currentCollege?.id) return;
+    setIsLoading(true);
 
-  // Filter groups to current college only
-  const groups = useMemo(() => {
-    return allGroups.filter((g) => g.collegeId === currentCollege.id);
-  }, [allGroups, currentCollege.id]);
+    if (!isSupabaseConfigured) {
+      setPosts(INITIAL_POSTS.filter((p) => p.collegeId === currentCollege.id));
+      setGroups(INITIAL_GROUPS.filter((g) => g.collegeId === currentCollege.id));
+      setConnections(INITIAL_CONNECTIONS);
+      setIsLoading(false);
+      return;
+    }
+
+    try {
+      // 1. Fetch posts directly from Supabase
+      const dbPosts = await fetchCommunityPosts(currentCollege.id);
+      setPosts(dbPosts || []);
+      if (user && dbPosts) {
+        const userSaved = dbPosts
+          .filter((p) => p.savedBy?.includes(user.id))
+          .map((p) => p.id);
+        setSavedPostIds(userSaved);
+      }
+
+      // 2. Fetch learning groups directly from Supabase
+      const dbGroups = await fetchLearningGroups(currentCollege.id);
+      setGroups(dbGroups || []);
+
+      // 3. Fetch connections if user is logged in
+      if (user?.id) {
+        const dbConnections = await fetchStudentConnections(user.id);
+        setConnections(dbConnections || []);
+      } else {
+        setConnections([]);
+      }
+    } catch (err) {
+      console.warn('Failed to load community data from Supabase:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [currentCollege.id, user]);
+
+  useEffect(() => {
+    refreshCommunityData();
+  }, [refreshCommunityData]);
+
+  // Realtime subscription for posts and comments
+  useEffect(() => {
+    if (!supabase || !currentCollege?.id) return;
+
+    const channel = supabase
+      .channel(`community-feed-${currentCollege.id}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'community_posts', filter: `college_id=eq.${currentCollege.id}` },
+        () => {
+          refreshCommunityData();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      if (supabase && channel) {
+        supabase.removeChannel(channel);
+      }
+    };
+  }, [currentCollege?.id, refreshCommunityData]);
 
   // Discover students from the SAME college only (excluding self)
   const sameCollegeStudents = useMemo(() => {
     if (!user) return [];
     return allUsers.filter(
-      (u) => (u.collegeId || 'uw') === currentCollege.id && u.id !== user.id
+      (u) => (u.collegeId || 'adypu') === currentCollege.id && u.id !== user.id
     );
   }, [allUsers, currentCollege.id, user]);
 
-  // Create post
+  // Create post (Optimistic with Supabase background persistence)
   const createPost = (data: {
     title: string;
     content: string;
@@ -130,7 +189,7 @@ export function CommunityProvider({ children }: { children: React.ReactNode }) {
     relatedSkillId?: string;
     relatedSkillTitle?: string;
     resourceUrl?: string;
-  }) => {
+  }): { success: boolean; error?: string; post?: CommunityPost } => {
     if (!user) return { success: false, error: 'Must be signed in to post.' };
     if (!data.title.trim()) return { success: false, error: 'Post title is required.' };
     if (!data.content.trim()) return { success: false, error: 'Post content cannot be empty.' };
@@ -157,17 +216,38 @@ export function CommunityProvider({ children }: { children: React.ReactNode }) {
       createdAt: 'Just now',
     };
 
-    setAllPosts((prev) => [newPost, ...prev]);
+    setPosts((prev) => [newPost, ...prev]);
+
+    // Persist to Supabase
+    createCommunityPost({
+      collegeId: currentCollege.id,
+      authorId: user.id,
+      title: data.title.trim(),
+      content: data.content.trim(),
+      category: data.category,
+      tags: data.tags || [],
+      resourceUrl: data.resourceUrl?.trim(),
+    }).then((res) => {
+      if (res.success && res.post) {
+        setPosts((prev) => prev.map((p) => (p.id === newPost.id ? res.post! : p)));
+      }
+    }).catch((err) => {
+      console.warn('Background Supabase post create warning:', err);
+    });
+
     return { success: true, post: newPost };
   };
 
   // Like / Unlike post
   const likePost = (postId: string) => {
     if (!user) return;
-    setAllPosts((prev) =>
+
+    const target = posts.find((p) => p.id === postId);
+    const alreadyLiked = target ? target.likedBy.includes(user.id) : false;
+
+    setPosts((prev) =>
       prev.map((post) => {
         if (post.id !== postId) return post;
-        const alreadyLiked = post.likedBy.includes(user.id);
         const updatedLikedBy = alreadyLiked
           ? post.likedBy.filter((id) => id !== user.id)
           : [...post.likedBy, user.id];
@@ -178,10 +258,14 @@ export function CommunityProvider({ children }: { children: React.ReactNode }) {
         };
       })
     );
+
+    togglePostLike(postId, user.id, alreadyLiked).catch((err) => {
+      console.warn('Failed to sync like with Supabase:', err);
+    });
   };
 
   // Comment on post
-  const commentPost = (postId: string, content: string) => {
+  const commentPost = (postId: string, content: string): { success: boolean; error?: string } => {
     if (!user) return { success: false, error: 'Must be signed in to comment.' };
     if (!content.trim()) return { success: false, error: 'Comment cannot be empty.' };
 
@@ -198,7 +282,7 @@ export function CommunityProvider({ children }: { children: React.ReactNode }) {
       likesCount: 0,
     };
 
-    setAllPosts((prev) =>
+    setPosts((prev) =>
       prev.map((post) => {
         if (post.id !== postId) return post;
         return {
@@ -208,22 +292,26 @@ export function CommunityProvider({ children }: { children: React.ReactNode }) {
       })
     );
 
+    addPostComment(postId, user.id, content.trim()).catch((err) => {
+      console.warn('Failed to sync comment with Supabase:', err);
+    });
+
     return { success: true };
   };
 
   // Save / Unsave post
   const savePost = (postId: string) => {
     if (!user) return;
-    setSavedPostIds((prev) => {
-      const alreadySaved = prev.includes(postId);
-      const nextSaved = alreadySaved ? prev.filter((id) => id !== postId) : [...prev, postId];
-      return nextSaved;
-    });
 
-    setAllPosts((prev) =>
+    const alreadySaved = savedPostIds.includes(postId);
+    const nextSaved = alreadySaved
+      ? savedPostIds.filter((id) => id !== postId)
+      : [...savedPostIds, postId];
+    setSavedPostIds(nextSaved);
+
+    setPosts((prev) =>
       prev.map((p) => {
         if (p.id !== postId) return p;
-        const alreadySaved = p.savedBy?.includes(user.id) ?? false;
         const nextSavedBy = alreadySaved
           ? (p.savedBy || []).filter((id) => id !== user.id)
           : [...(p.savedBy || []), user.id];
@@ -233,6 +321,10 @@ export function CommunityProvider({ children }: { children: React.ReactNode }) {
         };
       })
     );
+
+    togglePostBookmark(postId, user.id, alreadySaved).catch((err) => {
+      console.warn('Failed to sync bookmark with Supabase:', err);
+    });
   };
 
   // Create learning group
@@ -242,12 +334,12 @@ export function CommunityProvider({ children }: { children: React.ReactNode }) {
     topic: string;
     skillLevel: 'Beginner' | 'Intermediate' | 'Advanced' | 'All Levels';
     meetingCadence?: string;
-  }) => {
+  }): { success: boolean; error?: string; group?: LearningGroup } => {
     if (!user) return { success: false, error: 'Must be signed in to create a learning group.' };
     if (!data.name.trim()) return { success: false, error: 'Group name is required.' };
     if (!data.description.trim()) return { success: false, error: 'Group description is required.' };
 
-    const newGroup: LearningGroup = {
+    const optimisticGroup: LearningGroup = {
       id: `group-${Date.now()}`,
       collegeId: currentCollege.id,
       name: data.name.trim(),
@@ -263,14 +355,31 @@ export function CommunityProvider({ children }: { children: React.ReactNode }) {
       createdAt: new Date().toISOString().split('T')[0],
     };
 
-    setAllGroups((prev) => [newGroup, ...prev]);
-    return { success: true, group: newGroup };
+    setGroups((prev) => [optimisticGroup, ...prev]);
+
+    createLearningGroup({
+      collegeId: currentCollege.id,
+      creatorId: user.id,
+      name: data.name.trim(),
+      description: data.description.trim(),
+      topic: data.topic.trim(),
+      skillLevel: data.skillLevel,
+      meetingCadence: data.meetingCadence?.trim() || 'Flexible Schedule',
+    }).then((res) => {
+      if (res.success && res.group) {
+        setGroups((prev) => prev.map((g) => (g.id === optimisticGroup.id ? res.group! : g)));
+      }
+    }).catch((err) => {
+      console.warn('Failed to create learning group in DB:', err);
+    });
+
+    return { success: true, group: optimisticGroup };
   };
 
   // Join group
   const joinGroup = (groupId: string) => {
     if (!user) return;
-    setAllGroups((prev) =>
+    setGroups((prev) =>
       prev.map((group) => {
         if (group.id !== groupId) return group;
         if (group.memberIds.includes(user.id)) return group;
@@ -280,12 +389,16 @@ export function CommunityProvider({ children }: { children: React.ReactNode }) {
         };
       })
     );
+
+    joinLearningGroup(groupId, user.id).catch((err) => {
+      console.warn('Failed to join group in DB:', err);
+    });
   };
 
   // Leave group
   const leaveGroup = (groupId: string) => {
     if (!user) return;
-    setAllGroups((prev) =>
+    setGroups((prev) =>
       prev.map((group) => {
         if (group.id !== groupId) return group;
         return {
@@ -294,10 +407,14 @@ export function CommunityProvider({ children }: { children: React.ReactNode }) {
         };
       })
     );
+
+    leaveLearningGroup(groupId, user.id).catch((err) => {
+      console.warn('Failed to leave group in DB:', err);
+    });
   };
 
   // Send connection request
-  const sendConnectionRequest = (targetUserId: string, note?: string) => {
+  const sendConnectionRequest = (targetUserId: string, note?: string): { success: boolean; error?: string } => {
     if (!user) return { success: false, error: 'Must be signed in to connect.' };
     if (user.id === targetUserId) return { success: false, error: 'Cannot connect with yourself.' };
 
@@ -311,7 +428,7 @@ export function CommunityProvider({ children }: { children: React.ReactNode }) {
       return { success: false, error: 'A connection request already exists.' };
     }
 
-    const newConnection: StudentConnection = {
+    const optimisticConn: StudentConnection = {
       id: `conn-${Date.now()}`,
       collegeId: currentCollege.id,
       requesterId: user.id,
@@ -321,13 +438,25 @@ export function CommunityProvider({ children }: { children: React.ReactNode }) {
       note,
     };
 
-    setConnections((prev) => [newConnection, ...prev]);
+    setConnections((prev) => [optimisticConn, ...prev]);
+
+    sendConnRequestDb({
+      collegeId: currentCollege.id,
+      requesterId: user.id,
+      receiverId: targetUserId,
+      note,
+    }).catch((err) => {
+      console.warn('Failed to sync connection request with DB:', err);
+    });
+
     return { success: true };
   };
 
   // Accept connection
-  const acceptConnection = (targetUserIdOrConnId: string) => {
+  const acceptConnection = (targetUserIdOrConnId: string): { success: boolean; error?: string } => {
     if (!user) return { success: false, error: 'Must be signed in.' };
+
+    let foundConnId = targetUserIdOrConnId;
     setConnections((prev) =>
       prev.map((c) => {
         if (
@@ -335,17 +464,25 @@ export function CommunityProvider({ children }: { children: React.ReactNode }) {
           (c.requesterId === targetUserIdOrConnId && c.receiverId === user.id) ||
           (c.receiverId === targetUserIdOrConnId && c.requesterId === user.id)
         ) {
+          foundConnId = c.id;
           return { ...c, status: 'accepted' };
         }
         return c;
       })
     );
+
+    respondConnRequestDb(foundConnId, 'accepted').catch((err) => {
+      console.warn('Failed to sync connection accept with DB:', err);
+    });
+
     return { success: true };
   };
 
   // Decline connection
-  const declineConnection = (targetUserIdOrConnId: string) => {
+  const declineConnection = (targetUserIdOrConnId: string): { success: boolean; error?: string } => {
     if (!user) return { success: false, error: 'Must be signed in.' };
+
+    let foundConnId = targetUserIdOrConnId;
     setConnections((prev) =>
       prev.map((c) => {
         if (
@@ -353,11 +490,17 @@ export function CommunityProvider({ children }: { children: React.ReactNode }) {
           (c.requesterId === targetUserIdOrConnId && c.receiverId === user.id) ||
           (c.receiverId === targetUserIdOrConnId && c.requesterId === user.id)
         ) {
+          foundConnId = c.id;
           return { ...c, status: 'declined' };
         }
         return c;
       })
     );
+
+    respondConnRequestDb(foundConnId, 'declined').catch((err) => {
+      console.warn('Failed to sync connection decline with DB:', err);
+    });
+
     return { success: true };
   };
 
@@ -373,11 +516,15 @@ export function CommunityProvider({ children }: { children: React.ReactNode }) {
     return found.status;
   };
 
+  const switchCollege = (collegeId: string) => {
+    setSelectedCollegeId(collegeId);
+  };
+
   return (
     <CommunityContext.Provider
       value={{
         currentCollege,
-        allColleges: COLLEGES,
+        allColleges: colleges,
         posts,
         groups,
         connections,
@@ -394,6 +541,8 @@ export function CommunityProvider({ children }: { children: React.ReactNode }) {
         acceptConnection,
         declineConnection,
         getConnectionStatus,
+        switchCollege,
+        isLoading,
       }}
     >
       {children}

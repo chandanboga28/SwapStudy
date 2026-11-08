@@ -29,7 +29,7 @@ export default function BookingModal({ skill, onClose, onSuccess }: BookingModal
   const hasEnoughCredits = (user?.credits ?? 0) >= cost;
   const isOwnSkill = user?.id === skill.teacherId;
 
-  const handleBooking = (e: React.FormEvent) => {
+  const handleBooking = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
 
@@ -48,14 +48,14 @@ export default function BookingModal({ skill, onClose, onSuccess }: BookingModal
       return;
     }
 
-    const res = bookSession({
+    const res = await bookSession({
       skillId: skill.id,
       date,
       time,
       notes,
     });
 
-    if (res.success && res.session) {
+    if (res.success) {
       setIsSuccess(true);
       if (onSuccess) onSuccess();
     } else {

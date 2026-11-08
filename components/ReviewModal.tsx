@@ -19,10 +19,10 @@ export default function ReviewModal({ session, onClose, onCompleted }: ReviewMod
 
   if (!session) return null;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
-    completeSession(
+    await completeSession(
       session.id,
       rating,
       comment || 'Great session! Clear explanations and practical tips.'

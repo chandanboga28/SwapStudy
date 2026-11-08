@@ -5,6 +5,16 @@ import { Conversation, Message, MessageType, SkillInvitationData, ConnectionStat
 import { INITIAL_CONVERSATIONS, INITIAL_MESSAGES } from '@/lib/mock-messaging-data';
 import { useAuth } from './AuthContext';
 import { useCommunity } from './CommunityContext';
+import {
+  fetchUserConversations,
+  fetchConversationMessages,
+  getOrCreateDirectConversation,
+  sendDirectMessage,
+  markConversationRead,
+  sendSkillSwapInvitationRpc,
+  respondToSkillSwapInvitationRpc,
+} from '@/lib/supabase-service';
+import { isSupabaseConfigured, supabase } from '@/lib/supabase';
 
 interface SendInvitationPayload {
   offeredSkillId: string;
@@ -59,56 +69,150 @@ interface MessagingContextType {
 
 const MessagingContext = createContext<MessagingContextType | undefined>(undefined);
 
-const CONVERSATIONS_STORAGE_KEY = 'swapstudy_conversations_data';
-const MESSAGES_STORAGE_KEY = 'swapstudy_messages_data';
-
 export function MessagingProvider({ children }: { children: React.ReactNode }) {
   const { user, allUsers } = useAuth();
   const { getConnectionStatus } = useCommunity();
 
-  const [allConversations, setAllConversations] = useState<Conversation[]>(INITIAL_CONVERSATIONS);
-  const [allMessages, setAllMessages] = useState<Message[]>(INITIAL_MESSAGES);
+  const [allConversations, setAllConversations] = useState<Conversation[]>(
+    isSupabaseConfigured ? [] : INITIAL_CONVERSATIONS
+  );
+  const [messagesByConv, setMessagesByConv] = useState<Record<string, Message[]>>(
+    isSupabaseConfigured
+      ? {}
+      : {
+          'conv-1': INITIAL_MESSAGES.filter((m) => m.conversationId === 'conv-1'),
+          'conv-2': INITIAL_MESSAGES.filter((m) => m.conversationId === 'conv-2'),
+        }
+  );
   const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
-  const [isLoaded, setIsLoaded] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: 'info' | 'success' | 'warning' } | null>(null);
 
-  // Initialize from LocalStorage
-  useEffect(() => {
-    try {
-      const storedConvs = localStorage.getItem(CONVERSATIONS_STORAGE_KEY);
-      if (storedConvs) {
-        setAllConversations(JSON.parse(storedConvs));
+  // Load conversations from Supabase
+  const loadConversations = useCallback(async () => {
+    if (!user) {
+      if (!isSupabaseConfigured) {
+        setAllConversations(INITIAL_CONVERSATIONS);
       } else {
-        localStorage.setItem(CONVERSATIONS_STORAGE_KEY, JSON.stringify(INITIAL_CONVERSATIONS));
+        setAllConversations([]);
+        setActiveConversationId(null);
       }
+      return;
+    }
 
-      const storedMsgs = localStorage.getItem(MESSAGES_STORAGE_KEY);
-      if (storedMsgs) {
-        setAllMessages(JSON.parse(storedMsgs));
+    if (!isSupabaseConfigured) {
+      const fallback = INITIAL_CONVERSATIONS.filter((c) => c.participantIds.includes(user.id));
+      setAllConversations(fallback.length > 0 ? fallback : INITIAL_CONVERSATIONS);
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const convs = await fetchUserConversations(user.id);
+      setAllConversations(convs || []);
+      if (convs && convs.length > 0) {
+        if (!activeConversationId || !convs.some((c) => c.id === activeConversationId)) {
+          setActiveConversationId(convs[0].id);
+        }
       } else {
-        localStorage.setItem(MESSAGES_STORAGE_KEY, JSON.stringify(INITIAL_MESSAGES));
+        setActiveConversationId(null);
       }
-    } catch (e) {
-      console.warn('Failed to parse messaging storage', e);
+    } catch (err) {
+      console.warn('Error loading conversations from Supabase:', err);
     } finally {
-      setIsLoaded(true);
+      setIsLoading(false);
+    }
+  }, [user, activeConversationId]);
+
+  useEffect(() => {
+    loadConversations();
+  }, [loadConversations]);
+
+  // Load messages when active conversation changes
+  const loadMessages = useCallback(async (convId: string) => {
+    if (!convId) return;
+    try {
+      const msgs = await fetchConversationMessages(convId);
+      if (msgs && msgs.length > 0) {
+        setMessagesByConv((prev) => ({
+          ...prev,
+          [convId]: msgs,
+        }));
+      }
+    } catch (err) {
+      console.warn(`Error loading messages for ${convId}:`, err);
     }
   }, []);
 
-  // Sync to LocalStorage
   useEffect(() => {
-    if (!isLoaded) return;
-    try {
-      localStorage.setItem(CONVERSATIONS_STORAGE_KEY, JSON.stringify(allConversations));
-      localStorage.setItem(MESSAGES_STORAGE_KEY, JSON.stringify(allMessages));
-    } catch (e) {
-      console.error('Failed to sync messaging state to localStorage', e);
+    if (activeConversationId) {
+      loadMessages(activeConversationId);
     }
-  }, [allConversations, allMessages, isLoaded]);
+  }, [activeConversationId, loadMessages]);
+
+  // Supabase Realtime for direct messages
+  useEffect(() => {
+    if (!supabase || !activeConversationId) return;
+
+    const channel = supabase
+      .channel(`direct-messages-${activeConversationId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'messages',
+          filter: `conversation_id=eq.${activeConversationId}`,
+        },
+        (payload) => {
+          const row = payload.new as {
+            id: string;
+            conversation_id: string;
+            sender_id: string;
+            type: string;
+            content: string;
+            resource_url?: string;
+            resource_title?: string;
+            invitation_data?: SkillInvitationData;
+            created_at: string;
+          };
+          const newMsg: Message = {
+            id: row.id,
+            conversationId: row.conversation_id,
+            senderId: row.sender_id,
+            senderName: row.sender_id === user?.id ? (user?.name || 'You') : 'Student',
+            senderAvatar: row.sender_id === user?.id ? user?.avatar : 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=256&q=80',
+            type: (row.type as MessageType) || 'text',
+            content: row.content,
+            resourceUrl: row.resource_url,
+            resourceTitle: row.resource_title,
+            invitation: row.invitation_data,
+            createdAt: row.created_at,
+            readBy: [row.sender_id],
+          };
+
+          setMessagesByConv((prev) => {
+            const current = prev[row.conversation_id] || [];
+            if (current.some((m) => m.id === newMsg.id)) return prev;
+            return {
+              ...prev,
+              [row.conversation_id]: [...current, newMsg],
+            };
+          });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      if (supabase && channel) {
+        supabase.removeChannel(channel);
+      }
+    };
+  }, [activeConversationId, user]);
 
   // Filter conversations for current user
   const userConversations = useMemo(() => {
-    if (!user) return [];
+    if (!user) return allConversations;
     return allConversations
       .filter((c) => c.participantIds.includes(user.id))
       .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
@@ -123,10 +227,8 @@ export function MessagingProvider({ children }: { children: React.ReactNode }) {
   // Set default active conversation if none selected
   useEffect(() => {
     if (!user || userConversations.length === 0) {
-      setActiveConversationId(null);
       return;
     }
-    // If current active conversation is not one of user's conversations, pick the first
     if (!activeConversationId || !userConversations.some((c) => c.id === activeConversationId)) {
       setActiveConversationId(userConversations[0].id);
     }
@@ -148,15 +250,16 @@ export function MessagingProvider({ children }: { children: React.ReactNode }) {
   // Messages for active conversation
   const currentMessages = useMemo(() => {
     if (!activeConversationId) return [];
-    return allMessages
-      .filter((m) => m.conversationId === activeConversationId)
-      .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
-  }, [allMessages, activeConversationId]);
+    const list = messagesByConv[activeConversationId] || [];
+    return [...list].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+  }, [messagesByConv, activeConversationId]);
 
   // Mark conversation as read
   const markAsRead = useCallback(
     (convId: string) => {
       if (!user) return;
+
+      // Optimistic update
       setAllConversations((prev) =>
         prev.map((c) => {
           if (c.id === convId && c.unreadCounts?.[user.id] > 0) {
@@ -172,17 +275,9 @@ export function MessagingProvider({ children }: { children: React.ReactNode }) {
         })
       );
 
-      setAllMessages((prev) =>
-        prev.map((m) => {
-          if (m.conversationId === convId && !m.readBy.includes(user.id)) {
-            return {
-              ...m,
-              readBy: [...m.readBy, user.id],
-            };
-          }
-          return m;
-        })
-      );
+      markConversationRead(convId).catch((err) => {
+        console.warn('Failed to mark conversation read in DB:', err);
+      });
     },
     [user]
   );
@@ -236,8 +331,8 @@ export function MessagingProvider({ children }: { children: React.ReactNode }) {
       }
 
       // Check 1: Same College Restriction
-      const userCollege = user.collegeId || 'uw';
-      const targetCollege = targetUser.collegeId || 'uw';
+      const userCollege = user.collegeId || 'adypu';
+      const targetCollege = targetUser.collegeId || 'adypu';
       if (userCollege !== targetCollege) {
         return {
           allowed: false,
@@ -277,7 +372,7 @@ export function MessagingProvider({ children }: { children: React.ReactNode }) {
     [user, allUsers, getConnectionStatus]
   );
 
-  // Start new conversation or return existing
+  // Start new conversation or return existing using atomic RPC
   const startConversationWith = useCallback(
     (targetUserId: string): { success: boolean; conversationId?: string; error?: string } => {
       if (!user) return { success: false, error: 'Must be logged in.' };
@@ -290,7 +385,7 @@ export function MessagingProvider({ children }: { children: React.ReactNode }) {
       const targetUser = allUsers.find((u) => u.id === targetUserId);
       if (!targetUser) return { success: false, error: 'Student not found.' };
 
-      // Prevent duplicate conversations between the same pair of students
+      // Local check first
       const existing = allConversations.find(
         (c) =>
           !c.isGroup &&
@@ -304,12 +399,11 @@ export function MessagingProvider({ children }: { children: React.ReactNode }) {
         return { success: true, conversationId: existing.id };
       }
 
-      // Create new conversation
       const now = new Date().toISOString();
       const newConvId = `conv-${Date.now()}`;
       const newConv: Conversation = {
         id: newConvId,
-        collegeId: user.collegeId || 'uw',
+        collegeId: user.collegeId || 'adypu',
         participantIds: [user.id, targetUserId],
         createdAt: now,
         updatedAt: now,
@@ -326,20 +420,7 @@ export function MessagingProvider({ children }: { children: React.ReactNode }) {
         },
       };
 
-      const sysMessage: Message = {
-        id: `msg-${Date.now()}-sys`,
-        conversationId: newConvId,
-        senderId: 'system',
-        senderName: 'SwapStudy Direct',
-        senderAvatar: '',
-        type: 'system',
-        content: `Direct conversation started between ${user.name} and ${targetUser.name}. Both students are verified members of ${user.university}.`,
-        createdAt: now,
-        readBy: [user.id, targetUserId],
-      };
-
       setAllConversations((prev) => [newConv, ...prev]);
-      setAllMessages((prev) => [...prev, sysMessage]);
       setActiveConversationId(newConvId);
 
       setToast({
@@ -347,12 +428,26 @@ export function MessagingProvider({ children }: { children: React.ReactNode }) {
         type: 'success',
       });
 
+      // Call database RPC fn_get_or_create_direct_conversation
+      getOrCreateDirectConversation(targetUserId)
+        .then((res) => {
+          if (res.success && res.conversationId) {
+            setAllConversations((prev) =>
+              prev.map((c) => (c.id === newConvId ? { ...c, id: res.conversationId! } : c))
+            );
+            setActiveConversationId(res.conversationId);
+          }
+        })
+        .catch((err) => {
+          console.warn('DB conversation RPC background notice:', err);
+        });
+
       return { success: true, conversationId: newConvId };
     },
     [user, allUsers, allConversations, canMessageStudent, markAsRead]
   );
 
-  // Send message with optimistic update and validation
+  // Send message
   const sendMessage = useCallback(
     (
       conversationId: string,
@@ -373,22 +468,13 @@ export function MessagingProvider({ children }: { children: React.ReactNode }) {
         return { success: false, error: 'Access denied: You are not a participant in this conversation.' };
       }
 
-      // Re-verify eligibility with partner
-      const partnerId = conv.participantIds.find((id) => id !== user.id);
-      if (partnerId && !conv.isGroup) {
-        const check = canMessageStudent(partnerId);
-        if (!check.allowed) {
-          return { success: false, error: `Cannot send message: ${check.reason}` };
-        }
-      }
-
       const trimmedContent = content.trim();
       if (!trimmedContent && type !== 'skill_invitation') {
         return { success: false, error: 'Message cannot be empty.' };
       }
 
       const now = new Date().toISOString();
-      const newMsgId = `msg-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+      const tempId = `msg-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
 
       let lastMessagePreview = trimmedContent;
       if (type === 'skill_invitation') {
@@ -397,8 +483,8 @@ export function MessagingProvider({ children }: { children: React.ReactNode }) {
         lastMessagePreview = options?.resourceTitle ? `Shared resource: ${options.resourceTitle}` : trimmedContent;
       }
 
-      const newMessage: Message = {
-        id: newMsgId,
+      const optimisticMsg: Message = {
+        id: tempId,
         conversationId,
         senderId: user.id,
         senderName: user.name,
@@ -412,8 +498,11 @@ export function MessagingProvider({ children }: { children: React.ReactNode }) {
         readBy: [user.id],
       };
 
-      // Optimistic update
-      setAllMessages((prev) => [...prev, newMessage]);
+      // Optimistic state updates
+      setMessagesByConv((prev) => ({
+        ...prev,
+        [conversationId]: [...(prev[conversationId] || []), optimisticMsg],
+      }));
 
       setAllConversations((prev) =>
         prev.map((c) => {
@@ -440,9 +529,21 @@ export function MessagingProvider({ children }: { children: React.ReactNode }) {
         })
       );
 
+      // Persist to Supabase
+      sendDirectMessage({
+        conversationId,
+        senderId: user.id,
+        content: trimmedContent,
+        type,
+        resourceUrl: options?.resourceUrl,
+        resourceTitle: options?.resourceTitle,
+      }).catch((err) => {
+        console.warn('Failed to persist message in Supabase:', err);
+      });
+
       return { success: true };
     },
-    [user, allConversations, canMessageStudent]
+    [user, allConversations]
   );
 
   // Send contextual Skill Swap invitation
@@ -452,6 +553,9 @@ export function MessagingProvider({ children }: { children: React.ReactNode }) {
       payload: SendInvitationPayload
     ): { success: boolean; error?: string } => {
       if (!user) return { success: false, error: 'Must be logged in.' };
+
+      const conv = allConversations.find((c) => c.id === conversationId);
+      const partnerId = conv?.participantIds.find((id) => id !== user.id) || '';
 
       const invitationData: SkillInvitationData = {
         invitationId: `inv-${Date.now()}`,
@@ -470,10 +574,23 @@ export function MessagingProvider({ children }: { children: React.ReactNode }) {
           ? `Skill Swap Invitation: ${payload.offeredSkillTitle} ⇄ ${payload.requestedSkillTitle}\n"${payload.note}"`
           : `Skill Swap Invitation: ${payload.offeredSkillTitle} ⇄ ${payload.requestedSkillTitle}`,
         'skill_invitation',
-        {
-          invitation: invitationData,
-        }
+        { invitation: invitationData }
       );
+
+      if (partnerId) {
+        sendSkillSwapInvitationRpc({
+          conversationId,
+          recipientId: partnerId,
+          offeredSkillId: payload.offeredSkillId,
+          offeredSkillTitle: payload.offeredSkillTitle,
+          requestedSkillId: payload.requestedSkillId,
+          requestedSkillTitle: payload.requestedSkillTitle,
+          credits: payload.credits,
+          note: payload.note,
+        }).catch((err) => {
+          console.warn('RPC invitation background error:', err);
+        });
+      }
 
       if (res.success) {
         setToast({
@@ -484,7 +601,7 @@ export function MessagingProvider({ children }: { children: React.ReactNode }) {
 
       return res;
     },
-    [user, sendMessage]
+    [user, allConversations, sendMessage]
   );
 
   // Respond to contextual Skill Swap invitation
@@ -492,67 +609,40 @@ export function MessagingProvider({ children }: { children: React.ReactNode }) {
     (messageId: string, accept: boolean): { success: boolean; error?: string } => {
       if (!user) return { success: false, error: 'Must be logged in.' };
 
-      const targetMsg = allMessages.find((m) => m.id === messageId);
-      if (!targetMsg || !targetMsg.invitation) {
-        return { success: false, error: 'Skill Swap invitation not found.' };
-      }
-
       const newStatus = accept ? 'accepted' : 'declined';
       const now = new Date().toISOString();
 
-      setAllMessages((prev) =>
-        prev.map((m) => {
-          if (m.id === messageId && m.invitation) {
-            return {
-              ...m,
-              invitation: {
-                ...m.invitation,
-                status: newStatus,
-                respondedAt: now,
-              },
-            };
-          }
-          return m;
-        })
-      );
+      setMessagesByConv((prev) => {
+        const next = { ...prev };
+        Object.keys(next).forEach((convId) => {
+          next[convId] = next[convId].map((m) => {
+            if (m.id === messageId && m.invitation) {
+              return {
+                ...m,
+                invitation: {
+                  ...m.invitation,
+                  status: newStatus,
+                  respondedAt: now,
+                },
+              };
+            }
+            return m;
+          });
+        });
+        return next;
+      });
 
-      // Create a system message acknowledging the response
-      const systemContent = accept
-        ? `${user.name} accepted the Skill Swap invitation (${targetMsg.invitation.offeredSkillTitle} ⇄ ${targetMsg.invitation.requestedSkillTitle}). You can now coordinate session times and proceed to booking!`
-        : `${user.name} declined the Skill Swap invitation.`;
+      let targetInvitationId: string = messageId;
+      Object.values(messagesByConv).forEach((msgs) => {
+        const found = msgs.find((m) => m.id === messageId);
+        if (found?.invitation?.invitationId) {
+          targetInvitationId = found.invitation.invitationId;
+        }
+      });
 
-      const sysMsg: Message = {
-        id: `msg-${Date.now()}-resp`,
-        conversationId: targetMsg.conversationId,
-        senderId: 'system',
-        senderName: 'SwapStudy Direct',
-        senderAvatar: '',
-        type: 'system',
-        content: systemContent,
-        createdAt: now,
-        readBy: [user.id],
-      };
-
-      setAllMessages((prev) => [...prev, sysMsg]);
-
-      // Update conversation lastMessage
-      setAllConversations((prev) =>
-        prev.map((c) => {
-          if (c.id === targetMsg.conversationId) {
-            return {
-              ...c,
-              updatedAt: now,
-              lastMessage: {
-                text: systemContent,
-                senderId: 'system',
-                createdAt: now,
-                type: 'system',
-              },
-            };
-          }
-          return c;
-        })
-      );
+      respondToSkillSwapInvitationRpc(targetInvitationId, accept).catch((err) => {
+        console.warn('RPC respond invitation error:', err);
+      });
 
       setToast({
         message: accept ? 'Invitation accepted! Booking is now available.' : 'Invitation declined.',
@@ -561,7 +651,7 @@ export function MessagingProvider({ children }: { children: React.ReactNode }) {
 
       return { success: true };
     },
-    [user, allMessages]
+    [user, messagesByConv]
   );
 
   return (
@@ -573,7 +663,7 @@ export function MessagingProvider({ children }: { children: React.ReactNode }) {
         activeChatPartner,
         messages: currentMessages,
         totalUnreadCount,
-        isLoading: !isLoaded,
+        isLoading,
         toast,
         clearToast,
         selectConversation,

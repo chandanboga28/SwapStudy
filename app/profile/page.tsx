@@ -66,9 +66,9 @@ export default function ProfilePage() {
     setSkillsToLearn(skillsToLearn.filter((s) => s !== skill));
   };
 
-  const handleSave = (e: React.FormEvent) => {
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    updateUser({
+    await updateUser({
       name,
       university,
       major,

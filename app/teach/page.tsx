@@ -74,7 +74,7 @@ export default function TeachSkillPage() {
     setTopics(topics.filter((_, i) => i !== indexToRemove));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
 
@@ -83,7 +83,7 @@ export default function TeachSkillPage() {
       return;
     }
 
-    const res = addSkill({
+    const res = await addSkill({
       title,
       category,
       level,

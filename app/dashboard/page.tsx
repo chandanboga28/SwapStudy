@@ -31,7 +31,7 @@ import {
 import { useMessaging } from '@/context/MessagingContext';
 
 export default function DashboardPage() {
-  const { user, allUsers, switchDemoUser } = useAuth();
+  const { user, allUsers } = useAuth();
   const { sessions, skills, transactions, acceptSession, declineSession } = useApp();
   const { totalUnreadCount } = useMessaging();
 
@@ -87,16 +87,16 @@ export default function DashboardPage() {
     .filter((t) => t.userId === user.id)
     .slice(0, 4);
 
-  const handleAccept = (sessionId: string) => {
-    const res = acceptSession(sessionId);
+  const handleAccept = async (sessionId: string) => {
+    const res = await acceptSession(sessionId);
     if (res.success) {
       setNotification('Session confirmed! Meeting link has been generated.');
       setTimeout(() => setNotification(null), 3500);
     }
   };
 
-  const handleDecline = (sessionId: string) => {
-    const res = declineSession(sessionId, 'Schedule conflict');
+  const handleDecline = async (sessionId: string) => {
+    const res = await declineSession(sessionId, 'Schedule conflict');
     if (res.success) {
       setNotification('Session declined. Credits refunded to student.');
       setTimeout(() => setNotification(null), 3500);
@@ -217,28 +217,6 @@ export default function DashboardPage() {
                   Profile Settings
                 </Link>
               </nav>
-
-              {/* Sidebar Quick Switcher for Testing */}
-              <div className="pt-3 border-t border-slate-100">
-                <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block mb-1.5">
-                  Test Student View:
-                </span>
-                <div className="flex flex-col gap-1">
-                  {allUsers.slice(0, 3).map((u: any) => (
-                    <button
-                      key={u.id}
-                      onClick={() => switchDemoUser(u.id)}
-                      className={`text-left px-2 py-1 rounded text-[11px] font-medium transition-colors ${
-                        user.id === u.id
-                          ? 'bg-slate-900 text-white font-semibold'
-                          : 'text-slate-600 hover:bg-slate-100'
-                      }`}
-                    >
-                      {u.name} ({u.credits} Cr)
-                    </button>
-                  ))}
-                </div>
-              </div>
             </div>
 
             {/* Quick Tips card */}

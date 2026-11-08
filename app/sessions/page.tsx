@@ -52,16 +52,16 @@ export default function SessionsPage() {
     return s.status === statusFilter;
   });
 
-  const handleAccept = (id: string) => {
-    const res = acceptSession(id);
+  const handleAccept = async (id: string) => {
+    const res = await acceptSession(id);
     if (res.success) {
       setToastMessage('Session confirmed! Meeting room created.');
       setTimeout(() => setToastMessage(null), 3500);
     }
   };
 
-  const handleDecline = (id: string) => {
-    const res = declineSession(id, 'Instructor unavailable');
+  const handleDecline = async (id: string) => {
+    const res = await declineSession(id, 'Instructor unavailable');
     if (res.success) {
       setToastMessage('Session declined and credits returned to student.');
       setTimeout(() => setToastMessage(null), 3500);
