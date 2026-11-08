@@ -220,16 +220,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           graduationYear: userData.graduationYear || '2026',
         });
 
-        // Insert first skill to teach into public.skills listing
-        if (userData.skillsToTeach.length > 0) {
+        // Insert first skill to teach into public.skills listing (skip placeholders or short inputs)
+        const firstSkill = userData.skillsToTeach[0]?.trim();
+        const isPlaceholder = !firstSkill || firstSkill.length < 3 || ['na', 'n/a', 'none', 'nil'].includes(firstSkill.toLowerCase());
+        if (userData.skillsToTeach.length > 0 && !isPlaceholder) {
           const domain = userData.email.split('@')[1]?.toLowerCase();
           const collegeId = domain?.includes('adypu') ? 'adypu' : domain?.includes('nst') ? 'nst' : 'adypu';
           await createSkillListing(newUserId, collegeId, {
-            title: userData.skillsToTeach[0],
+            title: firstSkill,
             category: 'Programming & Tech',
             level: 'All Levels',
             hourlyCredits: 1,
-            description: `Peer learning session on ${userData.skillsToTeach[0]} offered by ${userData.name}.`,
+            description: `Peer learning session on ${firstSkill} offered by ${userData.name}.`,
           });
         }
 

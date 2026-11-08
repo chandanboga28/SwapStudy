@@ -186,7 +186,7 @@ export async function fetchSkills(collegeId?: string): Promise<Skill[]> {
       .select(`
         *,
         teacher:profiles!skills_teacher_id_fkey(
-          id, name, avatar_url, university, major, rep_rating, reviews_count
+          id, name, avatar_url, university, major, rep_rating
         )
       `)
       .order('created_at', { ascending: false });

@@ -44,6 +44,7 @@ export default function TeachSkillPage() {
 
   const [error, setError] = useState<string | null>(null);
   const [isSuccess, setIsSuccess] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [createdSkillId, setCreatedSkillId] = useState<string | null>(null);
 
   if (!user) {
@@ -78,27 +79,51 @@ export default function TeachSkillPage() {
     e.preventDefault();
     setError(null);
 
+    const trimmedTitle = title.trim();
+    if (!trimmedTitle || trimmedTitle.length < 3) {
+      setError('Skill title must be at least 3 characters long.');
+      return;
+    }
+
     if (topics.length === 0) {
       setError('Please add at least one topic or syllabus outline item.');
       return;
     }
 
-    const res = await addSkill({
-      title,
-      category,
-      level,
-      hourlyCredits,
-      sessionDurationMinutes,
-      description,
-      topics,
-      prerequisites: [prerequisites],
-    });
+    // Duplicate check: Prevent creating duplicate active listing with the exact same title
+    const isDuplicate = myTaughtSkills.some(
+      (s) => s.title.toLowerCase().trim() === trimmedTitle.toLowerCase()
+    );
+    if (isDuplicate) {
+      setError(`You already have an active listing titled "${trimmedTitle}". Please edit your existing listing or use a different title.`);
+      return;
+    }
 
-    if (res.success && res.skill) {
-      setIsSuccess(true);
-      setCreatedSkillId(res.skill.id);
-    } else {
-      setError(res.error || 'Failed to list skill.');
+    setIsSubmitting(true);
+    try {
+      const res = await addSkill({
+        title: trimmedTitle,
+        category,
+        level,
+        hourlyCredits,
+        sessionDurationMinutes,
+        description: description.trim(),
+        topics,
+        prerequisites: [prerequisites.trim()],
+      });
+
+      if (res.success) {
+        setIsSuccess(true);
+        if (res.skill) {
+          setCreatedSkillId(res.skill.id);
+        }
+      } else {
+        setError(res.error || 'Failed to list skill.');
+      }
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'An unexpected error occurred while publishing.');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -343,10 +368,20 @@ export default function TeachSkillPage() {
               </Link>
               <button
                 type="submit"
-                className="py-2 px-5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs shadow-2xs transition-colors flex items-center gap-1.5"
+                disabled={isSubmitting}
+                className="py-2 px-5 rounded-lg bg-emerald-600 hover:bg-emerald-500 disabled:opacity-60 disabled:cursor-not-allowed text-white font-semibold text-xs shadow-2xs transition-colors flex items-center gap-1.5"
               >
-                <Sparkles className="w-3.5 h-3.5" />
-                Publish Skill to Marketplace
+                {isSubmitting ? (
+                  <>
+                    <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    Publishing...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="w-3.5 h-3.5" />
+                    Publish Skill to Marketplace
+                  </>
+                )}
               </button>
             </div>
           </form>

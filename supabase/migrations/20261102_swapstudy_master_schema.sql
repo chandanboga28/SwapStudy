@@ -37,6 +37,7 @@ CREATE TABLE public._swapstudy_migration_baseline (
 
 REVOKE ALL ON TABLE public._swapstudy_migration_baseline FROM PUBLIC, anon, authenticated;
 GRANT ALL ON TABLE public._swapstudy_migration_baseline TO postgres, service_role;
+ALTER TABLE public._swapstudy_migration_baseline ENABLE ROW LEVEL SECURITY;
 
 DO $$
 DECLARE

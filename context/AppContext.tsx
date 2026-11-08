@@ -132,12 +132,30 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       sessionDurationMinutes: skillData.sessionDurationMinutes,
     });
 
-    if (res.success) {
+    if (res.success && res.skillId) {
       await loadAppData();
       await refreshUser();
-      return { success: true };
+      const newSkill: Skill = {
+        id: res.skillId,
+        teacherId: user.id,
+        teacherName: user.name,
+        teacherAvatar: user.avatar,
+        teacherUniversity: user.university,
+        teacherMajor: user.major,
+        teacherRating: user.repRating || 5.0,
+        reviewsCount: 0,
+        title: skillData.title.trim(),
+        category: skillData.category,
+        level: skillData.level,
+        hourlyCredits: skillData.hourlyCredits,
+        description: skillData.description.trim(),
+        topics: skillData.topics || [],
+        prerequisites: skillData.prerequisites || [],
+        sessionDurationMinutes: skillData.sessionDurationMinutes || 60,
+      };
+      return { success: true, skill: newSkill };
     }
-    return { success: false, error: res.error };
+    return { success: false, error: res.error || 'Failed to create skill listing in database.' };
   };
 
   // Book session with credit escrow
