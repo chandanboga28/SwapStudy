@@ -99,6 +99,7 @@ BEGIN
         (p.proname = 'fn_respond_to_skill_swap_invitation' AND oidvectortypes(p.proargtypes) = 'uuid, boolean') OR
         (p.proname = 'fn_mark_conversation_read' AND oidvectortypes(p.proargtypes) = 'uuid') OR
         (p.proname = 'fn_book_session_with_escrow' AND oidvectortypes(p.proargtypes) = 'uuid, date, text, text') OR
+        (p.proname = 'fn_accept_session' AND oidvectortypes(p.proargtypes) = 'uuid') OR
         (p.proname = 'fn_decline_or_cancel_session' AND oidvectortypes(p.proargtypes) = 'uuid, text') OR
         (p.proname = 'fn_complete_session' AND oidvectortypes(p.proargtypes) = 'uuid, integer, text') OR
         (p.proname = 'fn_after_learning_group_insert' AND oidvectortypes(p.proargtypes) = '') OR
@@ -1934,6 +1935,57 @@ BEGIN
 END;
 $$;
 
+-- B2. Atomic Accept: Teacher confirms booking request; transitions pending -> confirmed
+CREATE OR REPLACE FUNCTION public.fn_accept_session(
+  p_session_id uuid
+)
+RETURNS boolean
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+DECLARE
+  v_caller_id uuid;
+  v_status text;
+  v_teacher_id uuid;
+  v_meeting_link text;
+BEGIN
+  v_caller_id := auth.uid();
+  IF v_caller_id IS NULL THEN
+    RAISE EXCEPTION 'Authentication required.';
+  END IF;
+
+  SELECT teacher_id, status, meeting_link
+  INTO v_teacher_id, v_status, v_meeting_link
+  FROM public.sessions
+  WHERE id = p_session_id
+  FOR UPDATE;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Session not found.';
+  END IF;
+
+  IF v_caller_id <> v_teacher_id THEN
+    RAISE EXCEPTION 'Only the assigned teacher can accept this session booking.';
+  END IF;
+
+  IF v_status <> 'pending' THEN
+    RAISE EXCEPTION 'Session cannot be accepted because it is already %.', v_status;
+  END IF;
+
+  IF v_meeting_link IS NULL OR trim(v_meeting_link) = '' THEN
+    v_meeting_link := 'https://meet.jit.si/swapstudy-' || substr(p_session_id::text, 1, 8);
+  END IF;
+
+  UPDATE public.sessions
+  SET status = 'confirmed',
+      meeting_link = v_meeting_link
+  WHERE id = p_session_id;
+
+  RETURN true;
+END;
+$$;
+
 -- C. Atomic Completion: ONLY learner can confirm completion to trigger teacher payout
 --    Locks both wallets in canonical ORDER BY user_id to eliminate deadlock risks.
 CREATE OR REPLACE FUNCTION public.fn_complete_session(
@@ -2062,6 +2114,9 @@ GRANT EXECUTE ON FUNCTION public.fn_book_session_with_escrow TO authenticated;
 
 REVOKE ALL ON FUNCTION public.fn_decline_or_cancel_session FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.fn_decline_or_cancel_session TO authenticated;
+
+REVOKE ALL ON FUNCTION public.fn_accept_session FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.fn_accept_session TO authenticated;
 
 REVOKE ALL ON FUNCTION public.fn_complete_session FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.fn_complete_session TO authenticated;
@@ -2634,6 +2689,7 @@ BEGIN
         (p.proname = 'fn_respond_to_skill_swap_invitation' AND oidvectortypes(p.proargtypes) = 'uuid, boolean') OR
         (p.proname = 'fn_mark_conversation_read' AND oidvectortypes(p.proargtypes) = 'uuid') OR
         (p.proname = 'fn_book_session_with_escrow' AND oidvectortypes(p.proargtypes) = 'uuid, date, text, text') OR
+        (p.proname = 'fn_accept_session' AND oidvectortypes(p.proargtypes) = 'uuid') OR
         (p.proname = 'fn_decline_or_cancel_session' AND oidvectortypes(p.proargtypes) = 'uuid, text') OR
         (p.proname = 'fn_complete_session' AND oidvectortypes(p.proargtypes) = 'uuid, integer, text') OR
         (p.proname = 'fn_after_learning_group_insert' AND oidvectortypes(p.proargtypes) = '') OR

@@ -228,6 +228,18 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
     const res = await acceptSessionApi(sessionId);
     if (res.success) {
+      // Optimistically update local session state immediately so UI transitions with zero delay
+      setSessions((prev) =>
+        prev.map((s) =>
+          s.id === sessionId
+            ? {
+                ...s,
+                status: 'confirmed',
+                meetingLink: s.meetingLink || `https://meet.jit.si/swapstudy-${sessionId.substring(0, 8)}`,
+              }
+            : s
+        )
+      );
       await loadAppData();
       return { success: true };
     }

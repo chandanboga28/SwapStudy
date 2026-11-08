@@ -14,6 +14,7 @@ import {
   Coins,
   Star,
   Check,
+  AlertCircle,
 } from 'lucide-react';
 
 export default function SessionsPage() {
@@ -24,6 +25,8 @@ export default function SessionsPage() {
   const [statusFilter, setStatusFilter] = useState<'all' | SessionStatus>('all');
   const [reviewingSession, setReviewingSession] = useState<Session | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [toastType, setToastType] = useState<'success' | 'error'>('success');
+  const [processingId, setProcessingId] = useState<string | null>(null);
 
   if (!user) {
     return (
@@ -53,18 +56,36 @@ export default function SessionsPage() {
   });
 
   const handleAccept = async (id: string) => {
-    const res = await acceptSession(id);
-    if (res.success) {
-      setToastMessage('Session confirmed! Meeting room created.');
-      setTimeout(() => setToastMessage(null), 3500);
+    setProcessingId(id);
+    try {
+      const res = await acceptSession(id);
+      if (res.success) {
+        setToastMessage('Session confirmed! Meeting room created.');
+        setToastType('success');
+      } else {
+        setToastMessage(res.error || 'Failed to accept session.');
+        setToastType('error');
+      }
+    } finally {
+      setProcessingId(null);
+      setTimeout(() => setToastMessage(null), 4500);
     }
   };
 
   const handleDecline = async (id: string) => {
-    const res = await declineSession(id, 'Instructor unavailable');
-    if (res.success) {
-      setToastMessage('Session declined and credits returned to student.');
-      setTimeout(() => setToastMessage(null), 3500);
+    setProcessingId(id);
+    try {
+      const res = await declineSession(id, 'Instructor unavailable');
+      if (res.success) {
+        setToastMessage('Session declined and credits returned to student.');
+        setToastType('success');
+      } else {
+        setToastMessage(res.error || 'Failed to decline session.');
+        setToastType('error');
+      }
+    } finally {
+      setProcessingId(null);
+      setTimeout(() => setToastMessage(null), 4500);
     }
   };
 
@@ -89,12 +110,25 @@ export default function SessionsPage() {
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
         {/* Toast */}
         {toastMessage && (
-          <div className="p-3 bg-slate-900 text-slate-100 rounded-xl text-xs font-medium shadow-md flex items-center justify-between animate-in fade-in">
+          <div
+            className={`p-3 rounded-xl text-xs font-medium shadow-md flex items-center justify-between animate-in fade-in ${
+              toastType === 'error'
+                ? 'bg-rose-950 text-rose-200 border border-rose-800'
+                : 'bg-slate-900 text-slate-100'
+            }`}
+          >
             <span className="flex items-center gap-2">
-              <Check className="w-3.5 h-3.5 text-emerald-400" />
+              {toastType === 'error' ? (
+                <AlertCircle className="w-3.5 h-3.5 text-rose-400 shrink-0" />
+              ) : (
+                <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+              )}
               {toastMessage}
             </span>
-            <button onClick={() => setToastMessage(null)} className="text-slate-400 hover:text-white">
+            <button
+              onClick={() => setToastMessage(null)}
+              className="text-slate-400 hover:text-white ml-2"
+            >
               ✕
             </button>
           </div>
@@ -258,15 +292,21 @@ export default function SessionsPage() {
                       {!isLearner && sess.status === 'pending' && (
                         <>
                           <button
+                            disabled={processingId === sess.id}
                             onClick={() => handleAccept(sess.id)}
-                            className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs flex items-center gap-1 shadow-2xs"
+                            className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 disabled:opacity-60 disabled:cursor-not-allowed text-white font-semibold text-xs flex items-center gap-1 shadow-2xs transition-colors"
                           >
-                            <CheckCircle2 className="w-3 h-3" />
+                            {processingId === sess.id ? (
+                              <span className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                            ) : (
+                              <CheckCircle2 className="w-3 h-3" />
+                            )}
                             Accept Request
                           </button>
                           <button
+                            disabled={processingId === sess.id}
                             onClick={() => handleDecline(sess.id)}
-                            className="px-3 py-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 text-xs font-medium"
+                            className="px-3 py-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-60 disabled:cursor-not-allowed text-xs font-medium transition-colors"
                           >
                             Decline
                           </button>

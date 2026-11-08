@@ -353,16 +353,14 @@ export async function acceptSession(sessionId: string): Promise<{ success: boole
   if (!supabase) return { success: false, error: 'Database not connected' };
 
   try {
-    const meetingLink = `https://meet.jit.si/swapstudy-${sessionId.substring(0, 8)}`;
-    const { error } = await supabase
-      .from('sessions')
-      .update({
-        status: 'confirmed',
-        meeting_link: meetingLink,
-      })
-      .eq('id', sessionId);
+    const { error } = await supabase.rpc('fn_accept_session', {
+      p_session_id: sessionId,
+    });
 
-    if (error) return { success: false, error: error.message };
+    if (error) {
+      return { success: false, error: error.message };
+    }
+
     return { success: true };
   } catch (err: any) {
     return { success: false, error: err.message || 'Failed to accept session' };

@@ -515,7 +515,7 @@ BEGIN
       'fn_before_message_insert', 'fn_after_message_insert', 'fn_validate_skill_swap_invitation',
       'fn_protect_invitation_update', 'fn_get_or_create_direct_conversation', 'fn_send_skill_swap_invitation',
       'fn_respond_to_skill_swap_invitation', 'fn_mark_conversation_read', 'fn_book_session_with_escrow',
-      'fn_decline_or_cancel_session', 'fn_complete_session',
+      'fn_accept_session', 'fn_decline_or_cancel_session', 'fn_complete_session',
       'fn_after_learning_group_insert', 'fn_protect_post_update',
       'fn_check_direct_conversation_participants'
     );
