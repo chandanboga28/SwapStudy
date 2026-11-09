@@ -143,7 +143,17 @@ export default function DashboardPage() {
     }
   };
 
-  const handleDecline = async (sessionId: string) => {
+  const handleDecline = async (sessionId: string, skillTitle?: string) => {
+    if (
+      !window.confirm(
+        `Are you sure you want to decline this session request${
+          skillTitle ? ` for "${skillTitle}"` : ''
+        }? The student's reserved credits will be refunded to their wallet.`
+      )
+    ) {
+      return;
+    }
+
     setProcessingSessionId(sessionId);
     try {
       const res = await declineSession(sessionId, 'Schedule conflict');
@@ -475,7 +485,7 @@ export default function DashboardPage() {
                         </button>
                         <button
                           disabled={processingSessionId === req.id}
-                          onClick={() => handleDecline(req.id)}
+                          onClick={() => handleDecline(req.id, req.skillTitle)}
                           className="py-1.5 px-3 rounded-md border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-60 disabled:cursor-not-allowed text-[11px] font-medium transition-colors"
                         >
                           Decline

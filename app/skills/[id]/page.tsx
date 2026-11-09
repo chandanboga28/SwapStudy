@@ -36,6 +36,17 @@ function SkillDetailContent() {
   const skill = skills.find((s) => s.id === skillId);
 
   if (!skill) {
+    if (actionNotice?.type === 'success') {
+      return (
+        <div className="min-h-[60vh] flex flex-col items-center justify-center p-6 text-center">
+          <div className="p-5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-medium max-w-sm flex items-center justify-center gap-2 shadow-sm">
+            <Check className="w-4 h-4 text-emerald-600 shrink-0" />
+            <span>{actionNotice.message}</span>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div className="min-h-[60vh] flex flex-col items-center justify-center p-6 text-center">
         <h2 className="text-base font-bold text-slate-900 mb-1">Skill Not Found</h2>

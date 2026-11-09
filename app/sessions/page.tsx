@@ -73,7 +73,17 @@ export default function SessionsPage() {
     }
   };
 
-  const handleDecline = async (id: string) => {
+  const handleDecline = async (id: string, skillTitle?: string) => {
+    if (
+      !window.confirm(
+        `Are you sure you want to decline this session request${
+          skillTitle ? ` for "${skillTitle}"` : ''
+        }? The student's reserved credits will be refunded to their wallet.`
+      )
+    ) {
+      return;
+    }
+
     setProcessingId(id);
     try {
       const res = await declineSession(id, 'Instructor unavailable');
@@ -336,7 +346,7 @@ export default function SessionsPage() {
                           </button>
                           <button
                             disabled={processingId === sess.id}
-                            onClick={() => handleDecline(sess.id)}
+                            onClick={() => handleDecline(sess.id, sess.skillTitle)}
                             className="px-3 py-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-60 disabled:cursor-not-allowed text-xs font-medium transition-colors"
                           >
                             Decline

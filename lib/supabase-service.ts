@@ -310,13 +310,21 @@ export async function deleteSkillListing(
     }
 
     // Execute DELETE (protected by "Teachers can manage their own skills" RLS policy)
-    const { error: deleteError } = await supabase
+    const { data: deletedRows, error: deleteError } = await supabase
       .from('skills')
       .delete()
-      .eq('id', skillId);
+      .eq('id', skillId)
+      .select('id');
 
     if (deleteError) {
       return { success: false, error: deleteError.message };
+    }
+
+    if (!deletedRows || deletedRows.length === 0) {
+      return {
+        success: false,
+        error: 'Unable to delete skill listing: listing not found or permission denied.',
+      };
     }
 
     return { success: true };
