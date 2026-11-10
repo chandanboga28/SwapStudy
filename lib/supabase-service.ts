@@ -12,6 +12,7 @@ import {
   Message,
   MessageType,
   SkillInvitationData,
+  SkillSwapInvitation,
 } from '@/types';
 
 // ==============================================================================
@@ -383,6 +384,8 @@ export async function fetchUserSessions(userId: string): Promise<Session[]> {
       completedAt: r.completed_at,
       ratingGiven: r.rating_given,
       reviewGiven: r.review_given,
+      swapInvitationId: r.swap_invitation_id || undefined,
+      isMutualSwap: Boolean(r.swap_invitation_id || r.learner_notes?.includes('Mutual Skill Swap')),
     }));
   } catch (err) {
     console.error('[fetchUserSessions] Unexpected error:', err);
@@ -1233,5 +1236,168 @@ export async function respondToSkillSwapInvitationRpc(
     return { success: true };
   } catch (err: any) {
     return { success: false, error: err.message };
+  }
+}
+
+export async function fetchUserSkillSwapInvitations(
+  userId: string
+): Promise<SkillSwapInvitation[]> {
+  if (!supabase) return [];
+
+  try {
+    const { data, error } = await supabase
+      .from('skill_swap_invitations')
+      .select(`
+        *,
+        sender:profiles!skill_swap_invitations_sender_id_fkey(
+          id, name, avatar_url, university, major, rep_rating
+        ),
+        recipient:profiles!skill_swap_invitations_recipient_id_fkey(
+          id, name, avatar_url, university, major, rep_rating
+        )
+      `)
+      .or(`sender_id.eq.${userId},recipient_id.eq.${userId}`)
+      .order('created_at', { ascending: false });
+
+    if (error || !data) {
+      if (error) console.warn('[fetchUserSkillSwapInvitations] Error:', error.message);
+      return [];
+    }
+
+    return data.map((r: any) => ({
+      id: r.id,
+      messageId: r.message_id,
+      conversationId: r.conversation_id,
+      senderId: r.sender_id,
+      senderName: r.sender?.name || 'Student Peer',
+      senderAvatar:
+        r.sender?.avatar_url ||
+        `https://api.dicebear.com/7.x/avataaars/svg?seed=${r.sender_id}`,
+      senderUniversity: r.sender?.university || 'University Student',
+      senderMajor: r.sender?.major || 'General Studies',
+      senderRating: Number(r.sender?.rep_rating) || 5.0,
+      recipientId: r.recipient_id,
+      recipientName: r.recipient?.name || 'Student Peer',
+      recipientAvatar:
+        r.recipient?.avatar_url ||
+        `https://api.dicebear.com/7.x/avataaars/svg?seed=${r.recipient_id}`,
+      recipientUniversity: r.recipient?.university || 'University Student',
+      recipientMajor: r.recipient?.major || 'General Studies',
+      offeredSkillId: r.offered_skill_id,
+      offeredSkillTitle: r.offered_skill_title,
+      requestedSkillId: r.requested_skill_id,
+      requestedSkillTitle: r.requested_skill_title,
+      credits: r.credits,
+      status: r.status,
+      note: r.note,
+      createdAt: r.created_at,
+      respondedAt: r.responded_at,
+    }));
+  } catch (err) {
+    console.error('[fetchUserSkillSwapInvitations] Unexpected error:', err);
+    return [];
+  }
+}
+
+export async function sendMutualSwapProposal(params: {
+  recipientId: string;
+  offeredSkillId: string;
+  offeredSkillTitle: string;
+  requestedSkillId: string;
+  requestedSkillTitle: string;
+  credits: number;
+  note?: string;
+}): Promise<{ success: boolean; invitationId?: string; error?: string }> {
+  if (!supabase) return { success: false, error: 'Database not connected' };
+
+  try {
+    // 1. Get or create conversation between caller and recipient
+    const convRes = await getOrCreateDirectConversation(params.recipientId);
+    if (!convRes.success || !convRes.conversationId) {
+      return { success: false, error: convRes.error || 'Failed to initialize conversation with peer.' };
+    }
+
+    // 2. Call fn_send_skill_swap_invitation RPC
+    const { data, error } = await supabase.rpc('fn_send_skill_swap_invitation', {
+      p_conversation_id: convRes.conversationId,
+      p_recipient_id: params.recipientId,
+      p_offered_skill_id: params.offeredSkillId,
+      p_offered_skill_title: params.offeredSkillTitle,
+      p_requested_skill_id: params.requestedSkillId,
+      p_requested_skill_title: params.requestedSkillTitle,
+      p_credits: params.credits,
+      p_note: params.note || null,
+    });
+
+    if (error) {
+      return { success: false, error: error.message };
+    }
+
+    return {
+      success: true,
+      invitationId: data?.invitation_id,
+    };
+  } catch (err: any) {
+    return { success: false, error: err.message || 'Failed to send mutual skill swap proposal.' };
+  }
+}
+
+export async function acceptMutualSwapProposal(
+  invitationId: string,
+  session1Date: string,
+  session1Time: string,
+  session2Date: string,
+  session2Time: string
+): Promise<{ success: boolean; error?: string; session1Id?: string; session2Id?: string }> {
+  if (!supabase) return { success: false, error: 'Database not connected' };
+
+  try {
+    const { data, error } = await supabase.rpc('fn_accept_skill_swap_proposal', {
+      p_invitation_id: invitationId,
+      p_session1_date: session1Date,
+      p_session1_time: session1Time,
+      p_session2_date: session2Date,
+      p_session2_time: session2Time,
+    });
+
+    if (error) {
+      if (error.code === 'PGRST202') {
+        return {
+          success: false,
+          error:
+            'Procedure fn_accept_skill_swap_proposal is not deployed yet in Supabase. Please execute migration 20261110_mutual_skill_swap.sql in your Supabase SQL Editor.',
+        };
+      }
+      return { success: false, error: error.message };
+    }
+
+    return {
+      success: true,
+      session1Id: data?.session_1_id,
+      session2Id: data?.session_2_id,
+    };
+  } catch (err: unknown) {
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : 'Failed to accept mutual swap proposal',
+    };
+  }
+}
+
+export async function declineMutualSwapProposal(
+  invitationId: string
+): Promise<{ success: boolean; error?: string }> {
+  if (!supabase) return { success: false, error: 'Database not connected' };
+
+  try {
+    const { error } = await supabase.rpc('fn_respond_to_skill_swap_invitation', {
+      p_invitation_id: invitationId,
+      p_accept: false,
+    });
+
+    if (error) return { success: false, error: error.message };
+    return { success: true };
+  } catch (err: any) {
+    return { success: false, error: err.message || 'Failed to decline mutual swap proposal' };
   }
 }

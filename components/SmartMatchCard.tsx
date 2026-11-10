@@ -17,12 +17,14 @@ import {
 interface SmartMatchCardProps {
   match: SmartMatch;
   onRequestExchange: (skill: Skill) => void;
+  onProposeSwap?: (match: SmartMatch) => void;
   onViewProfile: () => void;
 }
 
 export default function SmartMatchCard({
   match,
   onRequestExchange,
+  onProposeSwap,
   onViewProfile,
 }: SmartMatchCardProps) {
   const {
@@ -171,10 +173,22 @@ export default function SmartMatchCard({
             <button
               disabled
               className="px-3 py-1.5 rounded-lg bg-slate-100 text-slate-400 text-xs font-semibold border border-slate-200 cursor-not-allowed flex items-center gap-1"
-              title="You already have an active request or confirmed session with this student."
+              title="You already have an active request, confirmed session, or pending swap proposal with this student."
             >
               <Clock className="w-3 h-3" />
-              {existingSessionStatus === 'confirmed' ? 'Confirmed' : 'Request Pending'}
+              {existingSessionStatus === 'confirmed'
+                ? 'Confirmed'
+                : isMutual
+                ? 'Proposal Pending'
+                : 'Request Pending'}
+            </button>
+          ) : isMutual && onProposeSwap ? (
+            <button
+              onClick={() => onProposeSwap(match)}
+              className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold transition-all shadow-xs hover:shadow flex items-center gap-1.5"
+            >
+              <ArrowRightLeft className="w-3.5 h-3.5" />
+              Request Exchange
             </button>
           ) : matchedListing ? (
             <button

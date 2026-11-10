@@ -64,6 +64,8 @@ export interface Session {
   completedAt?: string;
   ratingGiven?: number;
   reviewGiven?: string;
+  swapInvitationId?: string;
+  isMutualSwap?: boolean;
 }
 
 export interface CreditTransaction {
@@ -192,6 +194,7 @@ export interface SmartMatch {
   explanation: string;
   isExistingRequestPending: boolean;
   existingSessionStatus?: SessionStatus;
+  pendingInvitationId?: string;
 }
 
 // ==========================================
@@ -213,6 +216,32 @@ export interface SkillInvitationData {
   credits: number;
   status: SkillInvitationStatus;
   note?: string;
+  respondedAt?: string;
+}
+
+export interface SkillSwapInvitation {
+  id: string;
+  messageId: string;
+  conversationId: string;
+  senderId: string;
+  senderName?: string;
+  senderAvatar?: string;
+  senderUniversity?: string;
+  senderMajor?: string;
+  senderRating?: number;
+  recipientId: string;
+  recipientName?: string;
+  recipientAvatar?: string;
+  recipientUniversity?: string;
+  recipientMajor?: string;
+  offeredSkillId: string;
+  offeredSkillTitle: string;
+  requestedSkillId: string;
+  requestedSkillTitle: string;
+  credits: number;
+  status: SkillInvitationStatus;
+  note?: string;
+  createdAt: string;
   respondedAt?: string;
 }
 

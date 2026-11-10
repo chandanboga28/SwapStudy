@@ -5,10 +5,12 @@ import { useAuth } from '@/context/AuthContext';
 import { useApp } from '@/context/AppContext';
 import ReviewModal from '@/components/ReviewModal';
 import BookingModal from '@/components/BookingModal';
+import MutualSwapModal from '@/components/MutualSwapModal';
+import AcceptSwapModal from '@/components/AcceptSwapModal';
 import SmartMatchCard from '@/components/SmartMatchCard';
 import StudentProfileModal from '@/components/StudentProfileModal';
 import { calculateSmartMatches } from '@/lib/matching';
-import { Session, Skill, User } from '@/types';
+import { Session, Skill, User, SmartMatch, SkillSwapInvitation } from '@/types';
 import {
   Coins,
   Star,
@@ -34,21 +36,33 @@ import { useMessaging } from '@/context/MessagingContext';
 
 export default function DashboardPage() {
   const { user, allUsers } = useAuth();
-  const { sessions, skills, transactions, acceptSession, declineSession, cancelSession } = useApp();
+  const {
+    sessions,
+    skills,
+    transactions,
+    swapInvitations,
+    acceptSession,
+    declineSession,
+    cancelSession,
+    declineSwapProposal,
+  } = useApp();
   const { totalUnreadCount } = useMessaging();
 
   const [reviewingSession, setReviewingSession] = useState<Session | null>(null);
   const [bookingSkill, setBookingSkill] = useState<Skill | null>(null);
+  const [proposingSwapMatch, setProposingSwapMatch] = useState<SmartMatch | null>(null);
+  const [acceptingSwapInvitation, setAcceptingSwapInvitation] = useState<SkillSwapInvitation | null>(null);
   const [inspectingStudent, setInspectingStudent] = useState<User | null>(null);
   const [matchFilter, setMatchFilter] = useState<'all' | 'mutual' | 'wishlist'>('all');
   const [notification, setNotification] = useState<string | null>(null);
   const [notificationType, setNotificationType] = useState<'success' | 'error'>('success');
   const [processingSessionId, setProcessingSessionId] = useState<string | null>(null);
+  const [processingProposalId, setProcessingProposalId] = useState<string | null>(null);
 
   // Smart skill matching based on teaching strengths & learning wishlists
   const smartMatches = useMemo(() => {
-    return calculateSmartMatches(user, allUsers, skills, sessions);
-  }, [user, allUsers, skills, sessions]);
+    return calculateSmartMatches(user, allUsers, skills, sessions, swapInvitations);
+  }, [user, allUsers, skills, sessions, swapInvitations]);
 
   const mutualMatchesCount = smartMatches.filter((m) => m.matchType === 'mutual').length;
   const wishlistMatchesCount = smartMatches.filter((m) => m.matchType === 'one-way-learn').length;
@@ -77,6 +91,16 @@ export default function DashboardPage() {
   // Sessions where user is teacher
   const incomingRequests = sessions.filter(
     (s) => s.teacherId === user.id && s.status === 'pending'
+  );
+
+  // Pending reciprocal skill swap proposals where user is recipient
+  const incomingSwapInvitations = (swapInvitations || []).filter(
+    (inv) => inv.recipientId === user.id && inv.status === 'pending'
+  );
+
+  // Pending reciprocal skill swap proposals where user is sender
+  const sentPendingSwapInvitations = (swapInvitations || []).filter(
+    (inv) => inv.senderId === user.id && inv.status === 'pending'
   );
 
   // Sessions where user is learner awaiting teacher confirmation
@@ -166,6 +190,38 @@ export default function DashboardPage() {
       }
     } finally {
       setProcessingSessionId(null);
+      setTimeout(() => setNotification(null), 4500);
+    }
+  };
+
+  const handleDeclineProposal = async (invitationId: string, senderName?: string) => {
+    if (
+      !window.confirm(
+        `Are you sure you want to decline this mutual skill swap proposal from ${
+          senderName || 'this student'
+        }?`
+      )
+    ) {
+      return;
+    }
+
+    setProcessingProposalId(invitationId);
+    try {
+      const res = await declineSwapProposal(invitationId);
+      if (res.success) {
+        setNotification('Skill swap proposal declined.');
+        setNotificationType('success');
+      } else {
+        setNotification(res.error || 'Failed to decline proposal.');
+        setNotificationType('error');
+      }
+    } catch (err: unknown) {
+      setNotification(
+        err instanceof Error ? err.message : 'An error occurred while declining swap proposal.'
+      );
+      setNotificationType('error');
+    } finally {
+      setProcessingProposalId(null);
       setTimeout(() => setNotification(null), 4500);
     }
   };
@@ -423,6 +479,193 @@ export default function DashboardPage() {
                 </div>
               </div>
             </div>
+
+            {/* Incoming Mutual Skill Swap Proposals */}
+            {incomingSwapInvitations.length > 0 && (
+              <div className="p-4 rounded-xl bg-gradient-to-r from-emerald-50 via-teal-50/70 to-emerald-50 border border-emerald-300/80 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-emerald-600 animate-pulse" />
+                    <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
+                      <ArrowRightLeft className="w-3.5 h-3.5 text-emerald-700" />
+                      Incoming Skill Swap Proposals ({incomingSwapInvitations.length})
+                    </h3>
+                  </div>
+                  <span className="text-[11px] text-emerald-800 font-semibold bg-emerald-100/80 px-2.5 py-0.5 rounded-full border border-emerald-200">
+                    Reciprocal Exchange
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {incomingSwapInvitations.map((inv) => (
+                    <div
+                      key={inv.id}
+                      className="bg-white p-3.5 rounded-lg border border-emerald-200/80 text-xs space-y-2.5 shadow-xs"
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <img
+                            src={inv.senderAvatar}
+                            alt={inv.senderName}
+                            className="w-7 h-7 rounded-full object-cover shrink-0 ring-1 ring-emerald-200"
+                          />
+                          <div className="min-w-0">
+                            <span className="font-bold text-slate-900 truncate block">
+                              {inv.senderName}
+                            </span>
+                            <span className="text-[10px] text-slate-400 block truncate">
+                              {inv.senderUniversity || 'Student Peer'}
+                            </span>
+                          </div>
+                        </div>
+                        <span className="text-[10px] font-bold text-emerald-800 bg-emerald-100/70 px-2 py-0.5 rounded-full border border-emerald-200/60 shrink-0">
+                          Proposal Pending
+                        </span>
+                      </div>
+
+                      <div className="p-2.5 rounded-md bg-slate-50 border border-slate-100 space-y-1.5 text-[11px]">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-slate-500 font-medium shrink-0">They offer:</span>
+                          <span className="font-semibold text-emerald-700 bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-200/50 truncate">
+                            {inv.offeredSkillTitle}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between gap-2 border-t border-slate-200/40 pt-1">
+                          <span className="text-slate-500 font-medium shrink-0">In exchange for:</span>
+                          <span className="font-semibold text-slate-800 bg-white px-1.5 py-0.2 rounded border border-slate-200 truncate">
+                            {inv.requestedSkillTitle}
+                          </span>
+                        </div>
+                      </div>
+
+                      {inv.note && (
+                        <p className="text-[11px] text-slate-600 bg-emerald-50/40 p-2 rounded border border-emerald-100/70 italic leading-relaxed">
+                          &ldquo;{inv.note}&rdquo;
+                        </p>
+                      )}
+
+                      <div className="flex items-center justify-between pt-1 border-t border-slate-100 gap-2">
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            disabled={processingProposalId === inv.id}
+                            onClick={() => setAcceptingSwapInvitation(inv)}
+                            className="px-2.5 py-1.5 rounded-md bg-emerald-600 hover:bg-emerald-500 disabled:opacity-60 disabled:cursor-not-allowed text-white font-semibold text-[11px] flex items-center gap-1 shadow-2xs transition-colors"
+                          >
+                            <Calendar className="w-3 h-3" />
+                            Accept & Schedule
+                          </button>
+                          <button
+                            disabled={processingProposalId === inv.id}
+                            onClick={() => handleDeclineProposal(inv.id, inv.senderName)}
+                            className="px-2 py-1.5 rounded-md border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-60 disabled:cursor-not-allowed text-[11px] font-medium transition-colors"
+                          >
+                            Decline
+                          </button>
+                        </div>
+                        {inv.conversationId ? (
+                          <Link
+                            href={`/messages?conversationId=${inv.conversationId}`}
+                            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-semibold text-[11px] transition-colors"
+                            title="Discuss in Direct Messages"
+                          >
+                            <MessageSquare className="w-3 h-3 text-slate-400" />
+                            Chat
+                          </Link>
+                        ) : (
+                          <span className="text-[10px] text-slate-400">
+                            {inv.createdAt?.split('T')[0] || 'Recently'}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Sent Mutual Swap Proposals (Awaiting response) */}
+            {sentPendingSwapInvitations.length > 0 && (
+              <div className="p-4 rounded-xl bg-teal-50/70 border border-teal-200/80 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-teal-600 animate-pulse" />
+                    <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
+                      <ArrowRightLeft className="w-3.5 h-3.5 text-teal-700" />
+                      Your Sent Swap Proposals ({sentPendingSwapInvitations.length})
+                    </h3>
+                  </div>
+                  <span className="text-[11px] text-teal-800 font-semibold bg-teal-100/80 px-2.5 py-0.5 rounded-full border border-teal-200">
+                    Awaiting Response
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {sentPendingSwapInvitations.map((inv) => (
+                    <div
+                      key={inv.id}
+                      className="bg-white p-3.5 rounded-lg border border-teal-200/70 text-xs space-y-2.5 shadow-xs"
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <img
+                            src={inv.recipientAvatar}
+                            alt={inv.recipientName}
+                            className="w-7 h-7 rounded-full object-cover shrink-0 ring-1 ring-teal-200"
+                          />
+                          <div className="min-w-0">
+                            <span className="font-bold text-slate-900 truncate block">
+                              Proposal to {inv.recipientName}
+                            </span>
+                            <span className="text-[10px] text-slate-400 block truncate">
+                              {inv.recipientUniversity || 'Student Peer'}
+                            </span>
+                          </div>
+                        </div>
+                        <span className="text-[10px] font-semibold text-teal-800 bg-teal-50 px-2 py-0.5 rounded-full border border-teal-200/60 shrink-0">
+                          Pending
+                        </span>
+                      </div>
+
+                      <div className="p-2.5 rounded-md bg-slate-50 border border-slate-100 space-y-1.5 text-[11px]">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-slate-500 font-medium shrink-0">You offer:</span>
+                          <span className="font-semibold text-emerald-700 bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-200/50 truncate">
+                            {inv.offeredSkillTitle}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between gap-2 border-t border-slate-200/40 pt-1">
+                          <span className="text-slate-500 font-medium shrink-0">In exchange for:</span>
+                          <span className="font-semibold text-slate-800 bg-white px-1.5 py-0.2 rounded border border-slate-200 truncate">
+                            {inv.requestedSkillTitle}
+                          </span>
+                        </div>
+                      </div>
+
+                      {inv.note && (
+                        <p className="text-[11px] text-slate-600 bg-slate-50 p-2 rounded border border-slate-100 italic leading-relaxed">
+                          &ldquo;{inv.note}&rdquo;
+                        </p>
+                      )}
+
+                      <div className="flex items-center justify-between pt-1 border-t border-slate-100">
+                        <span className="text-[10px] text-slate-400">
+                          Sent {inv.createdAt?.split('T')[0] || 'recently'}
+                        </span>
+                        {inv.conversationId && (
+                          <Link
+                            href={`/messages?conversationId=${inv.conversationId}`}
+                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-semibold text-[11px] transition-colors"
+                          >
+                            <MessageSquare className="w-3 h-3 text-slate-500" />
+                            Chat
+                          </Link>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Pending Requests Alert Card */}
             {incomingRequests.length > 0 && (
@@ -736,6 +979,7 @@ export default function DashboardPage() {
                       key={m.candidate.id}
                       match={m}
                       onRequestExchange={(skill) => setBookingSkill(skill)}
+                      onProposeSwap={(match) => setProposingSwapMatch(match)}
                       onViewProfile={() => setInspectingStudent(m.candidate)}
                     />
                   ))}
@@ -848,6 +1092,33 @@ export default function DashboardPage() {
           onSuccess={() => {
             setNotification('Exchange requested! Credits held in escrow until session completion.');
             setTimeout(() => setNotification(null), 3500);
+          }}
+        />
+      )}
+
+      {/* Mutual Skill Swap Proposal Modal */}
+      {proposingSwapMatch && (
+        <MutualSwapModal
+          match={proposingSwapMatch}
+          onClose={() => setProposingSwapMatch(null)}
+          onSuccess={() => {
+            setNotification('Mutual skill swap proposal sent successfully!');
+            setNotificationType('success');
+            setTimeout(() => setNotification(null), 4500);
+          }}
+        />
+      )}
+
+      {/* Accept Mutual Swap Scheduling Modal */}
+      {acceptingSwapInvitation && (
+        <AcceptSwapModal
+          invitation={acceptingSwapInvitation}
+          onClose={() => setAcceptingSwapInvitation(null)}
+          onSuccess={() => {
+            setAcceptingSwapInvitation(null);
+            setNotification('Mutual skill swap accepted! Both exchange sessions have been scheduled.');
+            setNotificationType('success');
+            setTimeout(() => setNotification(null), 5000);
           }}
         />
       )}

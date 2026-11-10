@@ -1,7 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
-import { Skill, Session, CreditTransaction, Review } from '@/types';
+import { Skill, Session, CreditTransaction, Review, SkillSwapInvitation } from '@/types';
 import { useAuth } from './AuthContext';
 import {
   fetchSkills,
@@ -13,6 +13,10 @@ import {
   acceptSession as acceptSessionApi,
   declineOrCancelSession as declineSessionApi,
   completeSession as completeSessionApi,
+  fetchUserSkillSwapInvitations,
+  sendMutualSwapProposal,
+  acceptMutualSwapProposal as acceptMutualSwapProposalApi,
+  declineMutualSwapProposal as declineMutualSwapProposalApi,
 } from '@/lib/supabase-service';
 import { INITIAL_SKILLS, INITIAL_SESSIONS, INITIAL_TRANSACTIONS, INITIAL_REVIEWS } from '@/lib/mock-data';
 import { isSupabaseConfigured } from '@/lib/supabase';
@@ -21,6 +25,7 @@ interface AppContextType {
   skills: Skill[];
   sessions: Session[];
   transactions: CreditTransaction[];
+  swapInvitations: SkillSwapInvitation[];
   reviews: Review[];
   isLoading: boolean;
   addSkill: (skillData: Omit<Skill, 'id' | 'teacherId' | 'teacherName' | 'teacherAvatar' | 'teacherUniversity' | 'teacherMajor' | 'teacherRating' | 'reviewsCount'>) => Promise<{ success: boolean; error?: string; skill?: Skill }>;
@@ -35,6 +40,23 @@ interface AppContextType {
   declineSession: (sessionId: string, reason?: string) => Promise<{ success: boolean; error?: string }>;
   completeSession: (sessionId: string, rating: number, review: string) => Promise<{ success: boolean; error?: string }>;
   cancelSession: (sessionId: string) => Promise<{ success: boolean; error?: string }>;
+  sendSwapProposal: (params: {
+    recipientId: string;
+    offeredSkillId: string;
+    offeredSkillTitle: string;
+    requestedSkillId: string;
+    requestedSkillTitle: string;
+    credits: number;
+    note?: string;
+  }) => Promise<{ success: boolean; error?: string; invitationId?: string }>;
+  acceptSwapProposal: (
+    invitationId: string,
+    session1Date: string,
+    session1Time: string,
+    session2Date: string,
+    session2Time: string
+  ) => Promise<{ success: boolean; error?: string }>;
+  declineSwapProposal: (invitationId: string) => Promise<{ success: boolean; error?: string }>;
   refreshData: () => Promise<void>;
 }
 
@@ -46,6 +68,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [skills, setSkills] = useState<Skill[]>([]);
   const [sessions, setSessions] = useState<Session[]>([]);
   const [transactions, setTransactions] = useState<CreditTransaction[]>([]);
+  const [swapInvitations, setSwapInvitations] = useState<SkillSwapInvitation[]>([]);
   const [reviews, setReviews] = useState<Review[]>(INITIAL_REVIEWS);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -57,6 +80,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       setSkills(INITIAL_SKILLS);
       setSessions(INITIAL_SESSIONS);
       setTransactions(INITIAL_TRANSACTIONS);
+      setSwapInvitations([]);
       setReviews(INITIAL_REVIEWS);
       setIsLoading(false);
       return;
@@ -67,17 +91,20 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       const skillsData = await fetchSkills(user?.collegeId);
       setSkills(skillsData);
 
-      // 2. If user is authenticated, fetch their sessions and transactions
+      // 2. If user is authenticated, fetch their sessions, transactions, and swap invitations
       if (user?.id) {
-        const [sessionsData, transactionsData] = await Promise.all([
+        const [sessionsData, transactionsData, invitationsData] = await Promise.all([
           fetchUserSessions(user.id),
           fetchCreditTransactions(user.id),
+          fetchUserSkillSwapInvitations(user.id),
         ]);
         setSessions(sessionsData);
         setTransactions(transactionsData);
+        setSwapInvitations(invitationsData);
       } else {
         setSessions([]);
         setTransactions([]);
+        setSwapInvitations([]);
       }
     } catch (err) {
       console.error('[AppProvider] Error loading app data:', err);
@@ -338,12 +365,73 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     return { success: false, error: res.error };
   };
 
+  // Send mutual skill swap proposal
+  const sendSwapProposal = async (params: {
+    recipientId: string;
+    offeredSkillId: string;
+    offeredSkillTitle: string;
+    requestedSkillId: string;
+    requestedSkillTitle: string;
+    credits: number;
+    note?: string;
+  }) => {
+    if (!user) return { success: false, error: 'Must be logged in to propose a swap' };
+
+    const res = await sendMutualSwapProposal(params);
+    if (res.success) {
+      if (isSupabaseConfigured) {
+        const updated = await fetchUserSkillSwapInvitations(user.id);
+        setSwapInvitations(updated);
+      }
+      return { success: true, invitationId: res.invitationId };
+    }
+    return { success: false, error: res.error };
+  };
+
+  // Accept mutual skill swap proposal
+  const acceptSwapProposal = async (
+    invitationId: string,
+    session1Date: string,
+    session1Time: string,
+    session2Date: string,
+    session2Time: string
+  ) => {
+    if (!user) return { success: false, error: 'Must be logged in to accept swap proposal' };
+
+    const res = await acceptMutualSwapProposalApi(
+      invitationId,
+      session1Date,
+      session1Time,
+      session2Date,
+      session2Time
+    );
+    if (res.success) {
+      await loadAppData();
+      await refreshUser();
+      return { success: true };
+    }
+    return { success: false, error: res.error };
+  };
+
+  // Decline mutual skill swap proposal
+  const declineSwapProposal = async (invitationId: string) => {
+    if (!user) return { success: false, error: 'Must be logged in to decline swap proposal' };
+
+    const res = await declineMutualSwapProposalApi(invitationId);
+    if (res.success) {
+      await loadAppData();
+      return { success: true };
+    }
+    return { success: false, error: res.error };
+  };
+
   return (
     <AppContext.Provider
       value={{
         skills,
         sessions,
         transactions,
+        swapInvitations,
         reviews,
         isLoading,
         addSkill,
@@ -353,6 +441,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         declineSession,
         completeSession,
         cancelSession,
+        sendSwapProposal,
+        acceptSwapProposal,
+        declineSwapProposal,
         refreshData: loadAppData,
       }}
     >

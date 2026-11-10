@@ -1,4 +1,4 @@
-import { User, Skill, Session, SmartMatch, MatchType } from '@/types';
+import { User, Skill, Session, SmartMatch, MatchType, SkillSwapInvitation } from '@/types';
 
 // Stop words to ignore during token-based skill matching
 const STOP_WORDS = new Set([
@@ -147,7 +147,8 @@ export function calculateSmartMatches(
   currentUser: User | null,
   allUsers: User[],
   allSkills: Skill[],
-  sessions: Session[]
+  sessions: Session[],
+  invitations?: SkillSwapInvitation[]
 ): SmartMatch[] {
   if (!currentUser) return [];
 
@@ -245,14 +246,20 @@ export function calculateSmartMatches(
     const hasEnoughCredits = (currentUser.credits || 0) >= creditCost;
     const creditsNeeded = Math.max(0, creditCost - (currentUser.credits || 0));
 
-    // Check if session or request already exists
+    // Check if session or swap invitation already exists
     const existingSession = sessions.find(
       (s) =>
         s.learnerId === currentUser.id &&
         s.teacherId === candidate.id &&
         (s.status === 'pending' || s.status === 'confirmed')
     );
-    const isExistingRequestPending = Boolean(existingSession);
+    const existingInvitation = invitations?.find(
+      (inv) =>
+        ((inv.senderId === currentUser.id && inv.recipientId === candidate.id) ||
+         (inv.senderId === candidate.id && inv.recipientId === currentUser.id)) &&
+        inv.status === 'pending'
+    );
+    const isExistingRequestPending = Boolean(existingSession || existingInvitation);
 
     matches.push({
       candidate,
@@ -268,6 +275,7 @@ export function calculateSmartMatches(
       explanation,
       isExistingRequestPending,
       existingSessionStatus: existingSession?.status,
+      pendingInvitationId: existingInvitation?.id,
     });
   }
 

@@ -16,6 +16,7 @@ import {
   Check,
   AlertCircle,
   XCircle,
+  ArrowRightLeft,
 } from 'lucide-react';
 
 export default function SessionsPage() {
@@ -255,7 +256,7 @@ export default function SessionsPage() {
                 >
                   {/* Top Bar */}
                   <div className="flex flex-wrap items-center justify-between gap-2 pb-2.5 border-b border-slate-100">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <span
                         className={`text-[10px] font-bold px-2 py-0.5 rounded border uppercase tracking-wider ${getStatusBadge(
                           sess.status
@@ -263,6 +264,12 @@ export default function SessionsPage() {
                       >
                         {sess.status}
                       </span>
+                      {sess.isMutualSwap && (
+                        <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300/80 shadow-2xs">
+                          <ArrowRightLeft className="w-2.5 h-2.5 text-emerald-700" />
+                          Mutual Swap
+                        </span>
+                      )}
                       <span className="text-slate-300">•</span>
                       <span className="text-xs font-medium text-slate-600">{sess.category}</span>
                     </div>
