@@ -2,6 +2,7 @@ import { supabase } from './supabase';
 import {
   User,
   Skill,
+  Review,
   Session,
   CreditTransaction,
   College,
@@ -225,6 +226,48 @@ export async function fetchSkills(collegeId?: string): Promise<Skill[]> {
     }));
   } catch (err) {
     console.error('[fetchSkills] Unexpected error:', err);
+    return [];
+  }
+}
+
+export async function fetchReviews(skillId?: string): Promise<Review[]> {
+  if (!supabase) return [];
+
+  try {
+    let query = supabase
+      .from('reviews')
+      .select(`
+        id, skill_id, teacher_id, reviewer_id, rating, comment, skill_title, created_at,
+        reviewer:profiles!reviews_reviewer_id_fkey(id, name, avatar_url)
+      `)
+      .order('created_at', { ascending: false });
+
+    if (skillId) {
+      query = query.eq('skill_id', skillId);
+    }
+
+    const { data, error } = await query;
+    if (error || !data) {
+      if (error) console.warn('[fetchReviews] Error:', error.message);
+      return [];
+    }
+
+    return data.map((r: any) => ({
+      id: r.id,
+      skillId: r.skill_id || undefined,
+      teacherId: r.teacher_id || undefined,
+      reviewerId: r.reviewer_id,
+      reviewerName: r.reviewer?.name || 'Campus Peer',
+      reviewerAvatar:
+        r.reviewer?.avatar_url ||
+        `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(r.reviewer_id)}`,
+      rating: Number(r.rating) || 5,
+      comment: r.comment || '',
+      date: r.created_at?.split('T')[0] || '',
+      skillTitle: r.skill_title || '',
+    }));
+  } catch (err) {
+    console.error('[fetchReviews] Unexpected error:', err);
     return [];
   }
 }
@@ -495,20 +538,20 @@ export async function fetchCreditTransactions(userId: string): Promise<CreditTra
 
     return data.map((t: any) => {
       let mappedType: 'earned_teaching' | 'spent_learning' | 'signup_bonus' | 'refund' = 'signup_bonus';
-      let title = 'Credit Transaction';
+      let defaultTitle = 'Credit Transaction';
 
       if (t.type === 'signup_bonus') {
         mappedType = 'signup_bonus';
-        title = 'Welcome Bonus Granted';
-      } else if (t.type === 'session_earned') {
+        defaultTitle = 'Welcome Starter Bonus';
+      } else if (t.type === 'earned_teaching' || t.type === 'session_earned' || t.type === 'escrow_release') {
         mappedType = 'earned_teaching';
-        title = 'Teaching Session Completed';
-      } else if (t.type === 'session_spent') {
+        defaultTitle = 'Teaching Session Completed';
+      } else if (t.type === 'spent_learning' || t.type === 'session_spent' || t.type === 'escrow_hold') {
         mappedType = 'spent_learning';
-        title = 'Learning Session Booked (Escrow)';
+        defaultTitle = 'Learning Session Booked (Escrow)';
       } else {
         mappedType = 'refund';
-        title = 'Session Cancelled (Refund)';
+        defaultTitle = 'Session Cancelled (Refund)';
       }
 
       return {
@@ -516,10 +559,10 @@ export async function fetchCreditTransactions(userId: string): Promise<CreditTra
         userId: t.user_id,
         amount: t.amount,
         type: mappedType,
-        title,
+        title: t.title || defaultTitle,
         description: t.description || '',
         date: t.created_at?.split('T')[0] || new Date().toISOString().split('T')[0],
-        sessionId: t.reference_id,
+        sessionId: t.session_id || t.reference_id,
       };
     });
   } catch (err) {

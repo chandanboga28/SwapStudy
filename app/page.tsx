@@ -1,8 +1,9 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useApp } from '@/context/AppContext';
+import { useAuth } from '@/context/AuthContext';
 import SkillCard from '@/components/SkillCard';
 import BookingModal from '@/components/BookingModal';
 import { Skill } from '@/types';
@@ -23,27 +24,28 @@ import {
   Star,
   Shield,
   Layers,
-  ArrowUpRight,
-  ArrowDownLeft,
+  BookOpen,
+  Compass,
 } from 'lucide-react';
 
 export default function HomePage() {
-  const { skills } = useApp();
+  const { skills, isLoading } = useApp();
+  const { user, allUsers, isLoading: authLoading } = useAuth();
   const [selectedSkillToBook, setSelectedSkillToBook] = useState<Skill | null>(null);
 
-  // Top featured skills
-  const featuredSkillKeywords = [
-    'Python',
-    'UI/UX',
-    'Web Development',
-    'Video Editing',
-    'Public Speaking',
-    'Data Structures',
-  ];
+  // Real skills sorted with popular listings first (up to 6)
+  const featuredSkills = useMemo(() => {
+    return [...skills]
+      .sort((a, b) => Number(Boolean(b.isPopular)) - Number(Boolean(a.isPopular)))
+      .slice(0, 6);
+  }, [skills]);
 
-  const featuredSkills = skills.filter((s: Skill) =>
-    featuredSkillKeywords.some((kw) => s.title.toLowerCase().includes(kw.toLowerCase()))
-  );
+  // Real peers from Supabase (or active student profiles with teaching goals)
+  const activePeers = useMemo(() => {
+    return allUsers
+      .filter((u) => u.skillsToTeach.length > 0 || u.skillsToLearn.length > 0)
+      .slice(0, 3);
+  }, [allUsers]);
 
   return (
     <div className="flex flex-col min-h-screen bg-[#F8FAFC]">
@@ -58,7 +60,7 @@ export default function HomePage() {
             <div className="lg:col-span-7 space-y-6 text-center lg:text-left">
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-50 border border-emerald-200/80 text-emerald-800 text-xs font-semibold shadow-2xs">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                <span>Zero Cash Required • 100% Student Skill Exchange</span>
+                <span>ADYPU Student Network • Learn a skill. Teach a skill. Grow together.</span>
               </div>
 
               <h1 className="text-4xl sm:text-5xl lg:text-[54px] font-extrabold tracking-tight text-slate-900 leading-[1.12]">
@@ -67,16 +69,16 @@ export default function HomePage() {
               </h1>
 
               <p className="text-base sm:text-lg text-slate-600 max-w-xl mx-auto lg:mx-0 leading-relaxed font-normal">
-                Teach what you know. Learn what you love. Exchange skills with students who grow alongside you.
+                Learn a skill. Teach a skill. Grow together. Exchange 1-on-1 peer tutoring using non-monetary platform credits—no cash tuition fees required.
               </p>
 
               {/* CTAs */}
               <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-3 pt-2">
                 <Link
-                  href="/signup"
+                  href={user ? '/dashboard' : '/signup'}
                   className="w-full sm:w-auto px-6 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-sm shadow-xs shadow-emerald-600/30 transition-all flex items-center justify-center gap-2 group"
                 >
-                  Start Learning for Free
+                  {user ? 'Go to Dashboard' : 'Start Learning for Free'}
                   <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
                 </Link>
 
@@ -89,102 +91,83 @@ export default function HomePage() {
               </div>
 
               {/* Three Value Pillars in Hero */}
-              <div className="pt-6 grid grid-cols-3 gap-4 border-t border-slate-200/80 max-w-lg mx-auto lg:mx-0 text-left">
+              <div className="pt-6 grid grid-cols-1 sm:grid-cols-3 gap-4 border-t border-slate-200/80 max-w-lg mx-auto lg:mx-0 text-left">
                 <div>
-                  <p className="text-xs font-bold text-slate-900">1:1 Tutoring</p>
-                  <p className="text-[11px] text-slate-500 mt-0.5">Direct peer calls</p>
+                  <p className="text-xs font-bold text-slate-900">1:1 Peer Sessions</p>
+                  <p className="text-[11px] text-slate-500 mt-0.5">Direct campus calls</p>
                 </div>
                 <div>
-                  <p className="text-xs font-bold text-slate-900">Credit Economy</p>
-                  <p className="text-[11px] text-slate-500 mt-0.5">1 hr teach = 1 hr learn</p>
+                  <p className="text-xs font-bold text-slate-900">Platform Credits</p>
+                  <p className="text-[11px] text-slate-500 mt-0.5">Non-monetary learning time</p>
                 </div>
                 <div>
-                  <p className="text-xs font-bold text-slate-900">Verified Campuses</p>
-                  <p className="text-[11px] text-slate-500 mt-0.5">Motivated student peers</p>
+                  <p className="text-xs font-bold text-slate-900">Verified ADYPU Campus</p>
+                  <p className="text-[11px] text-slate-500 mt-0.5">Peer-to-peer accountability</p>
                 </div>
               </div>
             </div>
 
-            {/* Right Column: Layered Live Exchange Product Preview */}
+            {/* Right Column: Honest Campus Exchange Mechanism Card */}
             <div className="lg:col-span-5">
               <div className="relative mx-auto max-w-md bg-white rounded-2xl p-6 shadow-md border border-slate-200/90 space-y-4">
-                {/* Header mockup toolbar */}
                 <div className="flex items-center justify-between pb-3 border-b border-slate-100">
                   <div className="flex items-center gap-2">
-                    <div className="flex gap-1.5">
-                      <div className="w-2.5 h-2.5 rounded-full bg-slate-200" />
-                      <div className="w-2.5 h-2.5 rounded-full bg-slate-200" />
-                      <div className="w-2.5 h-2.5 rounded-full bg-slate-200" />
+                    <div className="w-6 h-6 rounded-md bg-emerald-600 text-white flex items-center justify-center">
+                      <Repeat className="w-3.5 h-3.5" />
                     </div>
-                    <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider pl-1">
-                      Live Swap Demo
+                    <span className="text-[11px] font-semibold text-slate-700 uppercase tracking-wider">
+                      Credit Cycle Overview
                     </span>
                   </div>
                   <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 text-[10px] font-bold border border-emerald-200/70">
-                    Active Transfer
+                    Platform Credits
                   </span>
                 </div>
 
-                {/* Card 1: Teaching Flow */}
-                <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200/80 space-y-2">
-                  <div className="flex items-center justify-between">
+                {/* Step A: Teach */}
+                <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200/80 space-y-1.5">
+                  <div className="flex items-center justify-between gap-2">
                     <span className="text-[11px] font-semibold text-emerald-700 uppercase tracking-wide">
-                      Step 1 • Chandan Teaches
+                      1 • Share a Skill You Know
                     </span>
-                    <span className="text-[11px] font-bold text-emerald-700 bg-emerald-100/80 px-2 py-0.5 rounded-md flex items-center gap-1">
-                      <ArrowUpRight className="w-3 h-3 text-emerald-600" />
-                      +3 Credits Earned
+                    <span className="text-[11px] font-bold text-emerald-700 bg-emerald-100/80 px-2 py-0.5 rounded-md">
+                      Earn 1–5 Credits/hr
                     </span>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <img
-                      src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=256&q=80"
-                      alt="Chandan"
-                      className="w-9 h-9 rounded-full object-cover ring-1 ring-slate-200"
-                    />
-                    <div className="min-w-0">
-                      <p className="text-xs font-semibold text-slate-900 truncate">Chandan Boga teaches Python</p>
-                      <p className="text-[11px] text-slate-500">To Maya Patel (Applied Math, MIT)</p>
-                    </div>
-                  </div>
+                  <p className="text-xs text-slate-600 leading-relaxed">
+                    Publish a topic you can teach (e.g., Python, Figma, Calculus) and earn non-monetary time credits when completed.
+                  </p>
                 </div>
 
-                {/* Center Connector Badge */}
                 <div className="flex items-center justify-center -my-2 relative z-10">
                   <div className="px-3 py-1 rounded-full bg-white border border-slate-200 text-slate-600 text-[10px] font-bold flex items-center gap-1.5 shadow-2xs">
-                    <Repeat className="w-3 h-3 text-emerald-600" />
-                    <span>Credits Reinvested</span>
+                    <Shield className="w-3 h-3 text-emerald-600" />
+                    <span>Escrow Protected Until Session Completion</span>
                   </div>
                 </div>
 
-                {/* Card 2: Learning Flow */}
-                <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200/80 space-y-2">
-                  <div className="flex items-center justify-between">
+                {/* Step B: Learn or Mutual Swap */}
+                <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200/80 space-y-1.5">
+                  <div className="flex items-center justify-between gap-2">
                     <span className="text-[11px] font-semibold text-indigo-700 uppercase tracking-wide">
-                      Step 2 • Chandan Learns
+                      2 • Learn or Match Reciprocally
                     </span>
-                    <span className="text-[11px] font-bold text-slate-700 bg-slate-200/70 px-2 py-0.5 rounded-md flex items-center gap-1">
-                      <ArrowDownLeft className="w-3 h-3 text-slate-600" />
-                      -3 Credits Spent
+                    <span className="text-[11px] font-bold text-slate-700 bg-slate-200/70 px-2 py-0.5 rounded-md">
+                      Zero Real Money
                     </span>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <img
-                      src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=256&q=80"
-                      alt="Sophia"
-                      className="w-9 h-9 rounded-full object-cover ring-1 ring-slate-200"
-                    />
-                    <div className="min-w-0">
-                      <p className="text-xs font-semibold text-slate-900 truncate">Learns Figma & UI/UX Design</p>
-                      <p className="text-[11px] text-slate-500">From Sophia Chen (Stanford Design)</p>
-                    </div>
-                  </div>
+                  <p className="text-xs text-slate-600 leading-relaxed">
+                    Book a 1-on-1 lesson with credits, or match reciprocally with a student who wants what you teach and teaches what you want.
+                  </p>
                 </div>
 
-                {/* Result Pill */}
                 <div className="p-3 rounded-xl bg-emerald-950 text-white text-center text-xs space-y-0.5">
-                  <p className="font-semibold text-emerald-300">Both students master new domains.</p>
-                  <p className="text-slate-300 text-[11px]">Zero tuition fees. Direct peer-to-peer exchange.</p>
+                  <p className="font-semibold text-emerald-300">
+                    3 Free Starter Credits on Signup
+                  </p>
+                  <p className="text-slate-300 text-[11px]">
+                    Platform credits carry no monetary value and only represent peer learning hours.
+                  </p>
                 </div>
               </div>
             </div>
@@ -193,7 +176,7 @@ export default function HomePage() {
       </section>
 
       {/* How It Works Section */}
-      <section className="py-20 bg-white border-b border-slate-200/80">
+      <section id="how-it-works" className="py-20 bg-white border-b border-slate-200/80 scroll-mt-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center max-w-2xl mx-auto space-y-3 mb-14">
             <span className="text-xs font-bold uppercase tracking-wider text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-md border border-emerald-200/60">
@@ -271,10 +254,10 @@ export default function HomePage() {
                 Skills Directory
               </span>
               <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight mt-2">
-                Featured Skills
+                Campus Skills Marketplace
               </h2>
               <p className="text-xs sm:text-sm text-slate-500 mt-1">
-                Explore popular topics taught by students at leading institutions.
+                Real peer-taught sessions listed by verified ADYPU &amp; campus students.
               </p>
             </div>
 
@@ -287,16 +270,78 @@ export default function HomePage() {
             </Link>
           </div>
 
-          {/* Grid of Featured Skills */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-            {featuredSkills.map((skill: Skill) => (
-              <SkillCard
-                key={skill.id}
-                skill={skill}
-                onBook={(s: Skill) => setSelectedSkillToBook(s)}
-              />
-            ))}
-          </div>
+          {/* Grid of Featured Skills (Live Supabase Data or Honest Empty State) */}
+          {isLoading ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+              {[0, 1, 2].map((skeleton) => (
+                <div
+                  key={skeleton}
+                  className="bg-white rounded-xl border border-slate-200 p-5 h-56 animate-pulse flex flex-col justify-between"
+                >
+                  <div className="space-y-3">
+                    <div className="h-4 w-28 bg-slate-200 rounded" />
+                    <div className="h-5 w-3/4 bg-slate-200 rounded" />
+                    <div className="h-3 w-full bg-slate-100 rounded" />
+                    <div className="h-3 w-5/6 bg-slate-100 rounded" />
+                  </div>
+                  <div className="h-8 w-full bg-slate-100 rounded-lg" />
+                </div>
+              ))}
+            </div>
+          ) : featuredSkills.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+              {featuredSkills.map((skill: Skill) => (
+                <SkillCard
+                  key={skill.id}
+                  skill={skill}
+                  onBook={(s: Skill) => setSelectedSkillToBook(s)}
+                />
+              ))}
+            </div>
+          ) : (
+            <div className="bg-white rounded-2xl border border-slate-200/90 p-8 sm:p-10 text-center max-w-2xl mx-auto space-y-4 shadow-xs">
+              <div className="w-11 h-11 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 flex items-center justify-center mx-auto">
+                <BookOpen className="w-5 h-5" />
+              </div>
+              <div className="space-y-1.5">
+                <h3 className="text-base font-bold text-slate-900">
+                  {user
+                    ? 'Be the first ADYPU student to list a skill'
+                    : 'Verified ADYPU Campus Directory'}
+                </h3>
+                <p className="text-xs sm:text-sm text-slate-500 max-w-md mx-auto leading-relaxed">
+                  {user
+                    ? 'No peer skill listings are published in your campus directory yet. Share something you know to start earning credits.'
+                    : 'Skill listings are visible to signed-in ADYPU & campus students. Sign in or create your student account to view live peer offerings and request swaps.'}
+                </p>
+              </div>
+              <div className="flex flex-wrap items-center justify-center gap-3 pt-1">
+                {user ? (
+                  <Link
+                    href="/teach"
+                    className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold shadow-xs transition-colors"
+                  >
+                    + Offer to Teach a Skill
+                  </Link>
+                ) : (
+                  <>
+                    <Link
+                      href="/signup"
+                      className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold shadow-xs transition-colors"
+                    >
+                      Join with Campus Email
+                    </Link>
+                    <Link
+                      href="/login"
+                      className="px-5 py-2.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold transition-colors"
+                    >
+                      Sign In
+                    </Link>
+                  </>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* Quick Categories Bar */}
           <div className="mt-10 p-5 bg-white rounded-xl border border-slate-200/90 text-center">
@@ -329,97 +374,131 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Recommended Student Profiles (Demo Data) */}
+      {/* Campus Student Profiles (Real Supabase Data) */}
       <section className="py-20 bg-white border-b border-slate-200/80">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center max-w-2xl mx-auto mb-12">
             <span className="text-xs font-bold uppercase tracking-wider text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-md border border-emerald-200/60">
-              Community Profiles
+              ADYPU &amp; Peer Network
             </span>
             <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight mt-2">
-              Meet Active Student Mentors
+              Meet Campus Learners &amp; Mentors
             </h2>
             <p className="text-xs sm:text-sm text-slate-500 mt-1">
-              Sample student profiles from the SwapStudy demo sandbox.
+              Real students sharing knowledge across ADYPU and partner campuses.
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {[
-              {
-                name: 'Chandan Boga',
-                role: 'CS Junior • University of Washington',
-                avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=256&q=80',
-                teaches: ['Python Programming', 'Algorithms'],
-                learns: ['UI/UX Design', 'Video Editing'],
-                rating: 4.9,
-                sessions: 8,
-              },
-              {
-                name: 'Sophia Chen',
-                role: 'Design & Symbolic Systems • Stanford',
-                avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=256&q=80',
-                teaches: ['UI/UX Design & Figma', 'Design Systems'],
-                learns: ['Python', 'React Basics'],
-                rating: 5.0,
-                sessions: 14,
-              },
-              {
-                name: 'Alex Rivera',
-                role: 'EECS • UC Berkeley',
-                avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=256&q=80',
-                teaches: ['Web Development', 'Next.js'],
-                learns: ['Public Speaking', 'Financial Literacy'],
-                rating: 4.8,
-                sessions: 11,
-              },
-            ].map((st, i) => (
-              <div key={i} className="card-subtle rounded-xl p-5 space-y-4">
-                <div className="flex items-center gap-3">
-                  <img
-                    src={st.avatar}
-                    alt={st.name}
-                    className="w-11 h-11 rounded-full object-cover ring-1 ring-slate-200"
-                  />
-                  <div className="min-w-0">
-                    <p className="text-xs font-bold text-slate-900">{st.name}</p>
-                    <p className="text-[11px] text-slate-500 truncate">{st.role}</p>
-                    <div className="flex items-center gap-2 text-[10px] text-slate-400 mt-0.5">
-                      <span className="flex items-center text-amber-600 font-medium">
-                        <Star className="w-3 h-3 fill-amber-400 text-amber-400 mr-0.5" />
-                        {st.rating}
-                      </span>
-                      <span>•</span>
-                      <span>{st.sessions} sessions taught</span>
+          {authLoading ? (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {[0, 1, 2].map((i) => (
+                <div key={i} className="card-subtle rounded-xl p-5 h-44 animate-pulse bg-slate-50" />
+              ))}
+            </div>
+          ) : activePeers.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {activePeers.map((peer) => (
+                <div key={peer.id} className="card-subtle rounded-xl p-5 space-y-4">
+                  <div className="flex items-center gap-3">
+                    <img
+                      src={peer.avatar}
+                      alt={peer.name}
+                      className="w-11 h-11 rounded-full object-cover ring-1 ring-slate-200 bg-slate-100"
+                    />
+                    <div className="min-w-0">
+                      <p className="text-xs font-bold text-slate-900 truncate">{peer.name}</p>
+                      <p className="text-[11px] text-slate-500 truncate">
+                        {peer.major} • {peer.university}
+                      </p>
+                      <div className="flex items-center gap-2 text-[10px] text-slate-400 mt-0.5">
+                        {peer.totalHoursTaught > 0 ? (
+                          <>
+                            <span className="flex items-center text-amber-600 font-medium">
+                              <Star className="w-3 h-3 fill-amber-400 text-amber-400 mr-0.5" />
+                              {peer.repRating.toFixed(1)}
+                            </span>
+                            <span>•</span>
+                            <span>{peer.totalHoursTaught} hrs taught</span>
+                          </>
+                        ) : (
+                          <span>Campus Peer • Class of {peer.graduationYear}</span>
+                        )}
+                      </div>
                     </div>
                   </div>
-                </div>
 
-                <div className="space-y-2 text-xs pt-2 border-t border-slate-100">
-                  <div>
-                    <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Teaches:</span>
-                    <div className="flex flex-wrap gap-1 mt-1">
-                      {st.teaches.map((t, idx) => (
-                        <span key={idx} className="px-2 py-0.5 rounded bg-emerald-50 text-emerald-800 text-[10px] font-medium border border-emerald-200/60">
-                          {t}
+                  <div className="space-y-2 text-xs pt-2 border-t border-slate-100">
+                    {peer.skillsToTeach.length > 0 && (
+                      <div>
+                        <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
+                          Teaches:
                         </span>
-                      ))}
-                    </div>
-                  </div>
-                  <div>
-                    <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Learning Goal:</span>
-                    <div className="flex flex-wrap gap-1 mt-1">
-                      {st.learns.map((l, idx) => (
-                        <span key={idx} className="px-2 py-0.5 rounded bg-slate-100 text-slate-700 text-[10px] font-medium">
-                          {l}
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {peer.skillsToTeach.slice(0, 3).map((t, idx) => (
+                            <span
+                              key={idx}
+                              className="px-2 py-0.5 rounded bg-emerald-50 text-emerald-800 text-[10px] font-medium border border-emerald-200/60"
+                            >
+                              {t}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {peer.skillsToLearn.length > 0 && (
+                      <div>
+                        <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
+                          Wants to Learn:
                         </span>
-                      ))}
-                    </div>
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {peer.skillsToLearn.slice(0, 3).map((l, idx) => (
+                            <span
+                              key={idx}
+                              className="px-2 py-0.5 rounded bg-slate-100 text-slate-700 text-[10px] font-medium"
+                            >
+                              {l}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
+              ))}
+            </div>
+          ) : (
+            <div className="bg-slate-50/80 border border-slate-200/90 rounded-2xl p-8 text-center max-w-2xl mx-auto space-y-3">
+              <div className="w-10 h-10 rounded-xl bg-white border border-slate-200 text-emerald-700 flex items-center justify-center mx-auto shadow-2xs">
+                <Compass className="w-5 h-5" />
               </div>
-            ))}
-          </div>
+              <h3 className="text-sm font-bold text-slate-900">
+                {user
+                  ? 'You are among the founding peers on campus!'
+                  : 'Connect with verified ADYPU peers'}
+              </h3>
+              <p className="text-xs text-slate-500 max-w-md mx-auto leading-relaxed">
+                {user
+                  ? 'Complete your teaching & learning goals in your profile and post in Campus Community to discover classmates looking for skill swaps.'
+                  : 'For student privacy, peer profiles are only visible after signing in with your campus account. Sign up in under a minute to see classmates offering sessions.'}
+              </p>
+              <div className="pt-1 flex flex-wrap justify-center gap-2.5">
+                <Link
+                  href={user ? '/community' : '/signup'}
+                  className="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold transition-colors"
+                >
+                  {user ? 'Open Campus Community' : 'Create Student Account'}
+                </Link>
+                {user && (
+                  <Link
+                    href="/profile"
+                    className="px-4 py-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold transition-colors"
+                  >
+                    Update My Profile
+                  </Link>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       </section>
 

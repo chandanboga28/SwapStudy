@@ -79,7 +79,7 @@ function MessagesContent() {
     } else if (activeChatPartner) {
       // Create a fallback skill object if not directly listed
       const partnerSkill: Skill = {
-        id: skillId || `skill-${Date.now()}`,
+        id: skillId || '',
         teacherId: activeChatPartner.id,
         teacherName: activeChatPartner.name,
         teacherAvatar: activeChatPartner.avatar,
@@ -89,11 +89,11 @@ function MessagesContent() {
         title: fallbackTitle,
         category: 'Programming & Tech',
         level: 'All Levels',
-        hourlyCredits: 2,
+        hourlyCredits: 1,
         description: `1-to-1 Skill Swap session with ${activeChatPartner.name} on ${fallbackTitle}.`,
         topics: [fallbackTitle, '1-on-1 Practice & Feedback'],
         sessionDurationMinutes: 60,
-        reviewsCount: 4,
+        reviewsCount: 0,
       };
       setBookingSkill(partnerSkill);
     }

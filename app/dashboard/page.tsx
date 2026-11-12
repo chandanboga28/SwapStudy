@@ -35,12 +35,13 @@ import {
 import { useMessaging } from '@/context/MessagingContext';
 
 export default function DashboardPage() {
-  const { user, allUsers } = useAuth();
+  const { user, allUsers, isLoading: authLoading } = useAuth();
   const {
     sessions,
     skills,
     transactions,
     swapInvitations,
+    isLoading: appLoading,
     acceptSession,
     declineSession,
     cancelSession,
@@ -72,6 +73,15 @@ export default function DashboardPage() {
     if (matchFilter === 'wishlist') return smartMatches.filter((m) => m.matchType === 'one-way-learn');
     return smartMatches;
   }, [smartMatches, matchFilter]);
+
+  if (authLoading || (user && appLoading && sessions.length === 0 && skills.length === 0)) {
+    return (
+      <div className="min-h-[70vh] flex flex-col items-center justify-center p-6 text-center gap-3">
+        <div className="w-8 h-8 border-2 border-emerald-600/30 border-t-emerald-600 rounded-full animate-spin" />
+        <p className="text-xs text-slate-500">Loading your student dashboard...</p>
+      </div>
+    );
+  }
 
   if (!user) {
     return (

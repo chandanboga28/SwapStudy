@@ -103,7 +103,7 @@ export default function ShareResourceModal({
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="e.g. UW DubHacks Figma Token Library"
+              placeholder="e.g. DSA Practice Sheet or Figma Kit"
               className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2 text-xs text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
             />
           </div>

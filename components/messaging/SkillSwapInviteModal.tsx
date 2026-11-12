@@ -31,27 +31,33 @@ export default function SkillSwapInviteModal({
   const fallbackPartnerSkills = partner.skillsToTeach || [];
 
   const [selectedOfferedSkill, setSelectedOfferedSkill] = useState<string>(
-    userTeachingSkills[0]?.title || fallbackUserSkills[0] || 'Python Programming from Scratch'
+    userTeachingSkills[0]?.title || fallbackUserSkills[0] || ''
   );
 
   const [selectedRequestedSkill, setSelectedRequestedSkill] = useState<string>(
-    partnerTeachingSkills[0]?.title || fallbackPartnerSkills[0] || 'UI/UX Design & Figma Mastery'
+    partnerTeachingSkills[0]?.title || fallbackPartnerSkills[0] || ''
   );
 
   const [note, setNote] = useState(
-    `Hey ${partner.name.split(' ')[0]}! Would love to swap a session of ${selectedOfferedSkill} for ${selectedRequestedSkill}. Let's coordinate our schedules!`
+    selectedOfferedSkill && selectedRequestedSkill
+      ? `Hey ${partner.name.split(' ')[0]}! Would love to swap a session of ${selectedOfferedSkill} for ${selectedRequestedSkill}. Let's coordinate our schedules!`
+      : `Hey ${partner.name.split(' ')[0]}! Would love to exchange skills with you. Let's coordinate our schedules!`
   );
   const [error, setError] = useState<string | null>(null);
 
   // Update default note when skill selection changes
   const handleOfferedChange = (val: string) => {
     setSelectedOfferedSkill(val);
-    setNote(`Hey ${partner.name.split(' ')[0]}! Would love to swap a session of ${val} for ${selectedRequestedSkill}. Let's coordinate our schedules!`);
+    if (val && selectedRequestedSkill) {
+      setNote(`Hey ${partner.name.split(' ')[0]}! Would love to swap a session of ${val} for ${selectedRequestedSkill}. Let's coordinate our schedules!`);
+    }
   };
 
   const handleRequestedChange = (val: string) => {
     setSelectedRequestedSkill(val);
-    setNote(`Hey ${partner.name.split(' ')[0]}! Would love to swap a session of ${selectedOfferedSkill} for ${val}. Let's coordinate our schedules!`);
+    if (selectedOfferedSkill && val) {
+      setNote(`Hey ${partner.name.split(' ')[0]}! Would love to swap a session of ${selectedOfferedSkill} for ${val}. Let's coordinate our schedules!`);
+    }
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -64,19 +70,23 @@ export default function SkillSwapInviteModal({
     }
 
     if (!selectedOfferedSkill || !selectedRequestedSkill) {
-      setError('Please select both an offered skill and a requested skill.');
+      setError('Both students need at least one skill listed to propose a swap.');
       return;
     }
 
-    const offeredSkillObj = skills.find((s) => s.title === selectedOfferedSkill);
-    const requestedSkillObj = skills.find((s) => s.title === selectedRequestedSkill);
+    const offeredSkillObj = skills.find(
+      (s) => s.teacherId === user.id && s.title === selectedOfferedSkill
+    );
+    const requestedSkillObj = skills.find(
+      (s) => s.teacherId === partner.id && s.title === selectedRequestedSkill
+    );
 
-    const credits = requestedSkillObj?.hourlyCredits || offeredSkillObj?.hourlyCredits || 2;
+    const credits = requestedSkillObj?.hourlyCredits || offeredSkillObj?.hourlyCredits || 1;
 
     const res = sendSkillSwapInvitation(conversationId, {
-      offeredSkillId: offeredSkillObj?.id || `skill-custom-${Date.now()}`,
+      offeredSkillId: offeredSkillObj?.id || '',
       offeredSkillTitle: selectedOfferedSkill,
-      requestedSkillId: requestedSkillObj?.id || `skill-custom-${Date.now() + 1}`,
+      requestedSkillId: requestedSkillObj?.id || '',
       requestedSkillTitle: selectedRequestedSkill,
       credits,
       note: note.trim(),
@@ -144,6 +154,9 @@ export default function SkillSwapInviteModal({
                       {title}
                     </option>
                   ))}
+                {userTeachingSkills.length === 0 && fallbackUserSkills.length === 0 && (
+                  <option value="">No teaching skills listed yet</option>
+                )}
               </select>
               <span className="text-[10px] text-emerald-700/80 block">
                 Offered from your verified teaching skills
@@ -172,6 +185,9 @@ export default function SkillSwapInviteModal({
                       {title}
                     </option>
                   ))}
+                {partnerTeachingSkills.length === 0 && fallbackPartnerSkills.length === 0 && (
+                  <option value="">No partner skills listed yet</option>
+                )}
               </select>
               <span className="text-[10px] text-teal-700/80 block">
                 {partner.name.split(' ')[0]}&apos;s active skills
@@ -216,7 +232,8 @@ export default function SkillSwapInviteModal({
             </button>
             <button
               type="submit"
-              className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs shadow-xs transition-all flex items-center gap-1.5"
+              disabled={!selectedOfferedSkill || !selectedRequestedSkill}
+              className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-semibold text-xs shadow-xs transition-all flex items-center gap-1.5"
             >
               <ArrowRightLeft className="w-3.5 h-3.5" />
               Send Swap Invitation

@@ -130,15 +130,13 @@ export function MessagingProvider({ children }: { children: React.ReactNode }) {
 
   // Load messages when active conversation changes
   const loadMessages = useCallback(async (convId: string) => {
-    if (!convId) return;
+    if (!convId || convId.startsWith('conv-')) return;
     try {
       const msgs = await fetchConversationMessages(convId);
-      if (msgs && msgs.length > 0) {
-        setMessagesByConv((prev) => ({
-          ...prev,
-          [convId]: msgs,
-        }));
-      }
+      setMessagesByConv((prev) => ({
+        ...prev,
+        [convId]: msgs || [],
+      }));
     } catch (err) {
       console.warn(`Error loading messages for ${convId}:`, err);
     }
@@ -176,12 +174,20 @@ export function MessagingProvider({ children }: { children: React.ReactNode }) {
             invitation_data?: SkillInvitationData;
             created_at: string;
           };
+          const senderProfile = allUsers.find((u) => u.id === row.sender_id);
           const newMsg: Message = {
             id: row.id,
             conversationId: row.conversation_id,
             senderId: row.sender_id,
-            senderName: row.sender_id === user?.id ? (user?.name || 'You') : 'Student',
-            senderAvatar: row.sender_id === user?.id ? user?.avatar : 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=256&q=80',
+            senderName:
+              row.sender_id === user?.id
+                ? user?.name || 'You'
+                : senderProfile?.name || 'Student',
+            senderAvatar:
+              row.sender_id === user?.id
+                ? user?.avatar
+                : senderProfile?.avatar ||
+                  `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(row.sender_id)}`,
             type: (row.type as MessageType) || 'text',
             content: row.content,
             resourceUrl: row.resource_url,
@@ -208,7 +214,7 @@ export function MessagingProvider({ children }: { children: React.ReactNode }) {
         supabase.removeChannel(channel);
       }
     };
-  }, [activeConversationId, user]);
+  }, [activeConversationId, user, allUsers]);
 
   // Filter conversations for current user
   const userConversations = useMemo(() => {
@@ -432,10 +438,22 @@ export function MessagingProvider({ children }: { children: React.ReactNode }) {
       getOrCreateDirectConversation(targetUserId)
         .then((res) => {
           if (res.success && res.conversationId) {
+            const realId = res.conversationId;
             setAllConversations((prev) =>
-              prev.map((c) => (c.id === newConvId ? { ...c, id: res.conversationId! } : c))
+              prev.map((c) => (c.id === newConvId ? { ...c, id: realId } : c))
             );
-            setActiveConversationId(res.conversationId);
+            setMessagesByConv((prev) => {
+              const queued = prev[newConvId];
+              if (!queued) return prev;
+              const next = { ...prev };
+              delete next[newConvId];
+              next[realId] = [
+                ...(next[realId] || []),
+                ...queued.map((m) => ({ ...m, conversationId: realId })),
+              ];
+              return next;
+            });
+            setActiveConversationId((curr) => (curr === newConvId ? realId : curr));
           }
         })
         .catch((err) => {

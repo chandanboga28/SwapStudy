@@ -65,16 +65,31 @@ interface CommunityContextType {
   isLoading: boolean;
 }
 
+const DEFAULT_CAMPUS: College = {
+  id: 'adypu',
+  name: 'Ajeenkya DY Patil University',
+  shortName: 'ADYPU',
+  domain: 'adypu.edu.in',
+  location: 'Pune, India',
+  mascot: 'Titans',
+  badgeColor: '#059669',
+  memberCount: 0,
+  verifiedCount: 0,
+  description: 'Campus peer learning community for ADYPU students.',
+};
+
 const CommunityContext = createContext<CommunityContextType | undefined>(undefined);
 
 export function CommunityProvider({ children }: { children: React.ReactNode }) {
   const { user, allUsers } = useAuth();
 
-  const [colleges, setColleges] = useState<College[]>(COLLEGES);
+  const [colleges, setColleges] = useState<College[]>(isSupabaseConfigured ? [] : COLLEGES);
   const [selectedCollegeId, setSelectedCollegeId] = useState<string>('adypu');
-  const [posts, setPosts] = useState<CommunityPost[]>(INITIAL_POSTS);
-  const [groups, setGroups] = useState<LearningGroup[]>(INITIAL_GROUPS);
-  const [connections, setConnections] = useState<StudentConnection[]>(INITIAL_CONNECTIONS);
+  const [posts, setPosts] = useState<CommunityPost[]>(isSupabaseConfigured ? [] : INITIAL_POSTS);
+  const [groups, setGroups] = useState<LearningGroup[]>(isSupabaseConfigured ? [] : INITIAL_GROUPS);
+  const [connections, setConnections] = useState<StudentConnection[]>(
+    isSupabaseConfigured ? [] : INITIAL_CONNECTIONS
+  );
   const [savedPostIds, setSavedPostIds] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
@@ -101,7 +116,11 @@ export function CommunityProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const currentCollege = useMemo(() => {
-    return colleges.find((c) => c.id === selectedCollegeId) || colleges[0] || COLLEGES[0];
+    return (
+      colleges.find((c) => c.id === selectedCollegeId) ||
+      colleges[0] ||
+      (isSupabaseConfigured ? DEFAULT_CAMPUS : COLLEGES[0])
+    );
   }, [colleges, selectedCollegeId]);
 
   // Fetch community data when current college or user changes
@@ -126,6 +145,8 @@ export function CommunityProvider({ children }: { children: React.ReactNode }) {
           .filter((p) => p.savedBy?.includes(user.id))
           .map((p) => p.id);
         setSavedPostIds(userSaved);
+      } else {
+        setSavedPostIds([]);
       }
 
       // 2. Fetch learning groups directly from Supabase

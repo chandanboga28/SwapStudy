@@ -127,30 +127,27 @@ export default function ConversationList({
         <div className="flex items-center gap-1">
           <button
             onClick={() => setFilterMode('all')}
-            className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all ${
-              filterMode === 'all'
+            className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all ${filterMode === 'all'
                 ? 'bg-slate-900 text-white shadow-xs'
                 : 'text-slate-600 hover:bg-slate-100'
-            }`}
+              }`}
           >
             All ({conversationItems.length})
           </button>
           <button
             onClick={() => setFilterMode('unread')}
-            className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all flex items-center gap-1 ${
-              filterMode === 'unread'
+            className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all flex items-center gap-1 ${filterMode === 'unread'
                 ? 'bg-slate-900 text-white shadow-xs'
                 : 'text-slate-600 hover:bg-slate-100'
-            }`}
+              }`}
           >
             Unread
             {totalUnread > 0 && (
               <span
-                className={`w-4 h-4 rounded-full text-[10px] flex items-center justify-center font-bold ${
-                  filterMode === 'unread'
+                className={`w-4 h-4 rounded-full text-[10px] flex items-center justify-center font-bold ${filterMode === 'unread'
                     ? 'bg-emerald-500 text-white'
                     : 'bg-emerald-100 text-emerald-800'
-                }`}
+                  }`}
               >
                 {totalUnread}
               </span>
@@ -192,18 +189,17 @@ export default function ConversationList({
               <div
                 key={conv.id}
                 onClick={() => onSelectConversation(conv.id)}
-                className={`p-3.5 flex items-start gap-3 cursor-pointer transition-all ${
-                  isActive
+                className={`p-3.5 flex items-start gap-3 cursor-pointer transition-all ${isActive
                     ? 'bg-emerald-50/70 border-l-4 border-emerald-600'
                     : 'hover:bg-slate-50/80 border-l-4 border-transparent'
-                }`}
+                  }`}
               >
                 {/* Avatar with Status */}
                 <div className="relative shrink-0">
                   <img
                     src={
                       partner?.avatar ||
-                      'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=256&q=80'
+                      `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(partner?.id || conv.id)}`
                     }
                     alt={partner?.name || 'Classmate'}
                     className="w-10 h-10 rounded-full object-cover border border-slate-200"
@@ -222,9 +218,8 @@ export default function ConversationList({
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between gap-1 mb-0.5">
                     <span
-                      className={`text-xs truncate ${
-                        unread > 0 ? 'font-bold text-slate-900' : 'font-semibold text-slate-800'
-                      }`}
+                      className={`text-xs truncate ${unread > 0 ? 'font-bold text-slate-900' : 'font-semibold text-slate-800'
+                        }`}
                     >
                       {partner?.name || 'Study Partner'}
                     </span>
@@ -235,7 +230,7 @@ export default function ConversationList({
 
                   {/* University / Major Snippet */}
                   <p className="text-[10px] text-slate-500 truncate mb-1">
-                    {partner?.major || 'Campus Peer'} • {partner?.university?.split(' ')[0] || 'UW'}
+                    {partner?.major || 'Campus Peer'} • {partner?.university?.includes('Ajeenkya') ? 'ADYPU' : partner?.university?.split(' ')[0] || 'Campus'}
                   </p>
 
                   {/* Last Message Snippet */}
@@ -248,11 +243,10 @@ export default function ConversationList({
                         <LinkIcon className="w-3 h-3 text-blue-600 shrink-0" />
                       )}
                       <p
-                        className={`text-[11px] truncate ${
-                          unread > 0
+                        className={`text-[11px] truncate ${unread > 0
                             ? 'font-semibold text-slate-900'
                             : 'text-slate-500'
-                        }`}
+                          }`}
                       >
                         {conv.lastMessage?.text || 'Direct conversation started'}
                       </p>
@@ -273,3 +267,5 @@ export default function ConversationList({
     </div>
   );
 }
+
+

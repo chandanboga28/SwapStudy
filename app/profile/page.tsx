@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
+import { User } from '@/types';
 import {
   GraduationCap,
   Coins,
@@ -12,74 +13,39 @@ import {
   Check,
   ShieldCheck,
   Lock,
+  AlertCircle,
 } from 'lucide-react';
 
 export default function ProfilePage() {
-  const { user, updateUser } = useAuth();
-  const [name, setName] = useState(user?.name || '');
-  const university = user?.university || '';
-  const [major, setMajor] = useState(user?.major || '');
-  const [graduationYear, setGraduationYear] = useState(user?.graduationYear || '2026');
-  const [bio, setBio] = useState(user?.bio || '');
-
-  const [teachTagInput, setTeachTagInput] = useState('');
-  const [skillsToTeach, setSkillsToTeach] = useState<string[]>(user?.skillsToTeach || []);
-
-  const [learnTagInput, setLearnTagInput] = useState('');
-  const [skillsToLearn, setSkillsToLearn] = useState<string[]>(user?.skillsToLearn || []);
-
+  const { user, isLoading, updateUser } = useAuth();
   const [notification, setNotification] = useState<string | null>(null);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  if (isLoading) {
+    return (
+      <div className="min-h-[70vh] flex flex-col items-center justify-center p-6 text-center gap-3">
+        <div className="w-8 h-8 border-2 border-emerald-600/30 border-t-emerald-600 rounded-full animate-spin" />
+        <p className="text-xs text-slate-500">Loading your student profile...</p>
+      </div>
+    );
+  }
 
   if (!user) {
     return (
-      <div className="min-h-[70vh] flex flex-col items-center justify-center p-6 text-center">
-        <h2 className="text-base font-bold text-slate-900 mb-1">Sign in to view your profile</h2>
+      <div className="min-h-[70vh] flex flex-col items-center justify-center p-6 text-center space-y-3">
+        <h2 className="text-base font-bold text-slate-900">Sign in to view your profile</h2>
+        <p className="text-xs text-slate-500 max-w-sm">
+          Access and edit your ADYPU student profile, teaching topics, and learning goals.
+        </p>
         <Link
           href="/login"
-          className="px-4 py-2 rounded-lg bg-emerald-600 text-white font-semibold text-xs"
+          className="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs"
         >
           Sign In
         </Link>
       </div>
     );
   }
-
-  const handleAddTeach = () => {
-    if (teachTagInput.trim() && !skillsToTeach.includes(teachTagInput.trim())) {
-      setSkillsToTeach([...skillsToTeach, teachTagInput.trim()]);
-      setTeachTagInput('');
-    }
-  };
-
-  const handleRemoveTeach = (skill: string) => {
-    setSkillsToTeach(skillsToTeach.filter((s) => s !== skill));
-  };
-
-  const handleAddLearn = () => {
-    if (learnTagInput.trim() && !skillsToLearn.includes(learnTagInput.trim())) {
-      setSkillsToLearn([...skillsToLearn, learnTagInput.trim()]);
-      setLearnTagInput('');
-    }
-  };
-
-  const handleRemoveLearn = (skill: string) => {
-    setSkillsToLearn(skillsToLearn.filter((s) => s !== skill));
-  };
-
-  const handleSave = async (e: React.FormEvent) => {
-    e.preventDefault();
-    await updateUser({
-      name,
-      university,
-      major,
-      graduationYear,
-      bio,
-      skillsToTeach,
-      skillsToLearn,
-    });
-    setNotification('Profile successfully updated!');
-    setTimeout(() => setNotification(null), 3000);
-  };
 
   return (
     <div className="min-h-screen py-8 bg-[#F8FAFC]">
@@ -97,6 +63,18 @@ export default function ProfilePage() {
           </div>
         )}
 
+        {errorMsg && (
+          <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 rounded-xl text-xs font-medium flex items-center justify-between">
+            <span className="flex items-center gap-1.5">
+              <AlertCircle className="w-3.5 h-3.5 text-rose-600" />
+              {errorMsg}
+            </span>
+            <button onClick={() => setErrorMsg(null)} className="text-rose-500 hover:text-rose-800">
+              ✕
+            </button>
+          </div>
+        )}
+
         {/* Profile Header */}
         <div className="card-subtle rounded-xl p-6 space-y-5">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-5">
@@ -107,7 +85,7 @@ export default function ProfilePage() {
                 className="w-16 h-16 rounded-xl object-cover ring-1 ring-slate-200"
               />
               <div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                   <h1 className="text-xl font-bold text-slate-900">{user.name}</h1>
                   {user.isCollegeVerified ? (
                     <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200/60 inline-flex items-center gap-1">
@@ -124,7 +102,7 @@ export default function ProfilePage() {
                   <GraduationCap className="w-3.5 h-3.5 text-slate-400" />
                   {user.major} • {user.university} ({user.graduationYear})
                 </p>
-                <div className="flex items-center gap-2.5 text-xs mt-2 font-medium">
+                <div className="flex items-center gap-2.5 text-xs mt-2 font-medium flex-wrap">
                   <span className="flex items-center gap-1 text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200/60 text-[11px]">
                     <Coins className="w-3 h-3 text-emerald-600" />
                     {user.credits} Credits
@@ -154,7 +132,94 @@ export default function ProfilePage() {
           </div>
         </div>
 
-        {/* Profile Settings Form */}
+        <ProfileSettingsForm
+          key={`${user.id}-${user.name}-${user.major}-${user.graduationYear}-${user.bio}-${user.skillsToTeach.join(',')}-${user.skillsToLearn.join(',')}`}
+          user={user}
+          updateUser={updateUser}
+          onSuccess={() => {
+            setErrorMsg(null);
+            setNotification('Profile successfully updated!');
+            setTimeout(() => setNotification(null), 3000);
+          }}
+          onError={(err) => setErrorMsg(err)}
+        />
+      </div>
+    </div>
+  );
+}
+
+function ProfileSettingsForm({
+  user,
+  updateUser,
+  onSuccess,
+  onError,
+}: {
+  user: User;
+  updateUser: (updatedData: Partial<User>) => Promise<{ success: boolean; error?: string }>;
+  onSuccess: () => void;
+  onError: (msg: string) => void;
+}) {
+  const [name, setName] = useState(user.name || '');
+  const university = user.university || '';
+  const [major, setMajor] = useState(user.major || '');
+  const [graduationYear, setGraduationYear] = useState(user.graduationYear || '2026');
+  const [bio, setBio] = useState(user.bio || '');
+
+  const [teachTagInput, setTeachTagInput] = useState('');
+  const [skillsToTeach, setSkillsToTeach] = useState<string[]>(user.skillsToTeach || []);
+
+  const [learnTagInput, setLearnTagInput] = useState('');
+  const [skillsToLearn, setSkillsToLearn] = useState<string[]>(user.skillsToLearn || []);
+  const [isSaving, setIsSaving] = useState(false);
+
+  const handleAddTeach = () => {
+    if (teachTagInput.trim() && !skillsToTeach.includes(teachTagInput.trim())) {
+      setSkillsToTeach([...skillsToTeach, teachTagInput.trim()]);
+      setTeachTagInput('');
+    }
+  };
+
+  const handleRemoveTeach = (skill: string) => {
+    setSkillsToTeach(skillsToTeach.filter((s) => s !== skill));
+  };
+
+  const handleAddLearn = () => {
+    if (learnTagInput.trim() && !skillsToLearn.includes(learnTagInput.trim())) {
+      setSkillsToLearn([...skillsToLearn, learnTagInput.trim()]);
+      setLearnTagInput('');
+    }
+  };
+
+  const handleRemoveLearn = (skill: string) => {
+    setSkillsToLearn(skillsToLearn.filter((s) => s !== skill));
+  };
+
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!name.trim()) {
+      onError('Full name cannot be empty.');
+      return;
+    }
+
+    setIsSaving(true);
+    const res = await updateUser({
+      name: name.trim(),
+      major: major.trim() || 'General Studies',
+      graduationYear: graduationYear.trim() || '2026',
+      bio: bio.trim(),
+      skillsToTeach,
+      skillsToLearn,
+    });
+    setIsSaving(false);
+
+    if (res.success) {
+      onSuccess();
+    } else {
+      onError(res.error || 'Failed to update profile.');
+    }
+  };
+
+  return (
         <form onSubmit={handleSave} className="card-subtle rounded-xl p-6 sm:p-7 space-y-5">
           <h2 className="text-sm font-bold uppercase tracking-wider text-slate-900 border-b border-slate-100 pb-3">
             Academic Credentials & Exchange Settings
@@ -199,7 +264,7 @@ export default function ProfilePage() {
                 )}
               </div>
               <p className="text-[10px] text-slate-400 mt-1">
-                College identity is tied to your student account (@{user.collegeId || 'uw'}.edu) and maintained separately from profile text.
+                College identity ({user.collegeId ? `@${user.collegeId}.edu.in` : user.email.split('@')[1]}) is linked to your account.
               </p>
             </div>
 
@@ -343,13 +408,19 @@ export default function ProfilePage() {
             </Link>
             <button
               type="submit"
-              className="py-2 px-4 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs shadow-2xs transition-colors"
+              disabled={isSaving}
+              className="py-2 px-4 rounded-lg bg-emerald-600 hover:bg-emerald-500 disabled:bg-emerald-400 text-white font-semibold text-xs shadow-2xs transition-colors flex items-center gap-1.5"
             >
-              Save Profile Changes
+              {isSaving ? (
+                <>
+                  <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                'Save Profile Changes'
+              )}
             </button>
           </div>
         </form>
-      </div>
-    </div>
   );
 }

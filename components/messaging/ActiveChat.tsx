@@ -139,7 +139,7 @@ export default function ActiveChat({
             <img
               src={
                 partner?.avatar ||
-                'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=256&q=80'
+                `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(partner?.id || conversation.id)}`
               }
               alt={partner?.name || 'Partner'}
               className="w-10 h-10 rounded-full object-cover border border-slate-200"
@@ -162,7 +162,7 @@ export default function ActiveChat({
               </span>
             </div>
             <p className="text-[11px] text-slate-500 truncate">
-              {partner?.university || 'University of Washington'} • {partner?.major || 'Student'}
+              {partner?.university || 'Campus Peer'} • {partner?.major || 'Student'}
             </p>
           </div>
         </div>
@@ -229,7 +229,7 @@ export default function ActiveChat({
                       src={
                         msg.senderAvatar ||
                         partner?.avatar ||
-                        'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=256&q=80'
+                        `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(msg.senderId)}`
                       }
                       alt={msg.senderName}
                       className="w-7 h-7 rounded-full object-cover border border-slate-200 shrink-0 mb-1"

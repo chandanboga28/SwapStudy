@@ -27,10 +27,10 @@ interface AuthContextType {
     graduationYear?: string;
     skillsToTeach: string[];
     skillsToLearn: string[];
-  }) => Promise<{ success: boolean; error?: string }>;
+  }) => Promise<{ success: boolean; error?: string; needsEmailConfirmation?: boolean }>;
   logout: () => Promise<void>;
   switchDemoUser: (userId: string) => void;
-  updateUser: (updatedData: Partial<User>) => Promise<void>;
+  updateUser: (updatedData: Partial<User>) => Promise<{ success: boolean; error?: string }>;
   refreshUser: () => Promise<void>;
   submitVerification: (
     collegeId: string,
@@ -137,10 +137,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return { success: false, error: 'User not found in demo list' };
     }
 
+    if (!password) {
+      return { success: false, error: 'Please enter your password.' };
+    }
+
     try {
       const { data, error } = await supabase.auth.signInWithPassword({
         email: email.trim(),
-        password: password || 'demo123456',
+        password,
       });
 
       if (error) {
@@ -189,17 +193,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return { success: true };
     }
 
+    if (!userData.password || userData.password.length < 6) {
+      return { success: false, error: 'Password must be at least 6 characters.' };
+    }
+
     try {
+      const emailRedirectTo =
+        typeof window !== 'undefined' ? `${window.location.origin}/dashboard` : undefined;
+
       const { data, error } = await supabase.auth.signUp({
         email: userData.email.trim(),
-        password: userData.password || 'demo123456',
+        password: userData.password,
         options: {
+          emailRedirectTo,
           data: {
             name: userData.name.trim(),
             university: userData.university.trim(),
             major: userData.major.trim(),
             graduation_year: userData.graduationYear || '2026',
             graduationYear: userData.graduationYear || '2026',
+            skillsToTeach: userData.skillsToTeach,
+            skillsToLearn: userData.skillsToLearn,
           },
         },
       });
@@ -209,7 +223,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       const newUserId = data.user?.id;
-      if (newUserId) {
+      if (newUserId && data.session) {
         // Wait briefly for handle_new_auth_user trigger to populate profiles & wallets
         await new Promise((r) => setTimeout(r, 600));
 
@@ -220,25 +234,37 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           graduationYear: userData.graduationYear || '2026',
         });
 
-        // Insert first skill to teach into public.skills listing (skip placeholders or short inputs)
+        const freshProfile = await fetchUserProfile(newUserId);
+
+        // Insert first skill to teach into public.skills listing only when verified at a college
         const firstSkill = userData.skillsToTeach[0]?.trim();
-        const isPlaceholder = !firstSkill || firstSkill.length < 3 || ['na', 'n/a', 'none', 'nil'].includes(firstSkill.toLowerCase());
-        if (userData.skillsToTeach.length > 0 && !isPlaceholder) {
-          const domain = userData.email.split('@')[1]?.toLowerCase();
-          const collegeId = domain?.includes('adypu') ? 'adypu' : domain?.includes('nst') ? 'nst' : 'adypu';
-          await createSkillListing(newUserId, collegeId, {
+        const isPlaceholder =
+          !firstSkill ||
+          firstSkill.length < 3 ||
+          ['na', 'n/a', 'none', 'nil'].includes(firstSkill.toLowerCase());
+
+        if (
+          freshProfile?.collegeId &&
+          freshProfile?.isCollegeVerified &&
+          userData.skillsToTeach.length > 0 &&
+          !isPlaceholder
+        ) {
+          await createSkillListing(newUserId, freshProfile.collegeId, {
             title: firstSkill,
             category: 'Programming & Tech',
             level: 'All Levels',
             hourlyCredits: 1,
-            description: `Peer learning session on ${firstSkill} offered by ${userData.name}.`,
+            description: `Peer learning session on ${firstSkill} offered by ${userData.name.trim()}.`,
           });
         }
 
         await loadUserData(newUserId);
       }
 
-      return { success: true };
+      return {
+        success: true,
+        needsEmailConfirmation: !data.session,
+      };
     } catch (err: any) {
       return { success: false, error: err.message || 'Signup failed' };
     }
@@ -258,14 +284,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   // Profile updates
-  const updateUser = async (updatedData: Partial<User>) => {
-    if (!user) return;
-    const updatedUser = { ...user, ...updatedData };
-    setUser(updatedUser);
+  const updateUser = async (updatedData: Partial<User>): Promise<{ success: boolean; error?: string }> => {
+    if (!user) return { success: false, error: 'You must be signed in to update your profile.' };
 
     if (isSupabaseConfigured && supabase) {
-      await updateUserProfile(user.id, updatedData);
+      const res = await updateUserProfile(user.id, updatedData);
+      if (!res.success) {
+        return { success: false, error: res.error || 'Failed to update profile.' };
+      }
     }
+
+    setUser({ ...user, ...updatedData });
+    return { success: true };
   };
 
   // Refresh profile and balance
@@ -294,8 +324,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return res;
   };
 
-  // Demo user switcher
+  // Demo user switcher (only active when Supabase is not configured)
   const switchDemoUser = (userId: string) => {
+    if (isSupabaseConfigured) return;
     const selected = allUsers.find((u) => u.id === userId);
     if (selected) {
       setUser(selected);

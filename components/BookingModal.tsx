@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { Skill } from '@/types';
 import { useAuth } from '@/context/AuthContext';
 import { useApp } from '@/context/AppContext';
+import { getISTDateString, isISTDateTimeInFuture } from '@/lib/timezone';
 import { X, Calendar, Clock, Coins, AlertCircle, CheckCircle2, ArrowRight } from 'lucide-react';
 import Link from 'next/link';
 
@@ -15,12 +16,14 @@ interface BookingModalProps {
 
 export default function BookingModal({ skill, onClose, onSuccess }: BookingModalProps) {
   const { user } = useAuth();
-  const { bookSession } = useApp();
+  const { bookSession, sessions } = useApp();
 
-  const [date, setDate] = useState('2026-11-04');
+  const [todayStr] = useState<string>(() => getISTDateString(0));
+  const [date, setDate] = useState<string>(() => getISTDateString(1));
   const [time, setTime] = useState('16:00');
   const [notes, setNotes] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
 
   if (!skill) return null;
@@ -28,13 +31,22 @@ export default function BookingModal({ skill, onClose, onSuccess }: BookingModal
   const cost = skill.hourlyCredits;
   const hasEnoughCredits = (user?.credits ?? 0) >= cost;
   const isOwnSkill = user?.id === skill.teacherId;
+  const hasPendingBooking = Boolean(
+    user &&
+      sessions.some(
+        (s) =>
+          s.skillId === skill.id &&
+          s.learnerId === user.id &&
+          (s.status === 'pending' || s.status === 'confirmed')
+      )
+  );
 
   const handleBooking = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
 
     if (!user) {
-      setError('Please log in first to book a session.');
+      setError('Please sign in first to book a session.');
       return;
     }
 
@@ -43,23 +55,45 @@ export default function BookingModal({ skill, onClose, onSuccess }: BookingModal
       return;
     }
 
+    if (hasPendingBooking) {
+      setError('You already have a pending or confirmed session for this skill.');
+      return;
+    }
+
     if (!hasEnoughCredits) {
       setError(`You need ${cost} credits, but you have ${user.credits} credits. Offer a skill to earn more credits!`);
       return;
     }
 
-    const res = await bookSession({
-      skillId: skill.id,
-      date,
-      time,
-      notes,
-    });
+    if (!date || !time) {
+      setError('Please select a valid date and time.');
+      return;
+    }
 
-    if (res.success) {
-      setIsSuccess(true);
-      if (onSuccess) onSuccess();
-    } else {
-      setError(res.error || 'Failed to book session. Please try again.');
+    if (!isISTDateTimeInFuture(date, time)) {
+      setError('Selected date and time have already passed in IST. Please choose a future time slot.');
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const res = await bookSession({
+        skillId: skill.id,
+        date,
+        time,
+        notes,
+      });
+
+      if (res.success) {
+        setIsSuccess(true);
+        if (onSuccess) onSuccess();
+      } else {
+        setError(res.error || 'Failed to book session. Please try again.');
+      }
+    } catch (err: unknown) {
+      setError((err as Error).message || 'Failed to book session.');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -185,7 +219,7 @@ export default function BookingModal({ skill, onClose, onSuccess }: BookingModal
                   required
                   value={date}
                   onChange={(e) => setDate(e.target.value)}
-                  min="2026-11-01"
+                  min={todayStr}
                   className="w-full text-xs px-2.5 py-1.5 rounded-lg border border-slate-300 focus:outline-hidden focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600"
                 />
               </div>
@@ -221,9 +255,21 @@ export default function BookingModal({ skill, onClose, onSuccess }: BookingModal
 
             {/* Submit CTA */}
             <div className="pt-1">
-              {isOwnSkill ? (
+              {!user ? (
+                <Link
+                  href="/login"
+                  className="w-full py-2.5 px-3 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs shadow-2xs transition-all flex items-center justify-center gap-1.5"
+                >
+                  Sign In to Book Session
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </Link>
+              ) : isOwnSkill ? (
                 <div className="p-2.5 text-center bg-slate-100 rounded-lg text-xs text-slate-500">
                   This is your own skill listing.
+                </div>
+              ) : hasPendingBooking ? (
+                <div className="p-2.5 text-center bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-800">
+                  You already have an active session request for this skill.
                 </div>
               ) : !hasEnoughCredits ? (
                 <button
@@ -236,10 +282,20 @@ export default function BookingModal({ skill, onClose, onSuccess }: BookingModal
               ) : (
                 <button
                   type="submit"
-                  className="w-full py-2.5 px-3 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs shadow-2xs transition-all flex items-center justify-center gap-1.5"
+                  disabled={isSubmitting}
+                  className="w-full py-2.5 px-3 rounded-lg bg-emerald-600 hover:bg-emerald-500 disabled:bg-emerald-400 text-white font-semibold text-xs shadow-2xs transition-all flex items-center justify-center gap-1.5"
                 >
-                  <Coins className="w-3.5 h-3.5" />
-                  Confirm Swap & Spend {cost} Credits
+                  {isSubmitting ? (
+                    <>
+                      <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      Confirming Escrow...
+                    </>
+                  ) : (
+                    <>
+                      <Coins className="w-3.5 h-3.5" />
+                      Confirm Swap &amp; Spend {cost} Credits
+                    </>
+                  )}
                 </button>
               )}
             </div>

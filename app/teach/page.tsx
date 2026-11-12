@@ -28,7 +28,7 @@ const CATEGORIES: SkillCategory[] = [
 const LEVELS: SkillLevel[] = ['Beginner', 'Intermediate', 'Advanced', 'All Levels'];
 
 export default function TeachSkillPage() {
-  const { user } = useAuth();
+  const { user, isLoading: authLoading } = useAuth();
   const { addSkill, deleteSkill, skills } = useApp();
 
   const [title, setTitle] = useState('');
@@ -50,6 +50,15 @@ export default function TeachSkillPage() {
   const [createdSkillId, setCreatedSkillId] = useState<string | null>(null);
   const [deletingSkillId, setDeletingSkillId] = useState<string | null>(null);
   const [deleteNotice, setDeleteNotice] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+
+  if (authLoading) {
+    return (
+      <div className="min-h-[70vh] flex flex-col items-center justify-center p-6 text-center gap-3">
+        <div className="w-8 h-8 border-2 border-emerald-600/30 border-t-emerald-600 rounded-full animate-spin" />
+        <p className="text-xs text-slate-500">Loading your teaching studio...</p>
+      </div>
+    );
+  }
 
   if (!user) {
     return (

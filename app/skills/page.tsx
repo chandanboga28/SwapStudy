@@ -24,7 +24,7 @@ function SkillsContent() {
   const searchParams = useSearchParams();
   const initialCategory = searchParams.get('category') || 'All';
 
-  const { skills } = useApp();
+  const { skills, isLoading } = useApp();
   const { user, allUsers } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
   const [wishlistOnly, setWishlistOnly] = useState(false);
@@ -195,9 +195,9 @@ function SkillsContent() {
           {/* Subfilters: Level, Max Credits, and Wishlist Filter */}
           <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-slate-100 text-xs">
             <div className="flex flex-wrap items-center gap-3">
-              <div className="flex items-center gap-1.5">
+              <div className="flex items-center gap-1.5 flex-wrap">
                 <span className="text-slate-400 font-medium">Level:</span>
-                {['All', 'Beginner', 'Intermediate'].map((lvl) => (
+                {['All', 'Beginner', 'Intermediate', 'Advanced', 'All Levels'].map((lvl) => (
                   <button
                     key={lvl}
                     onClick={() => setSelectedLevel(lvl)}
@@ -260,7 +260,23 @@ function SkillsContent() {
         </div>
 
         {/* Skills Grid */}
-        {filteredSkills.length > 0 ? (
+        {isLoading ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+            {[0, 1, 2, 3, 4, 5].map((skeleton) => (
+              <div
+                key={skeleton}
+                className="bg-white rounded-xl border border-slate-200 p-5 h-52 animate-pulse flex flex-col justify-between"
+              >
+                <div className="space-y-3">
+                  <div className="h-4 w-28 bg-slate-200 rounded" />
+                  <div className="h-5 w-3/4 bg-slate-200 rounded" />
+                  <div className="h-3 w-full bg-slate-100 rounded" />
+                </div>
+                <div className="h-8 w-full bg-slate-100 rounded-lg" />
+              </div>
+            ))}
+          </div>
+        ) : filteredSkills.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
             {filteredSkills.map((skill) => (
               <SkillCard
@@ -283,29 +299,47 @@ function SkillsContent() {
               <Search className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="text-sm font-bold text-slate-900">No matching skills found</h3>
+              <h3 className="text-sm font-bold text-slate-900">
+                {skills.length === 0 ? 'No campus skills listed yet' : 'No matching skills found'}
+              </h3>
               <p className="text-xs text-slate-500 mt-0.5 max-w-sm mx-auto">
-                Try clearing your search filters or offering to teach this topic yourself.
+                {skills.length === 0
+                  ? user
+                    ? 'Be the first verified student on campus to publish a peer learning skill listing.'
+                    : 'Sign in with your campus account to browse live peer offerings, or publish your own.'
+                  : 'Try clearing your search filters or offering to teach this topic yourself.'}
               </p>
             </div>
             <div className="flex items-center justify-center gap-2 pt-1">
-              <button
-                onClick={() => {
-                  setSearchQuery('');
-                  setSelectedCategory('All');
-                  setSelectedLevel('All');
-                  setMaxCredits('all');
-                }}
-                className="px-3 py-1.5 text-xs font-semibold rounded-lg border border-slate-300 text-slate-700 hover:bg-slate-50"
-              >
-                Reset Filters
-              </button>
-              <Link
-                href="/teach"
-                className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-emerald-600 text-white hover:bg-emerald-500"
-              >
-                + Offer this Skill
-              </Link>
+              {skills.length > 0 && (
+                <button
+                  onClick={() => {
+                    setSearchQuery('');
+                    setSelectedCategory('All');
+                    setSelectedLevel('All');
+                    setMaxCredits('all');
+                    setWishlistOnly(false);
+                  }}
+                  className="px-3 py-1.5 text-xs font-semibold rounded-lg border border-slate-300 text-slate-700 hover:bg-slate-50"
+                >
+                  Reset Filters
+                </button>
+              )}
+              {!user ? (
+                <Link
+                  href="/login"
+                  className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-emerald-600 text-white hover:bg-emerald-500"
+                >
+                  Sign In to Browse Campus Skills
+                </Link>
+              ) : (
+                <Link
+                  href="/teach"
+                  className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-emerald-600 text-white hover:bg-emerald-500"
+                >
+                  + Offer this Skill
+                </Link>
+              )}
             </div>
           </div>
         )}

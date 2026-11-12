@@ -34,18 +34,8 @@ const CATEGORIES: ('All' | PostCategory)[] = [
   'Achievements',
 ];
 
-const TRENDING_TAGS = [
-  'figma',
-  'leetcode',
-  'nextjs',
-  'algorithms',
-  'dubhacks',
-  'video-editing',
-  'linear-algebra',
-];
-
 function CommunityContent() {
-  const { allUsers } = useAuth();
+  const { user, allUsers } = useAuth();
   const { skills, sessions } = useApp();
   const {
     currentCollege,
@@ -53,7 +43,26 @@ function CommunityContent() {
     groups,
     savedPostIds,
     sameCollegeStudents,
+    isLoading: communityLoading,
   } = useCommunity();
+
+  const trendingTags = useMemo(() => {
+    const counts: Record<string, number> = {};
+    posts.forEach((p) => {
+      (p.tags || []).forEach((tag) => {
+        const clean = tag.trim().toLowerCase();
+        if (clean) counts[clean] = (counts[clean] || 0) + 1;
+      });
+    });
+    return Object.entries(counts)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 8)
+      .map(([tag]) => tag);
+  }, [posts]);
+
+  const visibleMemberCount = user
+    ? sameCollegeStudents.length + (user.collegeId === currentCollege.id ? 1 : 0)
+    : null;
 
   // Active view tab: 'feed' | 'groups' | 'peers' | 'saved'
   const [activeTab, setActiveTab] = useState<'feed' | 'groups' | 'peers' | 'saved'>('feed');
@@ -142,9 +151,9 @@ function CommunityContent() {
               <div className="flex items-center gap-4 sm:gap-6 pt-1 text-xs text-emerald-100 font-medium">
                 <div>
                   <span className="text-white font-bold text-sm block">
-                    {currentCollege.memberCount.toLocaleString()}
+                    {visibleMemberCount !== null ? visibleMemberCount.toLocaleString() : 'Verified'}
                   </span>
-                  <span className="text-[11px] text-emerald-200/80">Campus Members</span>
+                  <span className="text-[11px] text-emerald-200/80">Campus Peers</span>
                 </div>
                 <div className="h-6 w-px bg-white/20" />
                 <div>
@@ -301,7 +310,13 @@ function CommunityContent() {
               </div>
 
               {/* Feed Post List */}
-              {filteredPosts.length > 0 ? (
+              {communityLoading ? (
+                <div className="space-y-4">
+                  {[0, 1].map((s) => (
+                    <div key={s} className="bg-white rounded-2xl border border-slate-200 p-6 h-40 animate-pulse" />
+                  ))}
+                </div>
+              ) : filteredPosts.length > 0 ? (
                 <div className="space-y-4">
                   {filteredPosts.map((post) => (
                     <CommunityPostCard
@@ -349,24 +364,30 @@ function CommunityContent() {
                   <TrendingUp className="w-4 h-4 text-emerald-600" />
                   <span>Trending on Campus</span>
                 </div>
-                <div className="flex flex-wrap gap-1.5">
-                  {TRENDING_TAGS.map((tag) => (
-                    <button
-                      key={tag}
-                      onClick={() => {
-                        setSelectedTag(selectedTag === tag ? null : tag);
-                        setActiveTab('feed');
-                      }}
-                      className={`text-xs px-2.5 py-1 rounded-lg font-semibold transition-all ${
-                        selectedTag === tag
-                          ? 'bg-emerald-600 text-white shadow-2xs'
-                          : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                      }`}
-                    >
-                      #{tag}
-                    </button>
-                  ))}
-                </div>
+                {trendingTags.length > 0 ? (
+                  <div className="flex flex-wrap gap-1.5">
+                    {trendingTags.map((tag) => (
+                      <button
+                        key={tag}
+                        onClick={() => {
+                          setSelectedTag(selectedTag === tag ? null : tag);
+                          setActiveTab('feed');
+                        }}
+                        className={`text-xs px-2.5 py-1 rounded-lg font-semibold transition-all ${
+                          selectedTag === tag
+                            ? 'bg-emerald-600 text-white shadow-2xs'
+                            : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                        }`}
+                      >
+                        #{tag}
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-xs text-slate-400">
+                    Topic tags appear here as campus students publish discussions.
+                  </p>
+                )}
               </div>
 
               {/* Suggested Peers from Same College */}
@@ -384,33 +405,41 @@ function CommunityContent() {
                   </button>
                 </div>
 
-                <div className="space-y-3">
-                  {sameCollegeStudents.slice(0, 3).map((peer) => (
-                    <div
-                      key={peer.id}
-                      className="p-3 rounded-xl bg-slate-50 border border-slate-200/70 flex items-center justify-between gap-3 text-xs"
-                    >
-                      <div className="flex items-center gap-2.5 min-w-0">
-                        <img
-                          src={peer.avatar}
-                          alt={peer.name}
-                          className="w-8 h-8 rounded-full object-cover shrink-0 border border-slate-200"
-                        />
-                        <div className="min-w-0">
-                          <p className="font-bold text-slate-900 truncate">{peer.name}</p>
-                          <p className="text-[11px] text-slate-500 truncate">{peer.major}</p>
-                        </div>
-                      </div>
-
-                      <button
-                        onClick={() => setInspectingUser(peer)}
-                        className="px-2.5 py-1 rounded-lg border border-slate-200 hover:border-slate-300 text-slate-700 hover:text-slate-900 font-semibold text-[11px] bg-white transition-colors shrink-0"
+                {sameCollegeStudents.length > 0 ? (
+                  <div className="space-y-3">
+                    {sameCollegeStudents.slice(0, 3).map((peer) => (
+                      <div
+                        key={peer.id}
+                        className="p-3 rounded-xl bg-slate-50 border border-slate-200/70 flex items-center justify-between gap-3 text-xs"
                       >
-                        Profile
-                      </button>
-                    </div>
-                  ))}
-                </div>
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <img
+                            src={peer.avatar}
+                            alt={peer.name}
+                            className="w-8 h-8 rounded-full object-cover shrink-0 border border-slate-200"
+                          />
+                          <div className="min-w-0">
+                            <p className="font-bold text-slate-900 truncate">{peer.name}</p>
+                            <p className="text-[11px] text-slate-500 truncate">{peer.major}</p>
+                          </div>
+                        </div>
+
+                        <button
+                          onClick={() => setInspectingUser(peer)}
+                          className="px-2.5 py-1 rounded-lg border border-slate-200 hover:border-slate-300 text-slate-700 hover:text-slate-900 font-semibold text-[11px] bg-white transition-colors shrink-0"
+                        >
+                          Profile
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-xs text-slate-400">
+                    {user
+                      ? 'No classmates listed yet in this campus hub.'
+                      : 'Sign in with your campus account to view classmates.'}
+                  </p>
+                )}
               </div>
 
               {/* Popular Study Circles Preview */}
@@ -428,22 +457,28 @@ function CommunityContent() {
                   </button>
                 </div>
 
-                <div className="space-y-2.5">
-                  {groups.slice(0, 2).map((grp) => (
-                    <div
-                      key={grp.id}
-                      className="p-3 rounded-xl bg-slate-50 border border-slate-200/70 space-y-1.5 text-xs"
-                    >
-                      <div className="flex items-center justify-between">
-                        <span className="font-bold text-slate-900 truncate">{grp.name}</span>
-                        <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200/60 shrink-0">
-                          {grp.memberIds.length} members
-                        </span>
+                {groups.length > 0 ? (
+                  <div className="space-y-2.5">
+                    {groups.slice(0, 2).map((grp) => (
+                      <div
+                        key={grp.id}
+                        className="p-3 rounded-xl bg-slate-50 border border-slate-200/70 space-y-1.5 text-xs"
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="font-bold text-slate-900 truncate">{grp.name}</span>
+                          <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200/60 shrink-0">
+                            {grp.memberIds.length} members
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-slate-500 line-clamp-2">{grp.description}</p>
                       </div>
-                      <p className="text-[11px] text-slate-500 line-clamp-2">{grp.description}</p>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-xs text-slate-400">
+                    No active study circles yet. Start the first circle in the Study Circles tab!
+                  </p>
+                )}
               </div>
             </aside>
           </div>

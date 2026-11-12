@@ -10,6 +10,8 @@ export type SkillLevel = 'Beginner' | 'Intermediate' | 'Advanced' | 'All Levels'
 
 export interface Review {
   id: string;
+  skillId?: string;
+  teacherId?: string;
   reviewerId: string;
   reviewerName: string;
   reviewerAvatar: string;
@@ -101,13 +103,13 @@ export interface User {
 }
 
 export interface College {
-  id: string; // e.g. 'uw'
-  name: string; // 'University of Washington'
-  shortName: string; // 'UW'
-  domain: string; // 'uw.edu'
-  location: string; // 'Seattle, WA'
-  mascot: string; // 'Huskies'
-  badgeColor: string; // '#4B2E83'
+  id: string; // e.g. 'adypu'
+  name: string; // 'Ajeenkya DY Patil University'
+  shortName: string; // 'ADYPU'
+  domain: string; // 'adypu.edu.in'
+  location: string; // 'Pune, India'
+  mascot: string; // 'Titans'
+  badgeColor: string; // '#059669'
   memberCount: number;
   verifiedCount: number;
   description: string;

@@ -54,7 +54,7 @@ export default function CreditsPage() {
             How Credits Work
           </h1>
           <p className="text-xs sm:text-sm text-slate-500 max-w-xl leading-relaxed">
-            SwapStudy replaces cash payments with a fair peer-to-peer credit currency. Teach other students to earn credits, and spend your credits to learn anything you choose.
+            SwapStudy uses non-monetary platform credits—not real money—so every student can trade tutoring hours fairly. Teach classmates to earn credits, then spend them to learn any skill on campus.
           </p>
         </div>
 
@@ -167,46 +167,68 @@ export default function CreditsPage() {
           </div>
 
           <div className="space-y-2.5">
-            {filteredTransactions.map((tx) => {
-              const isPositive = tx.amount > 0;
-              return (
-                <div
-                  key={tx.id}
-                  className="p-3.5 rounded-lg bg-slate-50 border border-slate-200/60 flex items-center justify-between gap-3 text-xs"
+            {!user ? (
+              <div className="p-6 rounded-xl bg-slate-50 border border-slate-200/70 text-center space-y-2.5">
+                <p className="text-xs font-semibold text-slate-900">Sign in to inspect your personal credit ledger</p>
+                <p className="text-[11px] text-slate-500 max-w-md mx-auto">
+                  Every student receives 3 non-monetary starter platform credits upon signup and can track earned, held, and refunded credits here.
+                </p>
+                <Link
+                  href="/login"
+                  className="inline-flex px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold"
                 >
-                  <div className="flex items-center gap-3">
-                    <div
-                      className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${
-                        isPositive
-                          ? 'bg-emerald-100 text-emerald-700'
-                          : 'bg-slate-200 text-slate-600'
-                      }`}
-                    >
-                      {isPositive ? (
-                        <ArrowUpRight className="w-4 h-4" />
-                      ) : (
-                        <ArrowDownLeft className="w-4 h-4" />
-                      )}
+                  Sign In
+                </Link>
+              </div>
+            ) : filteredTransactions.length > 0 ? (
+              filteredTransactions.map((tx) => {
+                const isPositive = tx.amount > 0;
+                return (
+                  <div
+                    key={tx.id}
+                    className="p-3.5 rounded-lg bg-slate-50 border border-slate-200/60 flex items-center justify-between gap-3 text-xs"
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div
+                        className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${
+                          isPositive
+                            ? 'bg-emerald-100 text-emerald-700'
+                            : 'bg-slate-200 text-slate-600'
+                        }`}
+                      >
+                        {isPositive ? (
+                          <ArrowUpRight className="w-4 h-4" />
+                        ) : (
+                          <ArrowDownLeft className="w-4 h-4" />
+                        )}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="font-semibold text-slate-900 text-xs truncate">{tx.title}</p>
+                        <p className="text-slate-500 text-[11px] mt-0.5 line-clamp-2">{tx.description}</p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="font-semibold text-slate-900 text-xs">{tx.title}</p>
-                      <p className="text-slate-500 text-[11px] mt-0.5">{tx.description}</p>
-                    </div>
-                  </div>
 
-                  <div className="text-right shrink-0">
-                    <span
-                      className={`text-xs font-bold ${
-                        isPositive ? 'text-emerald-700' : 'text-slate-700'
-                      }`}
-                    >
-                      {isPositive ? `+${tx.amount}` : tx.amount} Credits
-                    </span>
-                    <p className="text-[10px] text-slate-400 mt-0.5">{tx.date}</p>
+                    <div className="text-right shrink-0">
+                      <span
+                        className={`text-xs font-bold ${
+                          isPositive ? 'text-emerald-700' : 'text-slate-700'
+                        }`}
+                      >
+                        {isPositive ? `+${tx.amount}` : tx.amount} Credits
+                      </span>
+                      <p className="text-[10px] text-slate-400 mt-0.5">{tx.date}</p>
+                    </div>
                   </div>
-                </div>
-              );
-            })}
+                );
+              })
+            ) : (
+              <div className="p-6 rounded-xl bg-slate-50 border border-slate-200/70 text-center space-y-2">
+                <p className="text-xs font-semibold text-slate-800">No matching transactions yet</p>
+                <p className="text-[11px] text-slate-500">
+                  Book a session or publish a skill listing to start earning and exchanging platform credits.
+                </p>
+              </div>
+            )}
           </div>
         </div>
 

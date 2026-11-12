@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
@@ -12,6 +12,7 @@ import {
   GraduationCap,
   ArrowRight,
   AlertCircle,
+  CheckCircle2,
   Coins,
   Plus,
   X,
@@ -19,26 +20,34 @@ import {
 
 export default function SignupPage() {
   const router = useRouter();
-  const { signup } = useAuth();
+  const { user, isLoading: authLoading, signup } = useAuth();
 
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [university, setUniversity] = useState('');
+  const [university, setUniversity] = useState('Ajeenkya DY Patil University');
   const [major, setMajor] = useState('');
 
   // Skill tags
   const [teachInput, setTeachInput] = useState('');
-  const [skillsToTeach, setSkillsToTeach] = useState<string[]>(['Python Basics']);
+  const [skillsToTeach, setSkillsToTeach] = useState<string[]>([]);
   const [learnInput, setLearnInput] = useState('');
-  const [skillsToLearn, setSkillsToLearn] = useState<string[]>(['UI/UX Design']);
+  const [skillsToLearn, setSkillsToLearn] = useState<string[]>([]);
 
   const [error, setError] = useState<string | null>(null);
+  const [confirmationMessage, setConfirmationMessage] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
+  useEffect(() => {
+    if (!authLoading && user) {
+      router.replace('/dashboard');
+    }
+  }, [authLoading, user, router]);
+
   const handleAddTeachSkill = () => {
-    if (teachInput.trim() && !skillsToTeach.includes(teachInput.trim())) {
-      setSkillsToTeach([...skillsToTeach, teachInput.trim()]);
+    const trimmed = teachInput.trim();
+    if (trimmed && !skillsToTeach.includes(trimmed)) {
+      setSkillsToTeach([...skillsToTeach, trimmed]);
       setTeachInput('');
     }
   };
@@ -48,8 +57,9 @@ export default function SignupPage() {
   };
 
   const handleAddLearnSkill = () => {
-    if (learnInput.trim() && !skillsToLearn.includes(learnInput.trim())) {
-      setSkillsToLearn([...skillsToLearn, learnInput.trim()]);
+    const trimmed = learnInput.trim();
+    if (trimmed && !skillsToLearn.includes(trimmed)) {
+      setSkillsToLearn([...skillsToLearn, trimmed]);
       setLearnInput('');
     }
   };
@@ -62,31 +72,71 @@ export default function SignupPage() {
     e.preventDefault();
     setError(null);
 
-    if (skillsToTeach.length === 0) {
+    if (!name.trim()) {
+      setError('Please enter your full name.');
+      return;
+    }
+
+    if (!email.trim()) {
+      setError('Please enter your campus email address.');
+      return;
+    }
+
+    if (!university.trim()) {
+      setError('Please enter your university or college name.');
+      return;
+    }
+
+    if (!password || password.length < 6) {
+      setError('Password must be at least 6 characters.');
+      return;
+    }
+
+    const finalTeach =
+      teachInput.trim() && !skillsToTeach.includes(teachInput.trim())
+        ? [...skillsToTeach, teachInput.trim()]
+        : skillsToTeach;
+
+    const finalLearn =
+      learnInput.trim() && !skillsToLearn.includes(learnInput.trim())
+        ? [...skillsToLearn, learnInput.trim()]
+        : skillsToLearn;
+
+    if (finalTeach.length === 0) {
       setError('Please add at least one skill you can share or teach.');
       return;
     }
 
-    if (skillsToLearn.length === 0) {
+    if (finalLearn.length === 0) {
       setError('Please add at least one skill you want to learn.');
       return;
     }
 
+    setSkillsToTeach(finalTeach);
+    setSkillsToLearn(finalLearn);
+    setTeachInput('');
+    setLearnInput('');
     setIsLoading(true);
 
     try {
       const res = await signup({
-        name,
-        email,
-        password: password || 'demo123456',
-        university: university || 'State University',
-        major: major || 'Computer Science',
-        skillsToTeach,
-        skillsToLearn,
+        name: name.trim(),
+        email: email.trim(),
+        password,
+        university: university.trim(),
+        major: major.trim() || 'General Studies',
+        skillsToTeach: finalTeach,
+        skillsToLearn: finalLearn,
       });
 
       if (res.success) {
-        router.push('/dashboard');
+        if (res.needsEmailConfirmation) {
+          setConfirmationMessage(
+            `Account created for ${email.trim()}. Please check your inbox and verify your email address before signing in.`
+          );
+        } else {
+          router.push('/dashboard');
+        }
       } else {
         setError(res.error || 'Failed to create account.');
       }
@@ -125,16 +175,33 @@ export default function SignupPage() {
           </div>
           <div>
             <p className="text-[10px] font-bold text-emerald-900 uppercase tracking-wider">
-              3 Starter Bonus Credits
+              3 Starter Platform Credits
             </p>
             <p className="text-[11px] text-emerald-800">
-              New student members receive <strong>3 free credits</strong> to book a session right away.
+              New student members receive <strong>3 non-monetary platform credits</strong> to book peer learning sessions right away.
             </p>
           </div>
         </div>
 
         {/* Form Card */}
         <div className="card-subtle rounded-xl p-6 sm:p-7 space-y-4">
+          {confirmationMessage ? (
+            <div className="p-5 bg-emerald-50 border border-emerald-200 rounded-xl text-center space-y-3">
+              <div className="w-10 h-10 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center mx-auto">
+                <CheckCircle2 className="w-5 h-5" />
+              </div>
+              <h2 className="text-sm font-bold text-slate-900">Confirm your campus email</h2>
+              <p className="text-xs text-slate-600 leading-relaxed">{confirmationMessage}</p>
+              <Link
+                href="/login"
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold"
+              >
+                Go to Sign In
+                <ArrowRight className="w-3.5 h-3.5" />
+              </Link>
+            </div>
+          ) : (
+            <>
           {error && (
             <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 rounded-lg text-xs flex items-start gap-2">
               <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
@@ -156,7 +223,7 @@ export default function SignupPage() {
                     required
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    placeholder="Chandan Boga"
+                    placeholder="Your full name"
                     className="w-full text-xs pl-9 pr-3 py-2 rounded-lg border border-slate-300 focus:outline-hidden focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600"
                   />
                 </div>
@@ -164,7 +231,7 @@ export default function SignupPage() {
 
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Student Email (.edu)
+                  Campus Email
                 </label>
                 <div className="relative">
                   <Mail className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
@@ -173,7 +240,7 @@ export default function SignupPage() {
                     required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder="student@uw.edu"
+                    placeholder="student@adypu.edu.in"
                     className="w-full text-xs pl-9 pr-3 py-2 rounded-lg border border-slate-300 focus:outline-hidden focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600"
                   />
                 </div>
@@ -193,7 +260,7 @@ export default function SignupPage() {
                     required
                     value={university}
                     onChange={(e) => setUniversity(e.target.value)}
-                    placeholder="University of Washington"
+                    placeholder="Ajeenkya DY Patil University (ADYPU)"
                     className="w-full text-xs pl-9 pr-3 py-2 rounded-lg border border-slate-300 focus:outline-hidden focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600"
                   />
                 </div>
@@ -208,7 +275,7 @@ export default function SignupPage() {
                   required
                   value={major}
                   onChange={(e) => setMajor(e.target.value)}
-                  placeholder="Computer Science"
+                  placeholder="Computer Science & Engineering"
                   className="w-full text-xs px-3 py-2 rounded-lg border border-slate-300 focus:outline-hidden focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600"
                 />
               </div>
@@ -350,6 +417,8 @@ export default function SignupPage() {
               )}
             </button>
           </form>
+            </>
+          )}
         </div>
 
         <p className="text-center text-xs text-slate-500">

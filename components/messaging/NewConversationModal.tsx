@@ -205,7 +205,7 @@ export default function NewConversationModal({
           ) : (
             filteredStudents.map((student) => {
               const status = getConnectionStatus(student.id);
-              const isSameCollege = (user?.collegeId || 'uw') === (student.collegeId || 'uw');
+              const isSameCollege = (user?.collegeId || 'adypu') === (student.collegeId || 'adypu');
 
               return (
                 <div

@@ -20,8 +20,8 @@ import {
 } from 'lucide-react';
 
 export default function SessionsPage() {
-  const { user } = useAuth();
-  const { sessions, acceptSession, declineSession, cancelSession } = useApp();
+  const { user, isLoading: authLoading } = useAuth();
+  const { sessions, isLoading: appLoading, acceptSession, declineSession, cancelSession } = useApp();
 
   const [activeTab, setActiveTab] = useState<'learning' | 'teaching'>('learning');
   const [statusFilter, setStatusFilter] = useState<'all' | SessionStatus>('all');
@@ -29,6 +29,15 @@ export default function SessionsPage() {
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [toastType, setToastType] = useState<'success' | 'error'>('success');
   const [processingId, setProcessingId] = useState<string | null>(null);
+
+  if (authLoading || appLoading) {
+    return (
+      <div className="min-h-[70vh] flex flex-col items-center justify-center p-6 text-center gap-3">
+        <div className="w-8 h-8 border-2 border-emerald-600/30 border-t-emerald-600 rounded-full animate-spin" />
+        <p className="text-xs text-slate-500">Loading your sessions...</p>
+      </div>
+    );
+  }
 
   if (!user) {
     return (

@@ -63,8 +63,10 @@ function SkillDetailContent() {
     );
   }
 
-  const skillReviews = reviews.filter(
-    (r) => r.skillTitle === skill.title || r.reviewerName !== skill.teacherName
+  const skillReviews = reviews.filter((r) =>
+    r.skillId
+      ? r.skillId === skill.id
+      : r.skillTitle === skill.title || r.teacherId === skill.teacherId
   );
 
   const isOwnSkill = user?.id === skill.teacherId;
@@ -268,7 +270,7 @@ function SkillDetailContent() {
               <div className="flex items-center justify-between">
                 <div>
                   <h3 className="text-xs font-bold uppercase tracking-wider text-slate-900">
-                    Peer Reviews ({skill.reviewsCount})
+                    Peer Reviews ({skillReviews.length})
                   </h3>
                   <p className="text-[11px] text-slate-400 mt-0.5">
                     Feedback from students who completed this skill swap
@@ -280,31 +282,37 @@ function SkillDetailContent() {
                 </div>
               </div>
 
-              <div className="space-y-2.5 pt-1">
-                {skillReviews.slice(0, 3).map((rev) => (
-                  <div
-                    key={rev.id}
-                    className="p-3 rounded-lg bg-slate-50 border border-slate-200/60 space-y-1.5 text-xs"
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <img
-                          src={rev.reviewerAvatar}
-                          alt={rev.reviewerName}
-                          className="w-5 h-5 rounded-full object-cover"
-                        />
-                        <span className="font-medium text-slate-800 text-[11px]">{rev.reviewerName}</span>
+              {skillReviews.length > 0 ? (
+                <div className="space-y-2.5 pt-1">
+                  {skillReviews.slice(0, 5).map((rev) => (
+                    <div
+                      key={rev.id}
+                      className="p-3 rounded-lg bg-slate-50 border border-slate-200/60 space-y-1.5 text-xs"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <img
+                            src={rev.reviewerAvatar}
+                            alt={rev.reviewerName}
+                            className="w-5 h-5 rounded-full object-cover"
+                          />
+                          <span className="font-medium text-slate-800 text-[11px]">{rev.reviewerName}</span>
+                        </div>
+                        <div className="flex items-center gap-0.5 text-amber-400">
+                          {[...Array(rev.rating)].map((_, i) => (
+                            <Star key={i} className="w-2.5 h-2.5 fill-amber-400" />
+                          ))}
+                        </div>
                       </div>
-                      <div className="flex items-center gap-0.5 text-amber-400">
-                        {[...Array(rev.rating)].map((_, i) => (
-                          <Star key={i} className="w-2.5 h-2.5 fill-amber-400" />
-                        ))}
-                      </div>
+                      <p className="text-slate-600 text-[11px] leading-relaxed">&ldquo;{rev.comment}&rdquo;</p>
                     </div>
-                    <p className="text-slate-600 text-[11px] leading-relaxed">&ldquo;{rev.comment}&rdquo;</p>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="p-4 rounded-lg bg-slate-50 border border-slate-200/60 text-center text-xs text-slate-500">
+                  No peer reviews recorded for this skill yet. Be the first to complete a session!
+                </div>
+              )}
             </div>
           </div>
 
@@ -345,7 +353,14 @@ function SkillDetailContent() {
               </div>
 
               <div className="pt-2">
-                {isOwnSkill ? (
+                {!user ? (
+                  <Link
+                    href="/login"
+                    className="w-full py-2.5 px-3 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs shadow-2xs transition-colors flex items-center justify-center gap-1.5"
+                  >
+                    Sign In to Book Session
+                  </Link>
+                ) : isOwnSkill ? (
                   <button
                     disabled
                     className="w-full py-2 px-3 rounded-lg bg-slate-100 text-slate-400 font-medium text-xs cursor-not-allowed"
@@ -353,15 +368,19 @@ function SkillDetailContent() {
                     You are the instructor
                   </button>
                 ) : !hasCredits ? (
-                  <div className="space-y-1.5">
+                  <div className="space-y-2">
                     <button
                       disabled
                       className="w-full py-2 px-3 rounded-lg bg-slate-200 text-slate-500 font-semibold text-xs cursor-not-allowed"
                     >
                       Insufficient Credits ({user?.credits || 0}/{skill.hourlyCredits})
                     </button>
-                    <p className="text-[10px] text-slate-400 text-center">
-                      Teach a skill to earn credits or switch student in demo banner.
+                    <p className="text-[10px] text-slate-500 text-center">
+                      Teach a skill to earn platform credits, or{' '}
+                      <Link href="/teach" className="text-emerald-700 font-semibold underline">
+                        publish a listing
+                      </Link>
+                      .
                     </p>
                   </div>
                 ) : (

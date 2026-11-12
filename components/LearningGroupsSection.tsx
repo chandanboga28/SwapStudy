@@ -34,7 +34,7 @@ export default function LearningGroupsSection({
   const [description, setDescription] = useState('');
   const [topic, setTopic] = useState('');
   const [skillLevel, setSkillLevel] = useState<'Beginner' | 'Intermediate' | 'Advanced' | 'All Levels'>('All Levels');
-  const [meetingCadence, setMeetingCadence] = useState('Tuesdays • 6:00 PM PST');
+  const [meetingCadence, setMeetingCadence] = useState('Tuesdays • 6:00 PM IST');
   const [error, setError] = useState<string | null>(null);
 
   const filteredGroups = useMemo(() => {
@@ -317,7 +317,7 @@ export default function LearningGroupsSection({
                   type="text"
                   value={groupName}
                   onChange={(e) => setGroupName(e.target.value)}
-                  placeholder="e.g. DubHacks Prep or LeetCode Mediums..."
+                  placeholder="e.g. DSA Problem Solving or Campus Hackathon Prep..."
                   className="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 text-slate-900 focus:outline-hidden focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600"
                 />
               </div>

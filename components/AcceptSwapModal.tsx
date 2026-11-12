@@ -12,17 +12,7 @@ import {
   AlertCircle,
   ShieldCheck,
 } from 'lucide-react';
-
-function getISTDateString(daysAhead: number = 0): string {
-  const d = new Date();
-  d.setDate(d.getDate() + daysAhead);
-  return new Intl.DateTimeFormat('en-CA', {
-    timeZone: 'Asia/Kolkata',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  }).format(d);
-}
+import { getISTDateString, parseISTTimestamp } from '@/lib/timezone';
 
 interface AcceptSwapModalProps {
   invitation: SkillSwapInvitation;
@@ -75,9 +65,9 @@ export default function AcceptSwapModal({
 
     // Check that both session start times are strictly in the future in IST (including when date is today)
     const now = Date.now();
-    const s1Start = new Date(`${session1Date}T${session1Time}:00+05:30`).getTime();
+    const s1Start = parseISTTimestamp(session1Date, session1Time);
     const s1End = s1Start + 60 * 60 * 1000;
-    const s2Start = new Date(`${session2Date}T${session2Time}:00+05:30`).getTime();
+    const s2Start = parseISTTimestamp(session2Date, session2Time);
     const s2End = s2Start + 60 * 60 * 1000;
 
     if (s1Start <= now) {

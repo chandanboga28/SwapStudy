@@ -5,6 +5,7 @@ import { Skill, Session, CreditTransaction, Review, SkillSwapInvitation } from '
 import { useAuth } from './AuthContext';
 import {
   fetchSkills,
+  fetchReviews,
   fetchUserSessions,
   fetchCreditTransactions,
   createSkillListing,
@@ -69,7 +70,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [sessions, setSessions] = useState<Session[]>([]);
   const [transactions, setTransactions] = useState<CreditTransaction[]>([]);
   const [swapInvitations, setSwapInvitations] = useState<SkillSwapInvitation[]>([]);
-  const [reviews, setReviews] = useState<Review[]>(INITIAL_REVIEWS);
+  const [reviews, setReviews] = useState<Review[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   // Fetch all core app data
@@ -91,20 +92,23 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       const skillsData = await fetchSkills(user?.collegeId);
       setSkills(skillsData);
 
-      // 2. If user is authenticated, fetch their sessions, transactions, and swap invitations
+      // 2. If user is authenticated, fetch their sessions, transactions, reviews, and swap invitations
       if (user?.id) {
-        const [sessionsData, transactionsData, invitationsData] = await Promise.all([
+        const [sessionsData, transactionsData, invitationsData, reviewsData] = await Promise.all([
           fetchUserSessions(user.id),
           fetchCreditTransactions(user.id),
           fetchUserSkillSwapInvitations(user.id),
+          fetchReviews(),
         ]);
         setSessions(sessionsData);
         setTransactions(transactionsData);
         setSwapInvitations(invitationsData);
+        setReviews(reviewsData);
       } else {
         setSessions([]);
         setTransactions([]);
         setSwapInvitations([]);
+        setReviews([]);
       }
     } catch (err) {
       console.error('[AppProvider] Error loading app data:', err);
