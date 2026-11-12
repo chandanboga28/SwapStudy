@@ -11,15 +11,15 @@ export interface IntroSceneSpec {
 
 export const INTRO_PALETTE = {
   background: '#FFFFFF',
-  secondaryBackground: '#F5F1FF',
-  primaryCobaltBlue: '#3979F6',
-  deepBlue: '#7655E8',
-  brightYellow: '#7655E8',
-  softYellow: '#EAE3FF',
-  lightBlue: '#E1EBFF',
-  textPrimary: '#242044',
-  textSecondary: '#77758F',
-  borderLight: '#E8E5F5',
+  secondaryBackground: '#F5F8FF',
+  primaryCobaltBlue: '#2855D9',
+  deepBlue: '#183B9B',
+  brightYellow: '#FFD43B',
+  softYellow: '#FFF1AD',
+  lightBlue: '#DCE7FF',
+  textPrimary: '#17213A',
+  textSecondary: '#64718A',
+  borderLight: '#E5EAF5',
 } as const;
 
 export const INTRO_SCENES: IntroSceneSpec[] = [
@@ -31,7 +31,7 @@ export const INTRO_SCENES: IntroSceneSpec[] = [
     highlightText: 'everything.',
     subtitle:
       "You might know coding, design or photography. But there's always something new you want to learn.",
-    accentColor: '#7655E8',
+    accentColor: '#FFD43B',
     durationSeconds: 7.5,
   },
   {
@@ -42,7 +42,7 @@ export const INTRO_SCENES: IntroSceneSpec[] = [
     highlightText: 'each other?',
     subtitle:
       'Connect with students who already have the skills you want to learn.',
-    accentColor: '#3979F6',
+    accentColor: '#2855D9',
     durationSeconds: 7.5,
   },
   {
@@ -53,7 +53,7 @@ export const INTRO_SCENES: IntroSceneSpec[] = [
     highlightText: 'Earn credits.',
     subtitle:
       'Share your knowledge, help another student and earn credits for every completed learning session.',
-    accentColor: '#7655E8',
+    accentColor: '#FFD43B',
     durationSeconds: 7.5,
   },
   {
@@ -64,7 +64,7 @@ export const INTRO_SCENES: IntroSceneSpec[] = [
     highlightText: 'Grow together.',
     subtitle:
       'Discover skills, exchange knowledge and build meaningful connections within your college community.',
-    accentColor: '#3979F6',
+    accentColor: '#2855D9',
     durationSeconds: 8.5,
   },
 ];

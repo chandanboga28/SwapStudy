@@ -167,7 +167,7 @@ function SceneProblem({ reducedMotion }: { reducedMotion: boolean }) {
       <group position={[0.72, 1.92, 0.2]}>
         <mesh position={[-0.14, -0.2, 0]} castShadow>
           <sphereGeometry args={[0.06, 20, 20]} />
-          <meshPhysicalMaterial color="#EAE3FF" roughness={0.35} />
+          <meshPhysicalMaterial color="#DCE7FF" roughness={0.35} />
         </mesh>
         <mesh position={[0.02, -0.04, 0]} castShadow>
           <sphereGeometry args={[0.088, 20, 20]} />
@@ -318,34 +318,34 @@ function SceneConnection({ reducedMotion }: { reducedMotion: boolean }) {
         disableIdleMotion={reducedMotion}
       />
 
-      {/* Interlocking Royal Purple & Electric Blue Jigsaw Pieces */}
+      {/* Interlocking Bright Yellow & Cobalt Blue Jigsaw Pieces */}
       <group position={[0, 0, 0.65]}>
         <SculptedPuzzlePiece
           meshRef={leftPieceRef}
           kind="male"
-          color="#7655E8"
-          emissive="#EAE3FF"
+          color="#FFD43B"
+          emissive="#FFF1AD"
           emissiveIntensity={0.14}
           position={[-0.34, 1.32, 0]}
         />
         <SculptedPuzzlePiece
           meshRef={rightPieceRef}
           kind="female"
-          color="#3979F6"
-          emissive="#E1EBFF"
+          color="#2855D9"
+          emissive="#183B9B"
           emissiveIntensity={0.12}
           position={[0.34, 1.32, 0]}
         />
 
-        {/* Lavender Light Halo with Blue/Purple Particles */}
+        {/* Blue Light Halo with Yellow Particles */}
         <mesh ref={glowCoreRef} position={[0, 1.32, -0.05]}>
           <sphereGeometry args={[0.42, 24, 24]} />
-          <meshBasicMaterial color="#EAE3FF" transparent opacity={0.36} />
+          <meshBasicMaterial color="#DCE7FF" transparent opacity={0.34} />
         </mesh>
 
         <mesh ref={glowRingRef} position={[0, 1.32, 0.02]}>
           <torusGeometry args={[0.46, 0.015, 12, 48]} />
-          <meshBasicMaterial color="#3979F6" transparent opacity={0.44} />
+          <meshBasicMaterial color="#2855D9" transparent opacity={0.44} />
         </mesh>
 
         <group ref={sparkGroupRef} position={[0, 1.32, 0.08]}>
@@ -353,9 +353,9 @@ function SceneConnection({ reducedMotion }: { reducedMotion: boolean }) {
             <mesh key={idx} position={pos}>
               <sphereGeometry args={[0.044, 14, 14]} />
               <meshPhysicalMaterial
-                color={idx % 2 === 0 ? '#7655E8' : '#3979F6'}
-                emissive="#EAE3FF"
-                emissiveIntensity={0.2}
+                color={idx % 2 === 0 ? '#FFD43B' : '#FFF1AD'}
+                emissive="#FFD43B"
+                emissiveIntensity={0.18}
                 roughness={0.28}
                 clearcoat={0.25}
               />
@@ -526,7 +526,7 @@ function SceneExchange({ reducedMotion }: { reducedMotion: boolean }) {
         disableIdleMotion={reducedMotion}
       />
 
-      {/* White & Lavender-Blue Study Table */}
+      {/* White & Light Blue Study Table */}
       <group position={[0, 0, 0.45]}>
         <mesh position={[0, 0.92, 0]} castShadow receiveShadow>
           <cylinderGeometry args={[0.92, 0.92, 0.09, 40]} />
@@ -534,33 +534,33 @@ function SceneExchange({ reducedMotion }: { reducedMotion: boolean }) {
         </mesh>
         <mesh position={[0, 0.92, 0]} rotation={[Math.PI / 2, 0, 0]}>
           <torusGeometry args={[0.92, 0.018, 12, 48]} />
-          <meshPhysicalMaterial color="#EAE3FF" roughness={0.38} />
+          <meshPhysicalMaterial color="#DCE7FF" roughness={0.38} />
         </mesh>
         <mesh position={[0, 0.46, 0]} castShadow receiveShadow>
           <cylinderGeometry args={[0.14, 0.24, 0.9, 24]} />
-          <meshPhysicalMaterial color="#3979F6" roughness={0.45} />
+          <meshPhysicalMaterial color="#2855D9" roughness={0.45} />
         </mesh>
 
         {/* Open Study Tablet on Desk */}
         <group position={[0.38, 1.0, 0]} rotation={[0.18, -0.35, 0]}>
           <mesh castShadow>
             <boxGeometry args={[0.42, 0.03, 0.3]} />
-            <meshPhysicalMaterial color="#7655E8" roughness={0.34} />
+            <meshPhysicalMaterial color="#183B9B" roughness={0.34} />
           </mesh>
           <mesh position={[0, 0.02, 0]}>
             <boxGeometry args={[0.36, 0.015, 0.24]} />
-            <meshPhysicalMaterial color="#F1F6FF" roughness={0.28} />
+            <meshPhysicalMaterial color="#F5F8FF" roughness={0.28} />
           </mesh>
         </group>
 
-        {/* Crisp Lavender-White Teacher Credit Tray Pedestal */}
+        {/* Crisp White Teacher Credit Tray Pedestal */}
         <mesh position={[-1.42, 0.88, 0.05]} castShadow receiveShadow>
           <cylinderGeometry args={[0.34, 0.38, 0.14, 28]} />
-          <meshPhysicalMaterial color="#F5F1FF" roughness={0.38} clearcoat={0.16} />
+          <meshPhysicalMaterial color="#F5F8FF" roughness={0.38} clearcoat={0.16} />
         </mesh>
       </group>
 
-      {/* Electric Blue Skill Knowledge Orb */}
+      {/* Cobalt Blue Skill Knowledge Orb */}
       <mesh
         ref={skillOrbRef}
         position={reducedMotion ? [0, 1.5, 0.45] : [-0.95, 1.35, 0.45]}
@@ -569,8 +569,8 @@ function SceneExchange({ reducedMotion }: { reducedMotion: boolean }) {
       >
         <sphereGeometry args={[0.135, 24, 24]} />
         <meshPhysicalMaterial
-          color="#3979F6"
-          emissive="#E1EBFF"
+          color="#2855D9"
+          emissive="#DCE7FF"
           emissiveIntensity={0.3}
           roughness={0.24}
           clearcoat={0.32}
@@ -667,12 +667,12 @@ function SceneGrowth({ reducedMotion }: { reducedMotion: boolean }) {
   const { arcCurves, arcGeometries } = useMemo(() => {
     const hubAnchor = new THREE.Vector3(0, 0.68, 0.72);
     const links: Array<[THREE.Vector3, THREE.Vector3, string]> = [
-      [new THREE.Vector3(-2.12, 1.38, -0.35), new THREE.Vector3(-1.14, 1.38, -1.28), '#7655E8'],
-      [new THREE.Vector3(-1.14, 1.38, -1.28), new THREE.Vector3(0, 1.38, -1.58), '#3979F6'],
-      [new THREE.Vector3(0, 1.38, -1.58), new THREE.Vector3(1.14, 1.38, -1.28), '#EAE3FF'],
-      [new THREE.Vector3(1.14, 1.38, -1.28), new THREE.Vector3(2.12, 1.38, -0.35), '#7655E8'],
-      [new THREE.Vector3(-2.12, 1.3, -0.35), hubAnchor, '#7655E8'],
-      [new THREE.Vector3(2.12, 1.3, -0.35), hubAnchor, '#3979F6'],
+      [new THREE.Vector3(-2.12, 1.38, -0.35), new THREE.Vector3(-1.14, 1.38, -1.28), '#2855D9'],
+      [new THREE.Vector3(-1.14, 1.38, -1.28), new THREE.Vector3(0, 1.38, -1.58), '#FFD43B'],
+      [new THREE.Vector3(0, 1.38, -1.58), new THREE.Vector3(1.14, 1.38, -1.28), '#DCE7FF'],
+      [new THREE.Vector3(1.14, 1.38, -1.28), new THREE.Vector3(2.12, 1.38, -0.35), '#183B9B'],
+      [new THREE.Vector3(-2.12, 1.3, -0.35), hubAnchor, '#2855D9'],
+      [new THREE.Vector3(2.12, 1.3, -0.35), hubAnchor, '#FFD43B'],
     ];
 
     const curves: THREE.CatmullRomCurve3[] = [];
@@ -778,11 +778,11 @@ function SceneGrowth({ reducedMotion }: { reducedMotion: boolean }) {
       {/* Traveling Knowledge Beads */}
       <mesh ref={pulse1Ref}>
         <sphereGeometry args={[0.068, 16, 16]} />
-        <meshPhysicalMaterial color="#7655E8" roughness={0.28} />
+        <meshPhysicalMaterial color="#2855D9" roughness={0.28} />
       </mesh>
       <mesh ref={pulse2Ref}>
         <sphereGeometry args={[0.068, 16, 16]} />
-        <meshPhysicalMaterial color="#3979F6" roughness={0.28} />
+        <meshPhysicalMaterial color="#FFD43B" roughness={0.28} />
       </mesh>
 
       {/* Foreground SwapStudy 3D Logo Reveal (positioned below peer faces) */}
@@ -801,30 +801,30 @@ interface SceneBackdropSpec {
 const SCENE_BACKDROPS: SceneBackdropSpec[] = [
   // Scene 0 (01 · The Problem): Warm Library Study Corner
   {
-    plinth: '#FFFFFF',
-    ring: '#7655E8',
-    rimTint: '#EAE3FF',
+    plinth: '#FFFDF7',
+    ring: '#FFD43B',
+    rimTint: '#FFF1C2',
     plinthRadius: 2.95,
   },
   // Scene 1 (02 · The Connection): Sunlit Courtyard Quad
   {
     plinth: '#FFFFFF',
-    ring: '#3979F6',
-    rimTint: '#E1EBFF',
+    ring: '#2855D9',
+    rimTint: '#DCE7FF',
     plinthRadius: 3.15,
   },
   // Scene 2 (03 · The Exchange): Sunny Makers' Terrace
   {
     plinth: '#FFFFFF',
-    ring: '#7655E8',
-    rimTint: '#EAE3FF',
+    ring: '#FFD43B',
+    rimTint: '#DCEAD6',
     plinthRadius: 3.1,
   },
   // Scene 3 (04 · The Growth): Grand Campus Amphitheater Lawn
   {
     plinth: '#FFFFFF',
-    ring: '#3979F6',
-    rimTint: '#E1EBFF',
+    ring: '#2855D9',
+    rimTint: '#D2E8C8',
     plinthRadius: 3.55,
   },
 ];
@@ -880,8 +880,8 @@ export default function IntroSceneStage({
         shadow-mapSize={[1024, 1024]}
         shadow-bias={-0.0004}
       />
-      <directionalLight position={[-4.5, 4.5, -3.5]} intensity={0.98} color="#E1EBFF" />
-      <pointLight position={[2.2, 2.5, 3.8]} intensity={0.65} color="#EAE3FF" />
+      <directionalLight position={[-4.5, 4.5, -3.5]} intensity={0.98} color="#DCE7FF" />
+      <pointLight position={[2.2, 2.5, 3.8]} intensity={0.65} color="#FFF1AD" />
 
       {/* Local Procedural Softbox Reflections */}
       <Environment resolution={256} frames={1}>
@@ -896,7 +896,7 @@ export default function IntroSceneStage({
         <Lightformer
           form="rect"
           intensity={1.3}
-          color="#E1EBFF"
+          color="#DCE7FF"
           scale={[6, 4, 1]}
           position={[-5, 2, -2]}
           rotation={[0, Math.PI / 3, 0]}
@@ -904,7 +904,7 @@ export default function IntroSceneStage({
         <Lightformer
           form="circle"
           intensity={1.3}
-          color="#EAE3FF"
+          color="#FFF1AD"
           scale={4}
           position={[5, 3, 1]}
           rotation={[0, -Math.PI / 2, 0]}
@@ -921,11 +921,11 @@ export default function IntroSceneStage({
 
       <ContactShadows
         position={[0, 0.01, -0.1]}
-        opacity={0.2}
+        opacity={0.22}
         scale={10.5}
         blur={2.6}
         far={4.2}
-        color="#4C389C"
+        color="#183B9B"
       />
 
       {activeScene === 0 && <SceneProblem reducedMotion={reducedMotion} />}

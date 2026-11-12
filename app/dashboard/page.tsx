@@ -226,11 +226,10 @@ export default function DashboardPage() {
       {/* Action Feedback Banner */}
       {actionAlert && (
         <div
-          className={`flex items-center justify-between gap-3 px-4 py-3 rounded-2xl border text-sm font-medium ${
-            actionAlert.type === 'error'
-              ? 'bg-[#F07878]/10 border-[#F07878]/30 text-[#F07878]'
-              : 'bg-[#65C995]/10 border-[#65C995]/30 text-[#65C995]'
-          }`}
+          className={`flex items-center justify-between gap-3 px-4 py-3 rounded-2xl border text-sm font-medium ${actionAlert.type === 'error'
+            ? 'bg-[#F07878]/10 border-[#F07878]/30 text-[#F07878]'
+            : 'bg-[#65C995]/10 border-[#65C995]/30 text-[#65C995]'
+            }`}
         >
           <span className="flex items-center gap-2">
             {actionAlert.type === 'error' ? (
@@ -261,9 +260,8 @@ export default function DashboardPage() {
             </p>
             <h1 className="text-3xl sm:text-4xl font-extrabold text-[#F7F5F0] tracking-tight leading-[1.15]">
               {upcomingSessions.length > 0
-                ? `${upcomingSessions.length} upcoming ${
-                    upcomingSessions.length === 1 ? 'session' : 'sessions'
-                  } scheduled`
+                ? `${upcomingSessions.length} upcoming ${upcomingSessions.length === 1 ? 'session' : 'sessions'
+                } scheduled`
                 : 'Ready for your next peer skill exchange'}
             </h1>
             <div className="flex flex-wrap items-center gap-3 pt-1">
@@ -700,11 +698,10 @@ export default function DashboardPage() {
                     key={tab.key}
                     type="button"
                     onClick={() => setMatchFilter(tab.key as 'all' | 'mutual' | 'wishlist')}
-                    className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-colors cursor-pointer ${
-                      matchFilter === tab.key
-                        ? 'bg-[#FF9B45] text-[#171715]'
-                        : 'text-[#AAA69F] hover:text-[#F7F5F0]'
-                    }`}
+                    className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-colors cursor-pointer ${matchFilter === tab.key
+                      ? 'bg-[#FF9B45] text-[#171715]'
+                      : 'text-[#AAA69F] hover:text-[#F7F5F0]'
+                      }`}
                   >
                     {tab.label}
                   </button>
@@ -811,11 +808,10 @@ export default function DashboardPage() {
                           {isToday ? 'Today' : session.date}
                         </span>
                         <span
-                          className={`px-2.5 py-0.5 rounded-full text-xs font-bold border ${
-                            isTeacher
-                              ? 'bg-[#FF9B45]/15 text-[#FF9B45] border-[#FF9B45]/30'
-                              : 'bg-[#65C995]/15 text-[#65C995] border-[#65C995]/30'
-                          }`}
+                          className={`px-2.5 py-0.5 rounded-full text-xs font-bold border ${isTeacher
+                            ? 'bg-[#FF9B45]/15 text-[#FF9B45] border-[#FF9B45]/30'
+                            : 'bg-[#65C995]/15 text-[#65C995] border-[#65C995]/30'
+                            }`}
                         >
                           {isTeacher ? 'Teaching' : 'Learning'}
                         </span>
@@ -929,9 +925,8 @@ export default function DashboardPage() {
                       <p className="text-xs text-[#AAA69F] truncate">{tx.date}</p>
                     </div>
                     <span
-                      className={`text-sm font-extrabold tabular-nums shrink-0 ${
-                        tx.amount >= 0 ? 'text-[#65C995]' : 'text-[#F07878]'
-                      }`}
+                      className={`text-sm font-extrabold tabular-nums shrink-0 ${tx.amount >= 0 ? 'text-[#65C995]' : 'text-[#F07878]'
+                        }`}
                     >
                       {tx.amount >= 0 ? `+${tx.amount}` : tx.amount}
                     </span>

@@ -63,35 +63,35 @@ function detectWebGLSupport(): boolean {
 const SCENE_STAGE_BACKDROPS = [
   {
     photo: '/intro/campus-library.jpg',
-    pageBg: 'bg-[#F8F6FF]',
-    glowTopRight: 'bg-[#EAE3FF]/65',
-    glowBottomRight: 'bg-[#E1EBFF]/55',
-    glowBottomLeft: 'bg-[#E1EBFF]/45',
-    scrimClass: 'bg-gradient-to-b from-[#F5F1FF]/40 via-[#FFFFFF]/48 to-[#EAE3FF]/88',
+    pageBg: 'bg-[#FFFDF8]',
+    glowTopRight: 'bg-[#FFF1AD]/55',
+    glowBottomRight: 'bg-[#DCE7FF]/40',
+    glowBottomLeft: 'bg-[#FFE58F]/35',
+    scrimClass: 'bg-gradient-to-b from-[#FFFDF7]/35 via-[#FFF9EB]/48 to-[#FAF3DF]/90',
   },
   {
     photo: '/intro/campus-coffee.jpg',
-    pageBg: 'bg-[#F4F7FF]',
-    glowTopRight: 'bg-[#E1EBFF]/65',
-    glowBottomRight: 'bg-[#EAE3FF]/55',
-    glowBottomLeft: 'bg-[#EAE3FF]/45',
-    scrimClass: 'bg-gradient-to-b from-[#F1F6FF]/38 via-[#F5F1FF]/48 to-[#E1EBFF]/88',
+    pageBg: 'bg-[#F7FAFF]',
+    glowTopRight: 'bg-[#BFD4FF]/55',
+    glowBottomRight: 'bg-[#DCE7FF]/55',
+    glowBottomLeft: 'bg-[#FFF1AD]/30',
+    scrimClass: 'bg-gradient-to-b from-[#EFF5FF]/30 via-[#F4F8FF]/44 to-[#E1ECFF]/90',
   },
   {
     photo: '/intro/campus-art.jpg',
-    pageBg: 'bg-[#F7F5FF]',
-    glowTopRight: 'bg-[#EAE3FF]/60',
-    glowBottomRight: 'bg-[#E1EBFF]/60',
-    glowBottomLeft: 'bg-[#E1EBFF]/45',
-    scrimClass: 'bg-gradient-to-b from-[#F5F1FF]/36 via-[#FFFFFF]/48 to-[#E1EBFF]/86',
+    pageBg: 'bg-[#FFFEFA]',
+    glowTopRight: 'bg-[#FFE58F]/45',
+    glowBottomRight: 'bg-[#E2EFE0]/55',
+    glowBottomLeft: 'bg-[#DCE7FF]/40',
+    scrimClass: 'bg-gradient-to-b from-[#FFFDF5]/32 via-[#FFFFFF]/46 to-[#F2F0E8]/88',
   },
   {
     photo: '/intro/campus-lawn.jpg',
-    pageBg: 'bg-[#F5F8FF]',
-    glowTopRight: 'bg-[#E1EBFF]/65',
-    glowBottomRight: 'bg-[#EAE3FF]/60',
-    glowBottomLeft: 'bg-[#EAE3FF]/45',
-    scrimClass: 'bg-gradient-to-b from-[#F1F6FF]/34 via-[#F5F1FF]/46 to-[#EAE3FF]/88',
+    pageBg: 'bg-[#F4F8FF]',
+    glowTopRight: 'bg-[#CFE0FF]/60',
+    glowBottomRight: 'bg-[#D7EAD4]/55',
+    glowBottomLeft: 'bg-[#FFF1AD]/35',
+    scrimClass: 'bg-gradient-to-b from-[#EEF5FF]/28 via-[#F3F8F2]/42 to-[#E2EFE0]/88',
   },
 ] as const;
 
@@ -233,7 +233,7 @@ export default function CinematicIntroExperience() {
     return (
       <>
         {prefix}
-        <span className="text-gradient-brand underline decoration-[#7655E8]/60 decoration-[4px] underline-offset-[6px]">
+        <span className="text-[#2855D9] underline decoration-[#FFD43B] decoration-[4px] underline-offset-[6px]">
           {highlight}
         </span>
       </>
@@ -242,7 +242,7 @@ export default function CinematicIntroExperience() {
 
   return (
     <div
-      className={`relative flex min-h-screen w-full flex-col overflow-x-hidden ${currentStageBackdrop.pageBg} text-[#242044] transition-colors duration-500 selection:bg-[#EAE3FF] selection:text-[#242044]`}
+      className={`relative flex min-h-screen w-full flex-col overflow-x-hidden ${currentStageBackdrop.pageBg} text-[#17213A] transition-colors duration-500 selection:bg-[#FFF1AD] selection:text-[#17213A]`}
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
     >
@@ -263,7 +263,7 @@ export default function CinematicIntroExperience() {
       <header className="relative z-20 mx-auto flex w-full max-w-7xl items-center justify-between gap-3 px-5 pb-3 pt-5 sm:px-8 sm:pt-7 lg:px-12">
         <div className="flex items-center gap-3">
           <div
-            className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-main text-white shadow-[0_10px_24px_-8px_rgba(118,85,232,0.42)]"
+            className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#2855D9] text-white shadow-[0_10px_24px_-8px_rgba(40,85,217,0.42)]"
             aria-hidden="true"
           >
             <svg
@@ -280,10 +280,10 @@ export default function CinematicIntroExperience() {
             </svg>
           </div>
           <div className="flex flex-col">
-            <span className="text-[18px] font-extrabold tracking-tight text-[#242044]">
+            <span className="text-[18px] font-extrabold tracking-tight text-[#17213A]">
               SwapStudy
             </span>
-            <span className="hidden text-[11px] font-semibold uppercase tracking-[0.14em] text-[#77758F] sm:inline">
+            <span className="hidden text-[11px] font-semibold uppercase tracking-[0.14em] text-[#64718A] sm:inline">
               Peer Skill Exchange
             </span>
           </div>
@@ -292,7 +292,7 @@ export default function CinematicIntroExperience() {
         {/* Scene Step Pills (Desktop / Tablet) */}
         <nav
           aria-label="Onboarding scenes"
-          className="hidden items-center gap-2 rounded-full border border-[#E8E5F5] bg-white/95 px-2.5 py-1.5 shadow-[0_8px_24px_-14px_rgba(118,85,232,0.16)] backdrop-blur-sm md:flex"
+          className="hidden items-center gap-2 rounded-full border border-[#E5EAF5] bg-white/95 px-2.5 py-1.5 shadow-[0_8px_24px_-14px_rgba(40,85,217,0.16)] backdrop-blur-sm md:flex"
         >
           {INTRO_SCENES.map((scene, index) => {
             const isActive = index === activeScene;
@@ -306,18 +306,18 @@ export default function CinematicIntroExperience() {
                 aria-label={`Scene ${index + 1}: ${scene.badgeText}`}
                 className={`group relative flex items-center gap-2 rounded-full px-3.5 py-1.5 text-xs font-bold transition-all duration-200 ${
                   isActive
-                    ? 'bg-gradient-to-r from-[#EAE3FF] to-[#E1EBFF] text-[#242044] ring-1 ring-[#7655E8]/30 shadow-sm'
+                    ? 'bg-[#F5F8FF] text-[#183B9B] ring-1 ring-[#2855D9]/30 shadow-sm'
                     : isCompleted
-                      ? 'bg-[#EAE3FF]/60 text-[#7655E8] hover:bg-[#E1EBFF]'
-                      : 'text-[#77758F] hover:bg-[#F5F1FF] hover:text-[#242044]'
+                      ? 'bg-[#DCE7FF]/60 text-[#2855D9] hover:bg-[#DCE7FF]'
+                      : 'text-[#2855D9]/80 hover:bg-[#F5F8FF] hover:text-[#2855D9]'
                 }`}
               >
                 {isActive && (
-                  <span className="h-2 w-2 rounded-full bg-gradient-main" aria-hidden="true" />
+                  <span className="h-2 w-2 rounded-full bg-[#FFD43B]" aria-hidden="true" />
                 )}
-                <span className="text-[#7655E8]">0{index + 1}</span>
+                <span className="text-[#2855D9]">0{index + 1}</span>
                 {isActive && (
-                  <span className="hidden xl:inline text-[#242044]">{scene.badgeText}</span>
+                  <span className="hidden xl:inline text-[#183B9B]">{scene.badgeText}</span>
                 )}
               </button>
             );
@@ -331,7 +331,7 @@ export default function CinematicIntroExperience() {
               type="button"
               onClick={() => setIsPaused((prev) => !prev)}
               aria-label={isPaused ? 'Resume intro playback' : 'Pause intro playback'}
-              className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-[#E8E5F5] bg-white text-[#242044] shadow-sm transition-colors hover:border-[#7655E8] hover:bg-[#F5F1FF] hover:text-[#7655E8]"
+              className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-[#2855D9] bg-white text-[#2855D9] shadow-sm transition-colors hover:border-[#183B9B] hover:bg-[#F5F8FF] hover:text-[#183B9B]"
             >
               {isPaused ? (
                 <svg viewBox="0 0 24 24" className="h-4 w-4 fill-current">
@@ -349,7 +349,7 @@ export default function CinematicIntroExperience() {
           <button
             type="button"
             onClick={handleSkipIntro}
-            className="inline-flex items-center gap-1.5 rounded-full border border-[#E8E5F5] bg-white px-4 py-2 text-sm font-semibold text-[#242044] shadow-[0_6px_18px_-12px_rgba(118,85,232,0.18)] transition-all hover:border-[#7655E8] hover:bg-[#F5F1FF] hover:text-[#7655E8]"
+            className="inline-flex items-center gap-1.5 rounded-full border border-[#2855D9] bg-white px-4 py-2 text-sm font-semibold text-[#2855D9] shadow-[0_6px_18px_-12px_rgba(40,85,217,0.2)] transition-all hover:border-[#183B9B] hover:bg-[#F5F8FF] hover:text-[#183B9B]"
           >
             <span>Skip Intro</span>
             <svg
@@ -382,32 +382,32 @@ export default function CinematicIntroExperience() {
                 className="flex flex-col items-start"
               >
                 {/* Eyebrow Badge */}
-                <div className="mb-5 inline-flex items-center gap-2.5 rounded-full border border-[#E8E5F5] bg-white px-3.5 py-1.5 shadow-[0_8px_20px_-14px_rgba(118,85,232,0.18)]">
+                <div className="mb-5 inline-flex items-center gap-2.5 rounded-full border border-[#E5EAF5] bg-white px-3.5 py-1.5 shadow-[0_8px_20px_-14px_rgba(40,85,217,0.18)]">
                   <span
                     className="h-2.5 w-2.5 rounded-full"
                     style={{ backgroundColor: currentScene.accentColor }}
                   />
-                  <span className="text-xs font-bold uppercase tracking-[0.12em] text-[#77758F]">
-                    <span className="text-[#7655E8]">{sceneNum}</span>
+                  <span className="text-xs font-bold uppercase tracking-[0.12em] text-[#64718A]">
+                    <span className="text-[#2855D9]">{sceneNum}</span>
                     {sceneLabel ? ` · ${sceneLabel}` : ''}
                   </span>
                 </div>
 
                 {/* Large Editorial Headline */}
-                <h1 className="text-[34px] font-extrabold leading-[1.07] tracking-[-0.03em] text-[#242044] sm:text-[44px] lg:text-[50px] xl:text-[58px]">
+                <h1 className="text-[34px] font-extrabold leading-[1.07] tracking-[-0.03em] text-[#17213A] sm:text-[44px] lg:text-[50px] xl:text-[58px]">
                   {renderHighlightedTitle(currentScene.title, currentScene.highlightText)}
                 </h1>
 
                 {/* Supporting Copy */}
-                <p className="mt-5 max-w-xl text-[17px] leading-[1.6] text-[#77758F] sm:text-[19px] xl:text-[21px]">
+                <p className="mt-5 max-w-xl text-[17px] leading-[1.6] text-[#64718A] sm:text-[19px] xl:text-[21px]">
                   {currentScene.subtitle}
                 </p>
 
                 {/* Final Scene Tagline Card */}
                 {isFinalScene && (
-                  <div className="mt-6 w-full rounded-2xl border border-[#E8E5F5] bg-gradient-to-r from-white via-[#F5F1FF] to-[#F1F6FF] px-5 py-4 shadow-[0_14px_32px_-20px_rgba(118,85,232,0.22)]">
-                    <p className="flex items-center gap-2.5 text-base font-bold tracking-tight text-[#242044] sm:text-lg">
-                      <span className="inline-block h-2.5 w-2.5 shrink-0 rounded-full bg-gradient-main" />
+                  <div className="mt-6 w-full rounded-2xl border border-[#E5EAF5] bg-white px-5 py-4 shadow-[0_14px_32px_-20px_rgba(40,85,217,0.22)]">
+                    <p className="flex items-center gap-2.5 text-base font-bold tracking-tight text-[#17213A] sm:text-lg">
+                      <span className="inline-block h-2.5 w-2.5 shrink-0 rounded-full bg-[#FFD43B]" />
                       <span>{INTRO_FINAL_TAGLINE}</span>
                     </p>
                   </div>
@@ -428,10 +428,10 @@ export default function CinematicIntroExperience() {
                       type="button"
                       onClick={() => goToScene(index)}
                       aria-label={`Jump to ${scene.eyebrow}`}
-                      className="relative h-2 flex-1 overflow-hidden rounded-full bg-[#EAE3FF] transition-colors hover:bg-[#DFD4FE]"
+                      className="relative h-2 flex-1 overflow-hidden rounded-full bg-[#DCE7FF] transition-colors hover:bg-[#C6D8FF]"
                     >
                       {isDone && (
-                        <span className="absolute inset-0 rounded-full bg-[#7655E8]/55" />
+                        <span className="absolute inset-0 rounded-full bg-[#2855D9]" />
                       )}
                       {isActive && (
                         <motion.span
@@ -446,7 +446,7 @@ export default function CinematicIntroExperience() {
                             ease: 'linear',
                           }}
                           style={{ transformOrigin: '0% 50%' }}
-                          className="absolute inset-0 rounded-full bg-gradient-main"
+                          className="absolute inset-0 rounded-full bg-[#FFD43B]"
                         />
                       )}
                     </button>
@@ -460,7 +460,7 @@ export default function CinematicIntroExperience() {
                   <button
                     type="button"
                     onClick={handlePrev}
-                    className="inline-flex items-center gap-2 rounded-full border border-[#E8E5F5] bg-white px-5 py-3 text-sm font-bold text-[#242044] shadow-sm transition-all hover:border-[#7655E8] hover:bg-[#F5F1FF] hover:text-[#7655E8]"
+                    className="inline-flex items-center gap-2 rounded-full border border-[#2855D9] bg-white px-5 py-3 text-sm font-bold text-[#2855D9] shadow-sm transition-all hover:border-[#183B9B] hover:bg-[#F5F8FF] hover:text-[#183B9B]"
                   >
                     <svg
                       viewBox="0 0 24 24"
@@ -481,7 +481,7 @@ export default function CinematicIntroExperience() {
                   <button
                     type="button"
                     onClick={handleNext}
-                    className="inline-flex items-center gap-2.5 rounded-full btn-gradient px-7 py-3.5 text-base font-bold text-white"
+                    className="inline-flex items-center gap-2.5 rounded-full bg-[#2855D9] px-7 py-3.5 text-base font-bold text-white shadow-[0_14px_30px_-10px_rgba(40,85,217,0.45)] transition-all hover:-translate-y-0.5 hover:bg-[#183B9B]"
                   >
                     <span>Next Scene</span>
                     <svg
@@ -501,7 +501,7 @@ export default function CinematicIntroExperience() {
                     <button
                       type="button"
                       onClick={handleGetStarted}
-                      className="inline-flex items-center gap-2.5 rounded-full btn-gradient px-8 py-3.5 text-base font-bold text-white"
+                      className="inline-flex items-center gap-2.5 rounded-full bg-[#2855D9] px-8 py-3.5 text-base font-bold text-white shadow-[0_14px_30px_-10px_rgba(40,85,217,0.48)] transition-all hover:-translate-y-0.5 hover:bg-[#183B9B]"
                     >
                       <span>Get Started</span>
                       <svg
@@ -521,7 +521,7 @@ export default function CinematicIntroExperience() {
                     <button
                       type="button"
                       onClick={handleSkipIntro}
-                      className="inline-flex items-center rounded-full border border-[#E8E5F5] bg-white px-6 py-3.5 text-sm font-bold text-[#242044] shadow-sm transition-colors hover:border-[#7655E8] hover:bg-[#F5F1FF] hover:text-[#7655E8]"
+                      className="inline-flex items-center rounded-full border border-[#2855D9] bg-white px-6 py-3.5 text-sm font-bold text-[#2855D9] shadow-sm transition-colors hover:border-[#183B9B] hover:bg-[#F5F8FF] hover:text-[#183B9B]"
                     >
                       Already have an account? Sign in
                     </button>
@@ -529,7 +529,7 @@ export default function CinematicIntroExperience() {
                 )}
               </div>
 
-              <p className="text-xs font-medium text-[#77758F]">
+              <p className="text-xs font-medium text-[#64718A]">
                 <span className="hidden sm:inline">
                   Tip: Move your cursor over the 3D scene or use arrow keys to explore.
                 </span>
@@ -540,8 +540,8 @@ export default function CinematicIntroExperience() {
 
           {/* 3D Clay Illustration Stage Column */}
           <div className="order-1 lg:order-2 lg:col-span-7">
-            <div className="relative rounded-[34px] border border-[#E8E5F5] bg-white p-2 shadow-[0_28px_65px_-28px_rgba(118,85,232,0.2)] sm:p-3">
-              <div className="relative h-[340px] w-full overflow-hidden rounded-[26px] bg-gradient-soft sm:h-[410px] lg:h-[520px]">
+            <div className="relative rounded-[34px] border border-[#E5EAF5] bg-white p-2 shadow-[0_28px_65px_-28px_rgba(40,85,217,0.2)] sm:p-3">
+              <div className="relative h-[340px] w-full overflow-hidden rounded-[26px] bg-[#F5F8FF] sm:h-[410px] lg:h-[520px]">
                 {/* Full-Bleed Per-Scene College Life Backdrop Photograph */}
                 <AnimatePresence mode="sync">
                   <motion.div
@@ -583,14 +583,14 @@ export default function CinematicIntroExperience() {
 
               {/* Subtle Interactive Scene Caption Pill */}
               <div className="pointer-events-none absolute bottom-5 left-5 right-5 z-20 flex items-center justify-between gap-2 sm:bottom-6 sm:left-6 sm:right-6">
-                <span className="inline-flex items-center gap-2 rounded-full border border-[#E8E5F5] bg-white/95 px-3.5 py-1.5 text-xs font-semibold text-[#242044] shadow-sm backdrop-blur-sm">
+                <span className="inline-flex items-center gap-2 rounded-full border border-[#E5EAF5] bg-white/95 px-3.5 py-1.5 text-xs font-semibold text-[#17213A] shadow-sm backdrop-blur-sm">
                   <span
                     className="h-2 w-2 rounded-full"
                     style={{ backgroundColor: currentScene.accentColor }}
                   />
                   {currentScene.badgeText}
                 </span>
-                <span className="rounded-full border border-[#E8E5F5] bg-white/95 px-3 py-1.5 text-xs font-bold text-[#7655E8] shadow-sm backdrop-blur-sm">
+                <span className="rounded-full border border-[#E5EAF5] bg-white/95 px-3 py-1.5 text-xs font-bold text-[#2855D9] shadow-sm backdrop-blur-sm">
                   {activeScene + 1} / {totalScenes}
                 </span>
               </div>

@@ -48,6 +48,7 @@ export default function AppShell({ children }: AppShellProps) {
   const userMenuRef = useRef<HTMLDivElement>(null);
 
   const isMarketingRoute = PUBLIC_MARKETING_ROUTES.has(pathname);
+  const isIntroRoot = pathname === '/';
   const isMessagesRoute = pathname === '/messages' || pathname.startsWith('/messages/');
 
   const pendingSessionRequests = user
@@ -67,6 +68,10 @@ export default function AppShell({ children }: AppShellProps) {
     document.addEventListener('mousedown', handleOutsideClick);
     return () => document.removeEventListener('mousedown', handleOutsideClick);
   }, []);
+
+  if (isIntroRoot) {
+    return <main className="flex-1 flex flex-col">{children}</main>;
+  }
 
   if (isMarketingRoute) {
     return (
@@ -148,10 +153,10 @@ export default function AppShell({ children }: AppShellProps) {
     }
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     setUserMenuOpen(false);
     setMobileDrawerOpen(false);
-    logout();
+    await logout();
     router.push('/');
   };
 

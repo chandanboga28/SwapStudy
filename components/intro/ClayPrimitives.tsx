@@ -49,44 +49,44 @@ const OUTFIT_COLORS: Record<
   }
 > = {
   'cobalt-hoodie': {
-    primary: '#7655E8',
+    primary: '#2855D9',
     trim: '#FFFFFF',
-    pocket: '#6040D4',
-    pants: '#242044',
+    pocket: '#1F47BA',
+    pants: '#17213A',
     shoe: '#FFFFFF',
-    sole: '#3979F6',
+    sole: '#2855D9',
   },
   'white-knit': {
-    primary: '#F5F1FF',
-    trim: '#7655E8',
-    pocket: '#EAE3FF',
-    pants: '#3979F6',
+    primary: '#F5F8FF',
+    trim: '#2855D9',
+    pocket: '#DCE7FF',
+    pants: '#183B9B',
     shoe: '#FFFFFF',
-    sole: '#7655E8',
+    sole: '#2855D9',
   },
   'yellow-sweater': {
-    primary: '#3979F6',
+    primary: '#FFD43B',
     trim: '#FFFFFF',
-    pocket: '#2B64D6',
-    pants: '#242044',
+    pocket: '#F0BF24',
+    pants: '#183B9B',
     shoe: '#FFFFFF',
-    sole: '#7655E8',
+    sole: '#2855D9',
   },
   'sky-jacket': {
-    primary: '#E1EBFF',
+    primary: '#DCE7FF',
     trim: '#FFFFFF',
-    pocket: '#C4D7FF',
-    pants: '#242044',
+    pocket: '#B8CEFF',
+    pants: '#17213A',
     shoe: '#FFFFFF',
-    sole: '#7655E8',
+    sole: '#2855D9',
   },
   'deep-blue-cardigan': {
-    primary: '#D7CAFF',
-    trim: '#3979F6',
-    pocket: '#C2B0FC',
-    pants: '#242044',
+    primary: '#183B9B',
+    trim: '#FFD43B',
+    pocket: '#132F7D',
+    pants: '#2855D9',
     shoe: '#FFFFFF',
-    sole: '#E1EBFF',
+    sole: '#DCE7FF',
   },
 };
 
@@ -353,7 +353,7 @@ export function StudentCharacter3D({
             </group>
           )}
 
-          {/* Optional Clay Campus Backpack (White + Electric Blue + Royal Purple) */}
+          {/* Optional Clay Campus Backpack (White + Cobalt Blue + Bright Yellow) */}
           {hasBackpack && (
             <group position={[0, 0.03, -0.34]}>
               <mesh castShadow receiveShadow>
@@ -362,20 +362,20 @@ export function StudentCharacter3D({
               </mesh>
               <mesh position={[0, 0.11, -0.02]} castShadow>
                 <boxGeometry args={[0.4, 0.18, 0.2]} />
-                <meshPhysicalMaterial color="#3979F6" roughness={0.5} />
+                <meshPhysicalMaterial color="#183B9B" roughness={0.5} />
               </mesh>
               <mesh position={[0, -0.08, -0.095]} castShadow>
                 <boxGeometry args={[0.26, 0.15, 0.06]} />
-                <meshPhysicalMaterial color="#7655E8" roughness={0.46} />
+                <meshPhysicalMaterial color="#FFD43B" roughness={0.46} />
               </mesh>
               {/* Shoulder straps */}
               <mesh position={[-0.17, 0.08, 0.18]} rotation={[0.15, 0, 0]} castShadow>
                 <boxGeometry args={[0.06, 0.34, 0.22]} />
-                <meshPhysicalMaterial color="#3979F6" roughness={0.52} />
+                <meshPhysicalMaterial color="#183B9B" roughness={0.52} />
               </mesh>
               <mesh position={[0.17, 0.08, 0.18]} rotation={[0.15, 0, 0]} castShadow>
                 <boxGeometry args={[0.06, 0.34, 0.22]} />
-                <meshPhysicalMaterial color="#3979F6" roughness={0.52} />
+                <meshPhysicalMaterial color="#183B9B" roughness={0.52} />
               </mesh>
             </group>
           )}
@@ -567,20 +567,20 @@ export function StudentCharacter3D({
                 <meshPhysicalMaterial color="#9E5B4C" roughness={0.45} />
               </mesh>
 
-              {/* Royal Purple Clay Glasses */}
+              {/* Cobalt Blue Clay Glasses */}
               {hasGlasses && (
                 <group position={[0, 0.03, 0.422]}>
                   <mesh position={[-0.142, 0, 0]}>
                     <torusGeometry args={[0.092, 0.014, 12, 28]} />
-                    <meshPhysicalMaterial color="#7655E8" roughness={0.3} metalness={0.18} />
+                    <meshPhysicalMaterial color="#2855D9" roughness={0.3} metalness={0.18} />
                   </mesh>
                   <mesh position={[0.142, 0, 0]}>
                     <torusGeometry args={[0.092, 0.014, 12, 28]} />
-                    <meshPhysicalMaterial color="#7655E8" roughness={0.3} metalness={0.18} />
+                    <meshPhysicalMaterial color="#2855D9" roughness={0.3} metalness={0.18} />
                   </mesh>
                   <mesh position={[0, 0.01, 0]} rotation={[0, 0, Math.PI / 2]}>
                     <cylinderGeometry args={[0.01, 0.01, 0.09, 10]} />
-                    <meshPhysicalMaterial color="#7655E8" roughness={0.3} metalness={0.18} />
+                    <meshPhysicalMaterial color="#2855D9" roughness={0.3} metalness={0.18} />
                   </mesh>
                 </group>
               )}
@@ -594,7 +594,7 @@ export function StudentCharacter3D({
                     color={hairColor}
                     roughness={0.54}
                     sheen={0.28}
-                    sheenColor="#EAE3FF"
+                    sheenColor="#DCE7FF"
                   />
                 </mesh>
 
@@ -646,7 +646,7 @@ export function StudentCharacter3D({
                     </mesh>
                     <mesh position={[0, 0.36, -0.18]} rotation={[Math.PI / 2, 0, 0]}>
                       <torusGeometry args={[0.14, 0.025, 10, 24]} />
-                      <meshPhysicalMaterial color="#3979F6" roughness={0.42} />
+                      <meshPhysicalMaterial color="#FFD43B" roughness={0.42} />
                     </mesh>
                     <mesh
                       position={[0, 0.34, 0.16]}
@@ -691,20 +691,20 @@ export function StudentCharacter3D({
                 )}
               </group>
 
-              {/* Electric Blue & Royal Purple Clay Headphones Accessory */}
+              {/* Bright Yellow & Cobalt Blue Clay Headphones Accessory */}
               {hasHeadphones && (
                 <group>
                   <mesh position={[0, 0.12, -0.02]} castShadow>
                     <torusGeometry args={[0.445, 0.042, 16, 36, Math.PI]} />
-                    <meshPhysicalMaterial color="#3979F6" roughness={0.36} clearcoat={0.2} />
+                    <meshPhysicalMaterial color="#FFD43B" roughness={0.36} clearcoat={0.2} />
                   </mesh>
                   <mesh position={[-0.435, 0.02, -0.02]} rotation={[0, Math.PI / 2, 0]} castShadow>
                     <cylinderGeometry args={[0.125, 0.125, 0.085, 24]} />
-                    <meshPhysicalMaterial color="#7655E8" roughness={0.34} />
+                    <meshPhysicalMaterial color="#2855D9" roughness={0.34} />
                   </mesh>
                   <mesh position={[0.435, 0.02, -0.02]} rotation={[0, Math.PI / 2, 0]} castShadow>
                     <cylinderGeometry args={[0.125, 0.125, 0.085, 24]} />
-                    <meshPhysicalMaterial color="#7655E8" roughness={0.34} />
+                    <meshPhysicalMaterial color="#2855D9" roughness={0.34} />
                   </mesh>
                 </group>
               )}
@@ -843,17 +843,17 @@ export function SculptedCreditCoin({
       <mesh rotation={[Math.PI / 2, 0, 0]} castShadow receiveShadow>
         <cylinderGeometry args={[0.24, 0.24, 0.068, 36]} />
         <meshPhysicalMaterial
-          color="#7655E8"
-          emissive="#EAE3FF"
-          emissiveIntensity={0.14}
+          color="#FFD43B"
+          emissive="#FFF1AD"
+          emissiveIntensity={0.16}
           roughness={0.22}
-          metalness={0.32}
+          metalness={0.36}
           clearcoat={0.42}
         />
       </mesh>
       <mesh position={[0, 0, 0.033]} castShadow>
         <torusGeometry args={[0.19, 0.02, 12, 36]} />
-        <meshPhysicalMaterial color="#3979F6" roughness={0.26} metalness={0.24} clearcoat={0.35} />
+        <meshPhysicalMaterial color="#2855D9" roughness={0.26} metalness={0.24} clearcoat={0.35} />
       </mesh>
       <mesh geometry={starGeo} position={[0, 0, 0.036]}>
         <meshPhysicalMaterial color="#FFFFFF" roughness={0.2} metalness={0.12} />
@@ -953,39 +953,39 @@ export function SculptedSkillToken({
     <group ref={tokenRef} position={position} scale={scale}>
       {kind === 'coding' && (
         <group rotation={[0.2, 0.22, 0]}>
-          {/* Crisp Light Lavender Keyboard Deck */}
+          {/* Crisp White-Blue Laptop Keyboard Deck */}
           <mesh geometry={laptopBaseGeo} position={[0, -0.12, 0.12]} castShadow receiveShadow>
-            <meshPhysicalMaterial color="#F5F1FF" roughness={0.36} clearcoat={0.16} />
+            <meshPhysicalMaterial color="#F5F8FF" roughness={0.36} clearcoat={0.16} />
           </mesh>
-          {/* Royal Purple Keys Pad & Electric Blue Trackpad */}
+          {/* Cobalt Blue Keys Pad & Bright Yellow Trackpad */}
           <mesh position={[0, -0.095, 0.06]} castShadow>
             <boxGeometry args={[0.48, 0.016, 0.19]} />
-            <meshPhysicalMaterial color="#7655E8" roughness={0.42} />
+            <meshPhysicalMaterial color="#2855D9" roughness={0.42} />
           </mesh>
           <mesh position={[0, -0.095, 0.22]}>
             <boxGeometry args={[0.18, 0.014, 0.1]} />
-            <meshPhysicalMaterial color="#3979F6" roughness={0.36} />
+            <meshPhysicalMaterial color="#FFD43B" roughness={0.36} />
           </mesh>
 
-          {/* Tilted Electric Blue Laptop Screen Lid */}
+          {/* Tilted Cobalt Blue Laptop Screen Lid */}
           <group position={[0, 0.08, -0.08]} rotation={[-0.26, 0, 0]}>
             <mesh geometry={laptopLidGeo} castShadow receiveShadow>
-              <meshPhysicalMaterial color="#3979F6" roughness={0.34} clearcoat={0.22} />
+              <meshPhysicalMaterial color="#2855D9" roughness={0.34} clearcoat={0.22} />
             </mesh>
-            {/* Deep Indigo Inner Screen */}
+            {/* Deep Navy Inner Screen */}
             <mesh position={[0, 0, 0.018]}>
               <boxGeometry args={[0.52, 0.33, 0.015]} />
-              <meshPhysicalMaterial color="#242044" roughness={0.28} />
+              <meshPhysicalMaterial color="#17213A" roughness={0.28} />
             </mesh>
-            {/* Raised < / > Code Symbols (Soft Lavender Brackets + White Slash) */}
+            {/* Raised < / > Code Symbols (Yellow Brackets + White Slash) */}
             <group position={[0, 0.015, 0.036]}>
               <mesh position={[-0.14, 0.032, 0]} rotation={[0, 0, -0.78]}>
                 <capsuleGeometry args={[0.014, 0.075, 6, 12]} />
-                <meshPhysicalMaterial color="#EAE3FF" roughness={0.22} />
+                <meshPhysicalMaterial color="#FFD43B" roughness={0.22} />
               </mesh>
               <mesh position={[-0.14, -0.032, 0]} rotation={[0, 0, 0.78]}>
                 <capsuleGeometry args={[0.014, 0.075, 6, 12]} />
-                <meshPhysicalMaterial color="#EAE3FF" roughness={0.22} />
+                <meshPhysicalMaterial color="#FFD43B" roughness={0.22} />
               </mesh>
 
               <mesh position={[0, 0, 0]} rotation={[0, 0, -0.32]}>
@@ -995,11 +995,11 @@ export function SculptedSkillToken({
 
               <mesh position={[0.14, 0.032, 0]} rotation={[0, 0, 0.78]}>
                 <capsuleGeometry args={[0.014, 0.075, 6, 12]} />
-                <meshPhysicalMaterial color="#EAE3FF" roughness={0.22} />
+                <meshPhysicalMaterial color="#FFD43B" roughness={0.22} />
               </mesh>
               <mesh position={[0.14, -0.032, 0]} rotation={[0, 0, -0.78]}>
                 <capsuleGeometry args={[0.014, 0.075, 6, 12]} />
-                <meshPhysicalMaterial color="#EAE3FF" roughness={0.22} />
+                <meshPhysicalMaterial color="#FFD43B" roughness={0.22} />
               </mesh>
             </group>
           </group>
@@ -1012,32 +1012,32 @@ export function SculptedSkillToken({
           <mesh geometry={paletteGeo} castShadow receiveShadow>
             <meshPhysicalMaterial color="#FFFFFF" roughness={0.38} clearcoat={0.18} />
           </mesh>
-          {/* Purple, Electric Blue & Pastel Swatches */}
+          {/* Yellow, Blue & White Paint Swatches */}
           {[
-            { pos: [-0.15, 0.12, 0.035] as [number, number, number], col: '#7655E8' },
-            { pos: [0.02, 0.15, 0.035] as [number, number, number], col: '#3979F6' },
-            { pos: [0.18, 0.09, 0.035] as [number, number, number], col: '#9B82F3' },
-            { pos: [0.16, -0.1, 0.035] as [number, number, number], col: '#E1EBFF' },
-            { pos: [0.0, -0.16, 0.035] as [number, number, number], col: '#EAE3FF' },
+            { pos: [-0.15, 0.12, 0.035] as [number, number, number], col: '#2855D9' },
+            { pos: [0.02, 0.15, 0.035] as [number, number, number], col: '#FFD43B' },
+            { pos: [0.18, 0.09, 0.035] as [number, number, number], col: '#183B9B' },
+            { pos: [0.16, -0.1, 0.035] as [number, number, number], col: '#FFF1AD' },
+            { pos: [0.0, -0.16, 0.035] as [number, number, number], col: '#DCE7FF' },
           ].map((dot, idx) => (
             <mesh key={idx} position={dot.pos} scale={[1, 1, 0.45]} castShadow>
               <sphereGeometry args={[0.056, 18, 18]} />
               <meshPhysicalMaterial color={dot.col} roughness={0.3} clearcoat={0.28} />
             </mesh>
           ))}
-          {/* Sculpted Royal Purple & Electric Blue Pencil */}
+          {/* Sculpted Bright Yellow & Cobalt Blue Pencil */}
           <group position={[0.06, 0.02, 0.12]} rotation={[0.1, 0.1, -0.62]}>
             <mesh castShadow>
               <cylinderGeometry args={[0.032, 0.032, 0.44, 16]} />
-              <meshPhysicalMaterial color="#7655E8" roughness={0.36} />
+              <meshPhysicalMaterial color="#FFD43B" roughness={0.36} />
             </mesh>
             <mesh position={[0, 0.25, 0]} castShadow>
               <cylinderGeometry args={[0.033, 0.033, 0.06, 16]} />
-              <meshPhysicalMaterial color="#E1EBFF" roughness={0.28} />
+              <meshPhysicalMaterial color="#DCE7FF" roughness={0.28} />
             </mesh>
             <mesh position={[0, 0.3, 0]} castShadow>
               <sphereGeometry args={[0.033, 14, 14]} />
-              <meshPhysicalMaterial color="#3979F6" roughness={0.4} />
+              <meshPhysicalMaterial color="#2855D9" roughness={0.4} />
             </mesh>
             <mesh position={[0, -0.265, 0]} rotation={[Math.PI, 0, 0]} castShadow>
               <coneGeometry args={[0.032, 0.095, 16]} />
@@ -1045,7 +1045,7 @@ export function SculptedSkillToken({
             </mesh>
             <mesh position={[0, -0.305, 0]} rotation={[Math.PI, 0, 0]}>
               <coneGeometry args={[0.013, 0.035, 12]} />
-              <meshPhysicalMaterial color="#242044" roughness={0.32} />
+              <meshPhysicalMaterial color="#183B9B" roughness={0.32} />
             </mesh>
           </group>
         </group>
@@ -1053,41 +1053,41 @@ export function SculptedSkillToken({
 
       {kind === 'photography' && (
         <group rotation={[0.12, -0.24, 0]}>
-          {/* Royal Purple Camera Body */}
+          {/* Cobalt Blue Camera Body */}
           <mesh geometry={cameraBodyGeo} castShadow receiveShadow>
-            <meshPhysicalMaterial color="#7655E8" roughness={0.38} clearcoat={0.18} />
+            <meshPhysicalMaterial color="#2855D9" roughness={0.38} clearcoat={0.18} />
           </mesh>
           {/* Crisp White Top Plate Accent */}
           <mesh position={[0, 0.145, 0]} castShadow>
             <boxGeometry args={[0.52, 0.085, 0.165]} />
             <meshPhysicalMaterial color="#FFFFFF" roughness={0.35} clearcoat={0.16} />
           </mesh>
-          {/* Viewfinder Dome & Soft Lavender Shutter Accent */}
+          {/* Viewfinder Dome & Yellow Shutter Accent */}
           <mesh position={[0, 0.215, -0.01]} castShadow>
             <boxGeometry args={[0.18, 0.07, 0.14]} />
-            <meshPhysicalMaterial color="#3979F6" roughness={0.38} />
+            <meshPhysicalMaterial color="#183B9B" roughness={0.38} />
           </mesh>
           <mesh position={[-0.17, 0.2, 0.02]} castShadow>
             <cylinderGeometry args={[0.04, 0.04, 0.035, 20]} />
-            <meshPhysicalMaterial color="#EAE3FF" roughness={0.28} />
+            <meshPhysicalMaterial color="#FFD43B" roughness={0.28} />
           </mesh>
-          {/* Electric Blue Grip */}
+          {/* Deep Blue Grip */}
           <mesh position={[0.23, -0.02, 0.03]} castShadow>
             <boxGeometry args={[0.09, 0.28, 0.14]} />
-            <meshPhysicalMaterial color="#3979F6" roughness={0.48} />
+            <meshPhysicalMaterial color="#183B9B" roughness={0.48} />
           </mesh>
           {/* Sculpted Multi-Ring Lens */}
           <mesh position={[-0.01, -0.02, 0.12]} rotation={[Math.PI / 2, 0, 0]} castShadow>
             <cylinderGeometry args={[0.145, 0.155, 0.12, 32]} />
-            <meshPhysicalMaterial color="#3979F6" roughness={0.34} clearcoat={0.22} />
+            <meshPhysicalMaterial color="#183B9B" roughness={0.34} clearcoat={0.22} />
           </mesh>
           <mesh position={[-0.01, -0.02, 0.175]} rotation={[Math.PI / 2, 0, 0]}>
             <torusGeometry args={[0.132, 0.018, 12, 32]} />
-            <meshPhysicalMaterial color="#E1EBFF" roughness={0.28} />
+            <meshPhysicalMaterial color="#DCE7FF" roughness={0.28} />
           </mesh>
           <mesh position={[-0.01, -0.02, 0.172]} rotation={[Math.PI / 2, 0, 0]}>
             <cylinderGeometry args={[0.115, 0.115, 0.025, 28]} />
-            <meshPhysicalMaterial color="#242044" roughness={0.12} clearcoat={0.92} />
+            <meshPhysicalMaterial color="#17213A" roughness={0.12} clearcoat={0.92} />
           </mesh>
           <mesh position={[-0.05, 0.025, 0.186]}>
             <sphereGeometry args={[0.022, 12, 12]} />
@@ -1098,30 +1098,30 @@ export function SculptedSkillToken({
 
       {kind === 'music' && (
         <group rotation={[0.15, 0.22, -0.06]}>
-          {/* Curved Electric Blue Outer Headband */}
+          {/* Curved Bright Yellow Outer Headband */}
           <mesh position={[0, 0.04, 0]} castShadow>
             <torusGeometry args={[0.26, 0.042, 18, 40, Math.PI]} />
-            <meshPhysicalMaterial color="#3979F6" roughness={0.36} clearcoat={0.22} />
+            <meshPhysicalMaterial color="#FFD43B" roughness={0.36} clearcoat={0.22} />
           </mesh>
-          {/* Pale Blue Inner Band Padding */}
+          {/* Soft Yellow Inner Band Padding */}
           <mesh position={[0, 0.035, 0]}>
             <torusGeometry args={[0.228, 0.026, 14, 36, Math.PI * 0.82]} />
-            <meshPhysicalMaterial color="#E1EBFF" roughness={0.45} />
+            <meshPhysicalMaterial color="#FFF1AD" roughness={0.45} />
           </mesh>
           {/* Left & Right Earcups */}
           {[-0.26, 0.26].map((earX, idx) => (
             <group key={idx} position={[earX, -0.08, 0]} rotation={[0, 0, earX < 0 ? 0.12 : -0.12]}>
-              {/* Royal Purple hinge yoke */}
+              {/* Cobalt hinge yoke */}
               <mesh position={[0, 0.11, 0]} castShadow>
                 <capsuleGeometry args={[0.02, 0.08, 6, 12]} />
-                <meshPhysicalMaterial color="#7655E8" roughness={0.32} />
+                <meshPhysicalMaterial color="#2855D9" roughness={0.32} />
               </mesh>
-              {/* Soft Lavender-White outer cup shell */}
+              {/* Bright Yellow outer cup shell */}
               <mesh scale={[0.68, 1.15, 0.95]} castShadow receiveShadow>
                 <sphereGeometry args={[0.145, 26, 26]} />
-                <meshPhysicalMaterial color="#7655E8" roughness={0.32} clearcoat={0.22} />
+                <meshPhysicalMaterial color="#FFD43B" roughness={0.32} clearcoat={0.22} />
               </mesh>
-              {/* Pale Lavender inner cushion */}
+              {/* Deep blue inner cushion */}
               <mesh
                 position={[earX < 0 ? 0.068 : -0.068, 0, 0]}
                 rotation={[0, Math.PI / 2, 0]}
@@ -1129,7 +1129,7 @@ export function SculptedSkillToken({
                 castShadow
               >
                 <torusGeometry args={[0.105, 0.038, 14, 28]} />
-                <meshPhysicalMaterial color="#EAE3FF" roughness={0.5} />
+                <meshPhysicalMaterial color="#183B9B" roughness={0.5} />
               </mesh>
             </group>
           ))}
@@ -1206,12 +1206,12 @@ export function SculptedSwapStudyLogo({
       <mesh geometry={rimGeo} position={[0, 0, -0.02]} castShadow receiveShadow>
         <meshPhysicalMaterial color="#FFFFFF" roughness={0.34} clearcoat={0.2} />
       </mesh>
-      {/* Royal Purple Rounded App Tile */}
+      {/* Cobalt Blue Rounded App Tile */}
       <mesh geometry={badgeGeo} position={[0, 0, 0.02]} castShadow receiveShadow>
         <meshPhysicalMaterial
-          color="#7655E8"
-          emissive="#3979F6"
-          emissiveIntensity={0.18}
+          color="#2855D9"
+          emissive="#183B9B"
+          emissiveIntensity={0.12}
           roughness={0.3}
           clearcoat={0.28}
         />
@@ -1225,13 +1225,13 @@ export function SculptedSwapStudyLogo({
           <meshPhysicalMaterial color="#FFFFFF" roughness={0.2} />
         </mesh>
       </group>
-      {/* Bottom Leftward Swap Arrow (Pale Electric Blue) */}
+      {/* Bottom Leftward Swap Arrow (Bright Yellow) */}
       <group position={[0, -0.125, 0.12]} rotation={[0, 0, Math.PI]}>
         <mesh geometry={arrowShaftGeo} position={[-0.03, 0, 0]}>
-          <meshPhysicalMaterial color="#E1EBFF" roughness={0.2} />
+          <meshPhysicalMaterial color="#FFD43B" roughness={0.2} />
         </mesh>
         <mesh geometry={arrowHeadGeo} position={[0.16, 0, 0]}>
-          <meshPhysicalMaterial color="#E1EBFF" roughness={0.2} />
+          <meshPhysicalMaterial color="#FFD43B" roughness={0.2} />
         </mesh>
       </group>
     </group>
