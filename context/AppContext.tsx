@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
 import { Skill, Session, CreditTransaction, Review, SkillSwapInvitation } from '@/types';
 import { useAuth } from './AuthContext';
 import {
@@ -72,6 +72,26 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [swapInvitations, setSwapInvitations] = useState<SkillSwapInvitation[]>([]);
   const [reviews, setReviews] = useState<Review[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const inFlightOpsRef = useRef<Set<string>>(new Set());
+
+  const withOperationLock = useCallback(
+    async <T extends { success: boolean; error?: string }>(
+      lockKey: string,
+      busyError: string,
+      fn: () => Promise<T>
+    ): Promise<T | { success: false; error: string }> => {
+      if (inFlightOpsRef.current.has(lockKey)) {
+        return { success: false, error: busyError };
+      }
+      inFlightOpsRef.current.add(lockKey);
+      try {
+        return await fn();
+      } finally {
+        inFlightOpsRef.current.delete(lockKey);
+      }
+    },
+    []
+  );
 
   // Fetch all core app data
   const loadAppData = useCallback(async () => {
@@ -207,7 +227,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     return { success: false, error: res.error };
   };
 
-  // Book session with credit escrow
+  // Book session with credit escrow (deduplicated against double-clicks & active bookings)
   const bookSession = async (params: {
     skillId: string;
     date: string;
@@ -216,125 +236,169 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }) => {
     if (!user) return { success: false, error: 'Must be signed in to book a session' };
 
-    if (!isSupabaseConfigured) {
-      const targetSkill = skills.find((s) => s.id === params.skillId);
-      if (!targetSkill) return { success: false, error: 'Skill not found' };
+    const hasActiveBooking = sessions.some(
+      (s) =>
+        s.skillId === params.skillId &&
+        s.learnerId === user.id &&
+        (s.status === 'pending' || s.status === 'confirmed')
+    );
+    if (hasActiveBooking) {
+      return { success: false, error: 'You already have an active session request for this skill.' };
+    }
 
-      const cost = targetSkill.hourlyCredits || 1;
-      if (user.credits < cost) {
-        return { success: false, error: `Insufficient credits. You need ${cost} credits.` };
+    return withOperationLock(
+      `book:${user.id}:${params.skillId}`,
+      'Booking confirmation is already in progress. Please wait.',
+      async () => {
+        if (!isSupabaseConfigured) {
+          const targetSkill = skills.find((s) => s.id === params.skillId);
+          if (!targetSkill) return { success: false, error: 'Skill not found' };
+
+          const cost = targetSkill.hourlyCredits || 1;
+          if (user.credits < cost) {
+            return { success: false, error: `Insufficient credits. You need ${cost} credits.` };
+          }
+
+          const newSession: Session = {
+            id: `session-${Date.now()}`,
+            skillId: targetSkill.id,
+            skillTitle: targetSkill.title,
+            category: targetSkill.category,
+            teacherId: targetSkill.teacherId,
+            teacherName: targetSkill.teacherName,
+            teacherAvatar: targetSkill.teacherAvatar,
+            learnerId: user.id,
+            learnerName: user.name,
+            learnerAvatar: user.avatar,
+            credits: cost,
+            date: params.date,
+            time: params.time,
+            durationMinutes: targetSkill.sessionDurationMinutes || 60,
+            status: 'pending',
+            learnerNotes: params.notes,
+            createdAt: new Date().toISOString(),
+          };
+
+          setSessions((prev) => [newSession, ...prev]);
+          return { success: true, sessionId: newSession.id };
+        }
+
+        const res = await bookSessionWithEscrow(params);
+        if (res.success) {
+          await loadAppData();
+          await refreshUser();
+          return { success: true, sessionId: res.sessionId };
+        }
+
+        // Sync local state if the DB rejected due to an active booking or balance discrepancy
+        if (
+          res.error &&
+          (res.error.toLowerCase().includes('active session') ||
+            res.error.toLowerCase().includes('insufficient credit'))
+        ) {
+          await loadAppData();
+          await refreshUser();
+        }
+        return { success: false, error: res.error };
       }
-
-      const newSession: Session = {
-        id: `session-${Date.now()}`,
-        skillId: targetSkill.id,
-        skillTitle: targetSkill.title,
-        category: targetSkill.category,
-        teacherId: targetSkill.teacherId,
-        teacherName: targetSkill.teacherName,
-        teacherAvatar: targetSkill.teacherAvatar,
-        learnerId: user.id,
-        learnerName: user.name,
-        learnerAvatar: user.avatar,
-        credits: cost,
-        date: params.date,
-        time: params.time,
-        durationMinutes: targetSkill.sessionDurationMinutes || 60,
-        status: 'pending',
-        learnerNotes: params.notes,
-        createdAt: new Date().toISOString(),
-      };
-
-      setSessions((prev) => [newSession, ...prev]);
-      return { success: true, sessionId: newSession.id };
-    }
-
-    const res = await bookSessionWithEscrow(params);
-    if (res.success) {
-      await loadAppData();
-      await refreshUser();
-      return { success: true, sessionId: res.sessionId };
-    }
-    return { success: false, error: res.error };
+    );
   };
 
   // Accept session (teacher confirms booking)
   const acceptSession = async (sessionId: string) => {
-    if (!isSupabaseConfigured) {
-      setSessions((prev) =>
-        prev.map((s) =>
-          s.id === sessionId
-            ? {
-                ...s,
-                status: 'confirmed',
-                meetingLink: `https://meet.jit.si/swapstudy-${sessionId.substring(0, 8)}`,
-              }
-            : s
-        )
-      );
-      return { success: true };
-    }
+    return withOperationLock(
+      `session-op:${sessionId}`,
+      'Session update is already in progress.',
+      async () => {
+        if (!isSupabaseConfigured) {
+          setSessions((prev) =>
+            prev.map((s) =>
+              s.id === sessionId
+                ? {
+                    ...s,
+                    status: 'confirmed',
+                    meetingLink: `https://meet.jit.si/swapstudy-${sessionId.substring(0, 8)}`,
+                  }
+                : s
+            )
+          );
+          return { success: true };
+        }
 
-    const res = await acceptSessionApi(sessionId);
-    if (res.success) {
-      // Optimistically update local session state immediately so UI transitions with zero delay
-      setSessions((prev) =>
-        prev.map((s) =>
-          s.id === sessionId
-            ? {
-                ...s,
-                status: 'confirmed',
-                meetingLink: s.meetingLink || `https://meet.jit.si/swapstudy-${sessionId.substring(0, 8)}`,
-              }
-            : s
-        )
-      );
-      await loadAppData();
-      return { success: true };
-    }
-    return { success: false, error: res.error };
+        const res = await acceptSessionApi(sessionId);
+        if (res.success) {
+          setSessions((prev) =>
+            prev.map((s) =>
+              s.id === sessionId
+                ? {
+                    ...s,
+                    status: 'confirmed',
+                    meetingLink:
+                      s.meetingLink || `https://meet.jit.si/swapstudy-${sessionId.substring(0, 8)}`,
+                  }
+                : s
+            )
+          );
+          await loadAppData();
+          return { success: true };
+        }
+        return { success: false, error: res.error };
+      }
+    );
   };
 
   // Decline session (escrow refund)
   const declineSession = async (sessionId: string, reason?: string) => {
-    if (!isSupabaseConfigured) {
-      setSessions((prev) =>
-        prev.map((s) => (s.id === sessionId ? { ...s, status: 'declined' } : s))
-      );
-      return { success: true };
-    }
+    return withOperationLock(
+      `session-op:${sessionId}`,
+      'Session update is already in progress.',
+      async () => {
+        if (!isSupabaseConfigured) {
+          setSessions((prev) =>
+            prev.map((s) => (s.id === sessionId ? { ...s, status: 'declined' } : s))
+          );
+          return { success: true };
+        }
 
-    const res = await declineSessionApi(sessionId, reason);
-    if (res.success) {
-      setSessions((prev) =>
-        prev.map((s) => (s.id === sessionId ? { ...s, status: 'declined' } : s))
-      );
-      await loadAppData();
-      await refreshUser();
-      return { success: true };
-    }
-    return { success: false, error: res.error };
+        const res = await declineSessionApi(sessionId, reason);
+        if (res.success) {
+          setSessions((prev) =>
+            prev.map((s) => (s.id === sessionId ? { ...s, status: 'declined' } : s))
+          );
+          await loadAppData();
+          await refreshUser();
+          return { success: true };
+        }
+        return { success: false, error: res.error };
+      }
+    );
   };
 
   // Cancel session (escrow refund)
   const cancelSession = async (sessionId: string) => {
-    if (!isSupabaseConfigured) {
-      setSessions((prev) =>
-        prev.map((s) => (s.id === sessionId ? { ...s, status: 'cancelled' } : s))
-      );
-      return { success: true };
-    }
+    return withOperationLock(
+      `session-op:${sessionId}`,
+      'Session cancellation is already in progress.',
+      async () => {
+        if (!isSupabaseConfigured) {
+          setSessions((prev) =>
+            prev.map((s) => (s.id === sessionId ? { ...s, status: 'cancelled' } : s))
+          );
+          return { success: true };
+        }
 
-    const res = await declineSessionApi(sessionId, 'Cancelled by learner');
-    if (res.success) {
-      setSessions((prev) =>
-        prev.map((s) => (s.id === sessionId ? { ...s, status: 'cancelled' } : s))
-      );
-      await loadAppData();
-      await refreshUser();
-      return { success: true };
-    }
-    return { success: false, error: res.error };
+        const res = await declineSessionApi(sessionId, 'Cancelled by learner');
+        if (res.success) {
+          setSessions((prev) =>
+            prev.map((s) => (s.id === sessionId ? { ...s, status: 'cancelled' } : s))
+          );
+          await loadAppData();
+          await refreshUser();
+          return { success: true };
+        }
+        return { success: false, error: res.error };
+      }
+    );
   };
 
   // Complete session (escrow settlement + review creation)
@@ -343,30 +407,36 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     rating: number,
     reviewText: string
   ) => {
-    if (!isSupabaseConfigured) {
-      setSessions((prev) =>
-        prev.map((s) =>
-          s.id === sessionId
-            ? {
-                ...s,
-                status: 'completed',
-                completedAt: new Date().toISOString(),
-                ratingGiven: rating,
-                reviewGiven: reviewText,
-              }
-            : s
-        )
-      );
-      return { success: true };
-    }
+    return withOperationLock(
+      `session-op:${sessionId}`,
+      'Session completion is already in progress.',
+      async () => {
+        if (!isSupabaseConfigured) {
+          setSessions((prev) =>
+            prev.map((s) =>
+              s.id === sessionId
+                ? {
+                    ...s,
+                    status: 'completed',
+                    completedAt: new Date().toISOString(),
+                    ratingGiven: rating,
+                    reviewGiven: reviewText,
+                  }
+                : s
+            )
+          );
+          return { success: true };
+        }
 
-    const res = await completeSessionApi(sessionId, rating, reviewText);
-    if (res.success) {
-      await loadAppData();
-      await refreshUser();
-      return { success: true };
-    }
-    return { success: false, error: res.error };
+        const res = await completeSessionApi(sessionId, rating, reviewText);
+        if (res.success) {
+          await loadAppData();
+          await refreshUser();
+          return { success: true };
+        }
+        return { success: false, error: res.error };
+      }
+    );
   };
 
   // Send mutual skill swap proposal
@@ -381,15 +451,21 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }) => {
     if (!user) return { success: false, error: 'Must be logged in to propose a swap' };
 
-    const res = await sendMutualSwapProposal(params);
-    if (res.success) {
-      if (isSupabaseConfigured) {
-        const updated = await fetchUserSkillSwapInvitations(user.id);
-        setSwapInvitations(updated);
+    return withOperationLock(
+      `swap-send:${user.id}:${params.recipientId}:${params.offeredSkillId}:${params.requestedSkillId}`,
+      'Swap proposal submission is already in progress.',
+      async () => {
+        const res = await sendMutualSwapProposal(params);
+        if (res.success) {
+          if (isSupabaseConfigured) {
+            const updated = await fetchUserSkillSwapInvitations(user.id);
+            setSwapInvitations(updated);
+          }
+          return { success: true, invitationId: res.invitationId };
+        }
+        return { success: false, error: res.error };
       }
-      return { success: true, invitationId: res.invitationId };
-    }
-    return { success: false, error: res.error };
+    );
   };
 
   // Accept mutual skill swap proposal
@@ -402,31 +478,43 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   ) => {
     if (!user) return { success: false, error: 'Must be logged in to accept swap proposal' };
 
-    const res = await acceptMutualSwapProposalApi(
-      invitationId,
-      session1Date,
-      session1Time,
-      session2Date,
-      session2Time
+    return withOperationLock(
+      `swap-respond:${invitationId}`,
+      'Swap confirmation is already in progress.',
+      async () => {
+        const res = await acceptMutualSwapProposalApi(
+          invitationId,
+          session1Date,
+          session1Time,
+          session2Date,
+          session2Time
+        );
+        if (res.success) {
+          await loadAppData();
+          await refreshUser();
+          return { success: true };
+        }
+        return { success: false, error: res.error };
+      }
     );
-    if (res.success) {
-      await loadAppData();
-      await refreshUser();
-      return { success: true };
-    }
-    return { success: false, error: res.error };
   };
 
   // Decline mutual skill swap proposal
   const declineSwapProposal = async (invitationId: string) => {
     if (!user) return { success: false, error: 'Must be logged in to decline swap proposal' };
 
-    const res = await declineMutualSwapProposalApi(invitationId);
-    if (res.success) {
-      await loadAppData();
-      return { success: true };
-    }
-    return { success: false, error: res.error };
+    return withOperationLock(
+      `swap-respond:${invitationId}`,
+      'Swap update is already in progress.',
+      async () => {
+        const res = await declineMutualSwapProposalApi(invitationId);
+        if (res.success) {
+          await loadAppData();
+          return { success: true };
+        }
+        return { success: false, error: res.error };
+      }
+    );
   };
 
   return (

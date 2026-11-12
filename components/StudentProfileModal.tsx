@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { User, Skill } from '@/types';
 import { useAuth } from '@/context/AuthContext';
@@ -18,6 +18,8 @@ import {
   ShieldCheck,
   MessageSquare,
   UserPlus,
+  Loader2,
+  AlertCircle,
 } from 'lucide-react';
 
 interface StudentProfileModalProps {
@@ -36,25 +38,79 @@ export default function StudentProfileModal({
   const router = useRouter();
   const { user } = useAuth();
   const { canMessageStudent, startConversationWith } = useMessaging();
-  const { sendConnectionRequest } = useCommunity();
+  const { sendConnectionRequest, acceptConnection, getConnectionRecord } = useCommunity();
+  const [isBusy, setIsBusy] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const busyRef = useRef(false);
 
   if (!student) return null;
 
   const candidateSkills = availableSkills.filter((s) => s.teacherId === student.id);
   const isSelf = user?.id === student.id;
   const messageCheck = !isSelf ? canMessageStudent(student.id) : null;
+  const connRecord = !isSelf ? getConnectionRecord(student.id) : null;
+  const isIncomingPending = connRecord?.status === 'pending' && connRecord.receiverId === user?.id;
 
-  const handleMessage = () => {
-    if (!messageCheck?.allowed) return;
-    const res = startConversationWith(student.id);
-    if (res.success && res.conversationId) {
-      onClose();
-      router.push(`/messages?conversationId=${res.conversationId}`);
+  const handleMessage = async () => {
+    if (!messageCheck?.allowed || busyRef.current) return;
+    busyRef.current = true;
+    setIsBusy(true);
+    setActionError(null);
+    try {
+      const res = await startConversationWith(student.id);
+      if (res.success && res.conversationId) {
+        onClose();
+        router.push(`/messages?conversationId=${res.conversationId}`);
+      } else {
+        setActionError(res.error || 'Could not open conversation.');
+      }
+    } finally {
+      busyRef.current = false;
+      setIsBusy(false);
     }
   };
 
-  const handleConnect = () => {
-    sendConnectionRequest(student.id, 'Hey! Would love to connect and chat about study skills.');
+  const handleConnect = async () => {
+    if (busyRef.current) return;
+    busyRef.current = true;
+    setIsBusy(true);
+    setActionError(null);
+    try {
+      const res = await sendConnectionRequest(
+        student.id,
+        'Hey! Would love to connect and chat about study skills.'
+      );
+      if (!res.success) {
+        setActionError(res.error || 'Failed to send connection request.');
+      }
+    } finally {
+      busyRef.current = false;
+      setIsBusy(false);
+    }
+  };
+
+  const handleAcceptAndMessage = async () => {
+    if (busyRef.current) return;
+    busyRef.current = true;
+    setIsBusy(true);
+    setActionError(null);
+    try {
+      const acceptRes = await acceptConnection(student.id);
+      if (!acceptRes.success) {
+        setActionError(acceptRes.error || 'Failed to accept connection.');
+        return;
+      }
+      const convRes = await startConversationWith(student.id);
+      if (convRes.success && convRes.conversationId) {
+        onClose();
+        router.push(`/messages?conversationId=${convRes.conversationId}`);
+      } else if (convRes.error) {
+        setActionError(convRes.error);
+      }
+    } finally {
+      busyRef.current = false;
+      setIsBusy(false);
+    }
   };
 
   return (
@@ -209,6 +265,13 @@ export default function StudentProfileModal({
           </div>
         </div>
 
+        {actionError && (
+          <div className="px-6 py-2 bg-rose-50 border-t border-rose-200 text-rose-700 text-xs flex items-center gap-1.5 shrink-0">
+            <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+            <span>{actionError}</span>
+          </div>
+        )}
+
         {/* Footer */}
         <div className="px-6 py-3.5 bg-slate-50 border-t border-slate-100 flex items-center justify-between shrink-0">
           <span className="text-[11px] text-slate-500 flex items-center gap-1.5">
@@ -229,24 +292,49 @@ export default function StudentProfileModal({
               <>
                 {messageCheck?.allowed ? (
                   <button
+                    disabled={isBusy}
                     onClick={handleMessage}
-                    className="px-3.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold shadow-xs transition-colors flex items-center gap-1.5"
+                    className="px-3.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 disabled:bg-emerald-400 text-white text-xs font-semibold shadow-xs transition-colors flex items-center gap-1.5"
                   >
-                    <MessageSquare className="w-3.5 h-3.5" />
-                    Message Student
+                    {isBusy ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    ) : (
+                      <MessageSquare className="w-3.5 h-3.5" />
+                    )}
+                    {isBusy ? 'Opening...' : 'Message Student'}
                   </button>
                 ) : messageCheck?.connectionStatus === 'pending' ? (
-                  <span className="px-3 py-1.5 rounded-lg bg-amber-50 text-amber-800 border border-amber-200 text-xs font-medium flex items-center gap-1">
-                    <Clock className="w-3.5 h-3.5 text-amber-600" />
-                    Connection Pending
-                  </span>
+                  isIncomingPending ? (
+                    <button
+                      disabled={isBusy}
+                      onClick={handleAcceptAndMessage}
+                      className="px-3.5 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 disabled:bg-slate-400 text-white text-xs font-semibold shadow-xs transition-colors flex items-center gap-1.5"
+                    >
+                      {isBusy ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      ) : (
+                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                      )}
+                      {isBusy ? 'Opening...' : 'Accept & Message'}
+                    </button>
+                  ) : (
+                    <span className="px-3 py-1.5 rounded-lg bg-amber-50 text-amber-800 border border-amber-200 text-xs font-medium flex items-center gap-1">
+                      <Clock className="w-3.5 h-3.5 text-amber-600" />
+                      Connection Pending
+                    </span>
+                  )
                 ) : messageCheck?.connectionStatus === 'none' ? (
                   <button
+                    disabled={isBusy}
                     onClick={handleConnect}
-                    className="px-3.5 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold shadow-xs transition-colors flex items-center gap-1.5"
+                    className="px-3.5 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 disabled:bg-slate-400 text-white text-xs font-semibold shadow-xs transition-colors flex items-center gap-1.5"
                   >
-                    <UserPlus className="w-3.5 h-3.5" />
-                    Connect to Message
+                    {isBusy ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    ) : (
+                      <UserPlus className="w-3.5 h-3.5" />
+                    )}
+                    {isBusy ? 'Sending...' : 'Connect to Message'}
                   </button>
                 ) : null}
               </>

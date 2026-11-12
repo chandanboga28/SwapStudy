@@ -41,6 +41,9 @@ export default function ActiveChat({
   const { sendMessage, respondToSkillSwapInvitation } = useMessaging();
   const [inputText, setInputText] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [respondingMsgId, setRespondingMsgId] = useState<string | null>(null);
+  const isSendingRef = useRef(false);
+  const isRespondingRef = useRef(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Auto-scroll to bottom
@@ -56,17 +59,34 @@ export default function ActiveChat({
     scrollToBottom(true);
   }, [messages.length]);
 
-  const handleSendMessage = (e?: React.FormEvent) => {
+  const handleSendMessage = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     const trimmed = inputText.trim();
-    if (!trimmed || isSubmitting) return;
+    if (!trimmed || isSubmitting || isSendingRef.current) return;
 
+    isSendingRef.current = true;
     setIsSubmitting(true);
-    const res = sendMessage(conversation.id, trimmed, 'text');
-    if (res.success) {
-      setInputText('');
+    try {
+      const res = await sendMessage(conversation.id, trimmed, 'text');
+      if (res.success) {
+        setInputText('');
+      }
+    } finally {
+      isSendingRef.current = false;
+      setIsSubmitting(false);
     }
-    setIsSubmitting(false);
+  };
+
+  const handleRespondInvitation = async (messageId: string, accept: boolean) => {
+    if (isRespondingRef.current) return;
+    isRespondingRef.current = true;
+    setRespondingMsgId(messageId);
+    try {
+      await respondToSkillSwapInvitation(messageId, accept);
+    } finally {
+      isRespondingRef.current = false;
+      setRespondingMsgId(null);
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -335,19 +355,17 @@ export default function ActiveChat({
                           {!isOwn && msg.invitation.status === 'pending' && (
                             <>
                               <button
-                                onClick={() =>
-                                  respondToSkillSwapInvitation(msg.id, true)
-                                }
-                                className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-xs transition-colors flex items-center gap-1"
+                                disabled={respondingMsgId === msg.id}
+                                onClick={() => handleRespondInvitation(msg.id, true)}
+                                className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 disabled:opacity-60 text-white font-bold text-xs shadow-xs transition-colors flex items-center gap-1"
                               >
                                 <CheckCircle2 className="w-3.5 h-3.5" />
-                                Accept Swap
+                                {respondingMsgId === msg.id ? 'Updating...' : 'Accept Swap'}
                               </button>
                               <button
-                                onClick={() =>
-                                  respondToSkillSwapInvitation(msg.id, false)
-                                }
-                                className="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs transition-colors"
+                                disabled={respondingMsgId === msg.id}
+                                onClick={() => handleRespondInvitation(msg.id, false)}
+                                className="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 disabled:opacity-60 text-slate-700 font-semibold text-xs transition-colors"
                               >
                                 Decline
                               </button>

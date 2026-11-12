@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { Session } from '@/types';
 import { useApp } from '@/context/AppContext';
 import { Star, X, Sparkles, AlertCircle } from 'lucide-react';
@@ -17,12 +17,15 @@ export default function ReviewModal({ session, onClose, onCompleted }: ReviewMod
   const [comment, setComment] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const isSubmittingRef = useRef(false);
 
   if (!session) return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmittingRef.current || isSubmitting) return;
     setError(null);
+    isSubmittingRef.current = true;
     setIsSubmitting(true);
 
     try {
@@ -40,6 +43,7 @@ export default function ReviewModal({ session, onClose, onCompleted }: ReviewMod
     } catch (err: unknown) {
       setError((err as Error).message || 'Unable to complete session.');
     } finally {
+      isSubmittingRef.current = false;
       setIsSubmitting(false);
     }
   };

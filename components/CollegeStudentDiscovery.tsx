@@ -73,8 +73,11 @@ export default function CollegeStudentDiscovery({
     });
   }, [sameCollegeStudents, searchQuery, filterMode, getConnectionStatus, matchesMap]);
 
-  const handleConnect = (studentId: string, studentName: string) => {
-    const res = sendConnectionRequest(studentId, `Hi ${studentName}, would love to connect on SwapStudy!`);
+  const handleConnect = async (studentId: string, studentName: string) => {
+    const res = await sendConnectionRequest(
+      studentId,
+      `Hi ${studentName}, would love to connect on SwapStudy!`
+    );
     if (res.success) {
       setRequestFeedback(`Connection request sent to ${studentName}!`);
       setTimeout(() => setRequestFeedback(null), 3000);

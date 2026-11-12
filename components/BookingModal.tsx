@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { Skill } from '@/types';
 import { useAuth } from '@/context/AuthContext';
 import { useApp } from '@/context/AppContext';
@@ -25,6 +25,7 @@ export default function BookingModal({ skill, onClose, onSuccess }: BookingModal
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
+  const isSubmittingRef = useRef(false);
 
   if (!skill) return null;
 
@@ -43,6 +44,7 @@ export default function BookingModal({ skill, onClose, onSuccess }: BookingModal
 
   const handleBooking = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmittingRef.current || isSubmitting || isSuccess) return;
     setError(null);
 
     if (!user) {
@@ -75,6 +77,7 @@ export default function BookingModal({ skill, onClose, onSuccess }: BookingModal
       return;
     }
 
+    isSubmittingRef.current = true;
     setIsSubmitting(true);
     try {
       const res = await bookSession({
@@ -93,6 +96,7 @@ export default function BookingModal({ skill, onClose, onSuccess }: BookingModal
     } catch (err: unknown) {
       setError((err as Error).message || 'Failed to book session.');
     } finally {
+      isSubmittingRef.current = false;
       setIsSubmitting(false);
     }
   };
@@ -217,10 +221,11 @@ export default function BookingModal({ skill, onClose, onSuccess }: BookingModal
                 <input
                   type="date"
                   required
+                  disabled={isSubmitting}
                   value={date}
                   onChange={(e) => setDate(e.target.value)}
                   min={todayStr}
-                  className="w-full text-xs px-2.5 py-1.5 rounded-lg border border-slate-300 focus:outline-hidden focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600"
+                  className="w-full text-xs px-2.5 py-1.5 rounded-lg border border-slate-300 focus:outline-hidden focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 disabled:bg-slate-50"
                 />
               </div>
 
@@ -232,9 +237,10 @@ export default function BookingModal({ skill, onClose, onSuccess }: BookingModal
                 <input
                   type="time"
                   required
+                  disabled={isSubmitting}
                   value={time}
                   onChange={(e) => setTime(e.target.value)}
-                  className="w-full text-xs px-2.5 py-1.5 rounded-lg border border-slate-300 focus:outline-hidden focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600"
+                  className="w-full text-xs px-2.5 py-1.5 rounded-lg border border-slate-300 focus:outline-hidden focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 disabled:bg-slate-50"
                 />
               </div>
             </div>
@@ -246,10 +252,11 @@ export default function BookingModal({ skill, onClose, onSuccess }: BookingModal
               </label>
               <textarea
                 rows={2}
+                disabled={isSubmitting}
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 placeholder="e.g. Debugging algorithmic runtime, review my portfolio wireframes..."
-                className="w-full text-xs px-3 py-2 rounded-lg border border-slate-300 focus:outline-hidden focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600"
+                className="w-full text-xs px-3 py-2 rounded-lg border border-slate-300 focus:outline-hidden focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 disabled:bg-slate-50"
               />
             </div>
 

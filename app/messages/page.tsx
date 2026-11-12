@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, Suspense } from 'react';
+import React, { useState, useEffect, useRef, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { useApp } from '@/context/AppContext';
@@ -20,11 +20,14 @@ import {
   ShieldCheck,
   Sparkles,
   Plus,
+  AlertCircle,
+  ChevronLeft,
+  Loader2,
 } from 'lucide-react';
 import Link from 'next/link';
 
 function MessagesContent() {
-  const { user } = useAuth();
+  const { user, allUsers, isLoading: authLoading } = useAuth();
   const { skills } = useApp();
   const { currentCollege } = useCommunity();
   const {
@@ -33,6 +36,7 @@ function MessagesContent() {
     activeConversation,
     activeChatPartner,
     messages,
+    isLoading: messagingLoading,
     selectConversation,
     startConversationWith,
     toast,
@@ -48,6 +52,7 @@ function MessagesContent() {
   const [bookingSkill, setBookingSkill] = useState<Skill | null>(null);
   const [inspectingStudent, setInspectingStudent] = useState<User | null>(null);
   const [isMobileChatOpen, setIsMobileChatOpen] = useState(false);
+  const handledStudentParamRef = useRef<string | null>(null);
 
   // Handle query parameter for auto-selecting conversation or student
   useEffect(() => {
@@ -57,13 +62,28 @@ function MessagesContent() {
     if (paramConvId) {
       selectConversation(paramConvId);
       setIsMobileChatOpen(true);
-    } else if (paramStudentId && user) {
-      const res = startConversationWith(paramStudentId);
-      if (res.success && res.conversationId) {
-        setIsMobileChatOpen(true);
-      }
+      return;
     }
-  }, [searchParams, user, selectConversation, startConversationWith]);
+
+    if (
+      paramStudentId &&
+      user &&
+      allUsers.some((u) => u.id === paramStudentId) &&
+      handledStudentParamRef.current !== `${user.id}:${paramStudentId}`
+    ) {
+      handledStudentParamRef.current = `${user.id}:${paramStudentId}`;
+      let cancelled = false;
+      (async () => {
+        const res = await startConversationWith(paramStudentId);
+        if (!cancelled && res.success && res.conversationId) {
+          setIsMobileChatOpen(true);
+        }
+      })();
+      return () => {
+        cancelled = true;
+      };
+    }
+  }, [searchParams, user, allUsers, selectConversation, startConversationWith]);
 
   // Handle select conversation
   const handleSelectConv = (convId: string) => {
@@ -99,6 +119,15 @@ function MessagesContent() {
     }
   };
 
+  if (authLoading) {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center p-6 text-center bg-slate-50 min-h-[60vh] gap-2">
+        <Loader2 className="w-6 h-6 text-emerald-600 animate-spin" />
+        <p className="text-xs font-semibold text-slate-500">Loading SwapStudy Direct...</p>
+      </div>
+    );
+  }
+
   if (!user) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center p-6 text-center bg-slate-50 min-h-[60vh]">
@@ -123,15 +152,21 @@ function MessagesContent() {
     <div className="flex-1 flex flex-col h-[calc(100vh-3.75rem)] overflow-hidden bg-slate-100/70">
       {/* Toast Notification */}
       {toast && (
-        <div className="fixed top-18 right-6 z-50 animate-in fade-in slide-in-from-top-4 duration-200">
+        <div className="fixed top-18 right-6 z-50 animate-in fade-in slide-in-from-top-4 duration-200 max-w-sm">
           <div
             className={`px-4 py-2.5 rounded-xl text-xs font-semibold shadow-lg border flex items-center gap-2 ${
               toast.type === 'success'
                 ? 'bg-emerald-900 text-emerald-100 border-emerald-700'
+                : toast.type === 'warning'
+                ? 'bg-rose-950 text-rose-100 border-rose-700'
                 : 'bg-slate-900 text-white border-slate-700'
             }`}
           >
-            <Sparkles className="w-4 h-4 text-emerald-400 shrink-0" />
+            {toast.type === 'warning' ? (
+              <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
+            ) : (
+              <Sparkles className="w-4 h-4 text-emerald-400 shrink-0" />
+            )}
             <span>{toast.message}</span>
             <button
               onClick={clearToast}
@@ -166,7 +201,7 @@ function MessagesContent() {
             className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold transition-colors flex items-center gap-1 shadow-2xs"
           >
             <Plus className="w-3 h-3" />
-            New Chat
+            Start Messaging
           </button>
         </div>
       </div>
@@ -205,13 +240,26 @@ function MessagesContent() {
               onBackMobile={() => setIsMobileChatOpen(false)}
             />
           ) : (
-            <div className="flex-1 flex flex-col items-center justify-center p-8 text-center bg-white space-y-3">
+            <div className="flex-1 flex flex-col items-center justify-center p-8 text-center bg-white space-y-3 relative">
+              {isMobileChatOpen && (
+                <button
+                  onClick={() => setIsMobileChatOpen(false)}
+                  className="md:hidden absolute top-4 left-4 px-2.5 py-1.5 rounded-lg border border-slate-200 text-slate-700 text-xs font-semibold flex items-center gap-1"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                  Conversations
+                </button>
+              )}
               <div className="w-14 h-14 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
-                <MessageSquare className="w-7 h-7" />
+                {messagingLoading ? (
+                  <Loader2 className="w-7 h-7 animate-spin" />
+                ) : (
+                  <MessageSquare className="w-7 h-7" />
+                )}
               </div>
               <div className="max-w-sm">
                 <h3 className="text-base font-bold text-slate-900 mb-1">
-                  Select a Conversation
+                  {messagingLoading ? 'Loading Conversations...' : 'Select a Conversation'}
                 </h3>
                 <p className="text-xs text-slate-500 leading-relaxed">
                   Choose a classmate from the left panel or start a new message to coordinate credit-neutral skill swaps.
@@ -222,7 +270,7 @@ function MessagesContent() {
                 className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs shadow-xs transition-colors flex items-center gap-1.5"
               >
                 <Plus className="w-4 h-4" />
-                Find Classmates to Message
+                Start Messaging
               </button>
             </div>
           )}

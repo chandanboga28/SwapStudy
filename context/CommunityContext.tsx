@@ -57,10 +57,12 @@ interface CommunityContextType {
   }) => { success: boolean; error?: string; group?: LearningGroup };
   joinGroup: (groupId: string) => void;
   leaveGroup: (groupId: string) => void;
-  sendConnectionRequest: (targetUserId: string, note?: string) => { success: boolean; error?: string };
-  acceptConnection: (targetUserIdOrConnId: string) => { success: boolean; error?: string };
-  declineConnection: (targetUserIdOrConnId: string) => { success: boolean; error?: string };
+  sendConnectionRequest: (targetUserId: string, note?: string) => Promise<{ success: boolean; error?: string }>;
+  acceptConnection: (targetUserIdOrConnId: string) => Promise<{ success: boolean; error?: string }>;
+  declineConnection: (targetUserIdOrConnId: string) => Promise<{ success: boolean; error?: string }>;
   getConnectionStatus: (targetUserId: string) => 'none' | 'pending' | 'accepted' | 'declined';
+  getConnectionRecord: (targetUserId: string) => StudentConnection | null;
+  refreshConnections: () => Promise<void>;
   switchCollege: (collegeId: string) => void;
   isLoading: boolean;
 }
@@ -171,17 +173,38 @@ export function CommunityProvider({ children }: { children: React.ReactNode }) {
     refreshCommunityData();
   }, [refreshCommunityData]);
 
-  // Realtime subscription for posts and comments
+  const currentCollegeId = currentCollege?.id;
+  const currentUserId = user?.id;
+
+  // Refresh connections cleanly without reloading entire community feed
+  const refreshConnections = useCallback(async () => {
+    if (!isSupabaseConfigured || !currentUserId) return;
+    try {
+      const dbConnections = await fetchStudentConnections(currentUserId);
+      setConnections(dbConnections || []);
+    } catch (err) {
+      console.warn('Failed to refresh student connections:', err);
+    }
+  }, [currentUserId]);
+
+  // Realtime subscription for posts, comments, and student connections
   useEffect(() => {
-    if (!supabase || !currentCollege?.id) return;
+    if (!supabase || !currentCollegeId) return;
 
     const channel = supabase
-      .channel(`community-feed-${currentCollege.id}`)
+      .channel(`community-feed-${currentCollegeId}-${currentUserId || 'anon'}`)
       .on(
         'postgres_changes',
-        { event: '*', schema: 'public', table: 'community_posts', filter: `college_id=eq.${currentCollege.id}` },
+        { event: '*', schema: 'public', table: 'community_posts', filter: `college_id=eq.${currentCollegeId}` },
         () => {
           refreshCommunityData();
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'student_connections' },
+        () => {
+          refreshConnections();
         }
       )
       .subscribe();
@@ -191,7 +214,7 @@ export function CommunityProvider({ children }: { children: React.ReactNode }) {
         supabase.removeChannel(channel);
       }
     };
-  }, [currentCollege?.id, refreshCommunityData]);
+  }, [currentCollegeId, currentUserId, refreshCommunityData, refreshConnections]);
 
   // Discover students from the SAME college only (excluding self)
   const sameCollegeStudents = useMemo(() => {
@@ -435,7 +458,10 @@ export function CommunityProvider({ children }: { children: React.ReactNode }) {
   };
 
   // Send connection request
-  const sendConnectionRequest = (targetUserId: string, note?: string): { success: boolean; error?: string } => {
+  const sendConnectionRequest = async (
+    targetUserId: string,
+    note?: string
+  ): Promise<{ success: boolean; error?: string }> => {
     if (!user) return { success: false, error: 'Must be signed in to connect.' };
     if (user.id === targetUserId) return { success: false, error: 'Cannot connect with yourself.' };
 
@@ -449,7 +475,33 @@ export function CommunityProvider({ children }: { children: React.ReactNode }) {
       return { success: false, error: 'A connection request already exists.' };
     }
 
-    const optimisticConn: StudentConnection = {
+    if (isSupabaseConfigured) {
+      const targetUser = allUsers.find((u) => u.id === targetUserId);
+      const collegeId = user.collegeId || targetUser?.collegeId || currentCollege.id;
+      const res = await sendConnRequestDb({
+        collegeId,
+        requesterId: user.id,
+        receiverId: targetUserId,
+        note,
+      });
+
+      if (!res.success) {
+        await refreshConnections();
+        return { success: false, error: res.error || 'Failed to send connection request.' };
+      }
+
+      if (res.connection) {
+        setConnections((prev) => [
+          res.connection!,
+          ...prev.filter((c) => c.id !== res.connection!.id),
+        ]);
+      } else {
+        await refreshConnections();
+      }
+      return { success: true };
+    }
+
+    const offlineConn: StudentConnection = {
       id: `conn-${Date.now()}`,
       collegeId: currentCollege.id,
       requesterId: user.id,
@@ -459,82 +511,78 @@ export function CommunityProvider({ children }: { children: React.ReactNode }) {
       note,
     };
 
-    setConnections((prev) => [optimisticConn, ...prev]);
-
-    sendConnRequestDb({
-      collegeId: currentCollege.id,
-      requesterId: user.id,
-      receiverId: targetUserId,
-      note,
-    }).catch((err) => {
-      console.warn('Failed to sync connection request with DB:', err);
-    });
-
+    setConnections((prev) => [offlineConn, ...prev]);
     return { success: true };
   };
 
-  // Accept connection
-  const acceptConnection = (targetUserIdOrConnId: string): { success: boolean; error?: string } => {
+  // Shared helper for accepting/declining an incoming connection request
+  const respondToConnection = async (
+    targetUserIdOrConnId: string,
+    status: 'accepted' | 'declined'
+  ): Promise<{ success: boolean; error?: string }> => {
     if (!user) return { success: false, error: 'Must be signed in.' };
 
-    let foundConnId = targetUserIdOrConnId;
-    setConnections((prev) =>
-      prev.map((c) => {
-        if (
+    const matchConnection = (list: StudentConnection[]) =>
+      list.find(
+        (c) =>
           c.id === targetUserIdOrConnId ||
           (c.requesterId === targetUserIdOrConnId && c.receiverId === user.id) ||
           (c.receiverId === targetUserIdOrConnId && c.requesterId === user.id)
-        ) {
-          foundConnId = c.id;
-          return { ...c, status: 'accepted' };
-        }
-        return c;
-      })
+      );
+
+    let targetConn = matchConnection(connections);
+    if ((!targetConn || (isSupabaseConfigured && targetConn.id.startsWith('conn-'))) && isSupabaseConfigured) {
+      const fresh = await fetchStudentConnections(user.id);
+      setConnections(fresh || []);
+      targetConn = matchConnection(fresh || []);
+    }
+
+    if (!targetConn) {
+      return { success: false, error: 'Connection request not found.' };
+    }
+
+    if (targetConn.receiverId !== user.id) {
+      return {
+        success: false,
+        error: 'Waiting for the other student to accept your connection request.',
+      };
+    }
+
+    if (isSupabaseConfigured) {
+      const res = await respondConnRequestDb(targetConn.id, status);
+      if (!res.success) {
+        return { success: false, error: res.error || `Failed to mark connection as ${status}.` };
+      }
+    }
+
+    setConnections((prev) =>
+      prev.map((c) => (c.id === targetConn!.id ? { ...c, status } : c))
     );
-
-    respondConnRequestDb(foundConnId, 'accepted').catch((err) => {
-      console.warn('Failed to sync connection accept with DB:', err);
-    });
-
     return { success: true };
   };
 
-  // Decline connection
-  const declineConnection = (targetUserIdOrConnId: string): { success: boolean; error?: string } => {
-    if (!user) return { success: false, error: 'Must be signed in.' };
+  const acceptConnection = (targetUserIdOrConnId: string) =>
+    respondToConnection(targetUserIdOrConnId, 'accepted');
 
-    let foundConnId = targetUserIdOrConnId;
-    setConnections((prev) =>
-      prev.map((c) => {
-        if (
-          c.id === targetUserIdOrConnId ||
-          (c.requesterId === targetUserIdOrConnId && c.receiverId === user.id) ||
-          (c.receiverId === targetUserIdOrConnId && c.requesterId === user.id)
-        ) {
-          foundConnId = c.id;
-          return { ...c, status: 'declined' };
-        }
-        return c;
-      })
+  const declineConnection = (targetUserIdOrConnId: string) =>
+    respondToConnection(targetUserIdOrConnId, 'declined');
+
+  // Get full connection record with another student
+  const getConnectionRecord = (targetUserId: string): StudentConnection | null => {
+    if (!user) return null;
+    return (
+      connections.find(
+        (c) =>
+          (c.requesterId === user.id && c.receiverId === targetUserId) ||
+          (c.requesterId === targetUserId && c.receiverId === user.id)
+      ) || null
     );
-
-    respondConnRequestDb(foundConnId, 'declined').catch((err) => {
-      console.warn('Failed to sync connection decline with DB:', err);
-    });
-
-    return { success: true };
   };
 
   // Get connection status with another student
   const getConnectionStatus = (targetUserId: string): 'none' | 'pending' | 'accepted' | 'declined' => {
-    if (!user) return 'none';
-    const found = connections.find(
-      (c) =>
-        (c.requesterId === user.id && c.receiverId === targetUserId) ||
-        (c.requesterId === targetUserId && c.receiverId === user.id)
-    );
-    if (!found) return 'none';
-    return found.status;
+    const found = getConnectionRecord(targetUserId);
+    return found ? found.status : 'none';
   };
 
   const switchCollege = (collegeId: string) => {
@@ -562,6 +610,8 @@ export function CommunityProvider({ children }: { children: React.ReactNode }) {
         acceptConnection,
         declineConnection,
         getConnectionStatus,
+        getConnectionRecord,
+        refreshConnections,
         switchCollege,
         isLoading,
       }}

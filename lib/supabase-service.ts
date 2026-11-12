@@ -976,19 +976,36 @@ export async function sendConnectionRequest(params: {
   requesterId: string;
   receiverId: string;
   note?: string;
-}): Promise<{ success: boolean; error?: string }> {
+}): Promise<{ success: boolean; connection?: StudentConnection; error?: string }> {
   if (!supabase) return { success: false, error: 'Database not connected' };
 
   try {
-    const { error } = await supabase.from('student_connections').insert({
-      college_id: params.collegeId,
-      requester_id: params.requesterId,
-      receiver_id: params.receiverId,
-      status: 'pending',
-      note: params.note || null,
-    });
+    const { data, error } = await supabase
+      .from('student_connections')
+      .insert({
+        college_id: params.collegeId,
+        requester_id: params.requesterId,
+        receiver_id: params.receiverId,
+        status: 'pending',
+        note: params.note || null,
+      })
+      .select('*')
+      .single();
     if (error) return { success: false, error: error.message };
-    return { success: true };
+    return {
+      success: true,
+      connection: data
+        ? {
+            id: data.id,
+            collegeId: data.college_id,
+            requesterId: data.requester_id,
+            receiverId: data.receiver_id,
+            status: data.status,
+            createdAt: data.created_at,
+            note: data.note,
+          }
+        : undefined,
+    };
   } catch (err: any) {
     return { success: false, error: err.message };
   }
@@ -1001,11 +1018,19 @@ export async function respondToConnectionRequest(
   if (!supabase) return { success: false, error: 'Database not connected' };
 
   try {
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from('student_connections')
       .update({ status })
-      .eq('id', connectionId);
+      .eq('id', connectionId)
+      .select('id, status')
+      .maybeSingle();
     if (error) return { success: false, error: error.message };
+    if (!data) {
+      return {
+        success: false,
+        error: 'Unable to update connection request. Only the recipient can respond.',
+      };
+    }
     return { success: true };
   } catch (err: any) {
     return { success: false, error: err.message };
@@ -1029,7 +1054,11 @@ export async function fetchUserConversations(userId: string): Promise<Conversati
       `)
       .eq('user_id', userId);
 
-    if (pErr || !participations) return [];
+    if (pErr) {
+      console.error('[fetchUserConversations] Error loading participations:', pErr);
+      return [];
+    }
+    if (!participations) return [];
 
     const convIds = participations.map((p: any) => p.conversation_id);
     if (convIds.length === 0) return [];

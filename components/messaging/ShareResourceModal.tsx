@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { X, Link as LinkIcon, AlertCircle } from 'lucide-react';
 import { useMessaging } from '@/context/MessagingContext';
 
@@ -18,9 +18,12 @@ export default function ShareResourceModal({
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const isSubmittingRef = useRef(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmittingRef.current || isSubmitting) return;
     setError(null);
 
     const trimmedUrl = url.trim();
@@ -39,15 +42,22 @@ export default function ShareResourceModal({
       ? `${description.trim()}\n${trimmedUrl}`
       : `Shared study resource: ${trimmedTitle}\n${trimmedUrl}`;
 
-    const res = sendMessage(conversationId, messageContent, 'resource', {
-      resourceUrl: trimmedUrl,
-      resourceTitle: trimmedTitle,
-    });
+    isSubmittingRef.current = true;
+    setIsSubmitting(true);
+    try {
+      const res = await sendMessage(conversationId, messageContent, 'resource', {
+        resourceUrl: trimmedUrl,
+        resourceTitle: trimmedTitle,
+      });
 
-    if (res.success) {
-      onClose();
-    } else {
-      setError(res.error || 'Failed to share resource.');
+      if (res.success) {
+        onClose();
+      } else {
+        setError(res.error || 'Failed to share resource.');
+      }
+    } finally {
+      isSubmittingRef.current = false;
+      setIsSubmitting(false);
     }
   };
 
@@ -131,10 +141,11 @@ export default function ShareResourceModal({
             </button>
             <button
               type="submit"
-              className="px-4 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs shadow-xs transition-all flex items-center gap-1.5"
+              disabled={isSubmitting}
+              className="px-4 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 disabled:bg-emerald-400 text-white font-semibold text-xs shadow-xs transition-all flex items-center gap-1.5"
             >
               <LinkIcon className="w-3.5 h-3.5" />
-              Share Link
+              {isSubmitting ? 'Sharing...' : 'Share Link'}
             </button>
           </div>
         </form>

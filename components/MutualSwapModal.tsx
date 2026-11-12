@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { SmartMatch } from '@/types';
 import { useAuth } from '@/context/AuthContext';
 import { useApp } from '@/context/AppContext';
@@ -70,6 +70,7 @@ export default function MutualSwapModal({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isSuccess, setIsSuccess] = useState(false);
+  const isSubmittingRef = useRef(false);
 
   // Update note when offered skill changes
   const handleOfferedSkillChange = (newListingId: string) => {
@@ -83,6 +84,7 @@ export default function MutualSwapModal({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmittingRef.current || isSubmitting || isSuccess) return;
     setError(null);
 
     if (!user) {
@@ -105,6 +107,7 @@ export default function MutualSwapModal({
       return;
     }
 
+    isSubmittingRef.current = true;
     setIsSubmitting(true);
     try {
       const res = await sendSwapProposal({
@@ -126,6 +129,7 @@ export default function MutualSwapModal({
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'An unexpected error occurred.');
     } finally {
+      isSubmittingRef.current = false;
       setIsSubmitting(false);
     }
   };

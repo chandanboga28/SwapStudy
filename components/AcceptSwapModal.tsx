@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { SkillSwapInvitation } from '@/types';
 import { useApp } from '@/context/AppContext';
 import {
@@ -36,6 +36,7 @@ export default function AcceptSwapModal({
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const isSubmittingRef = useRef(false);
 
   const timeOptions = [
     '09:00', '10:00', '11:00', '12:00', '13:00',
@@ -45,6 +46,7 @@ export default function AcceptSwapModal({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmittingRef.current || isSubmitting) return;
     setError(null);
 
     // Validate dates
@@ -92,6 +94,7 @@ export default function AcceptSwapModal({
       return;
     }
 
+    isSubmittingRef.current = true;
     setIsSubmitting(true);
     try {
       const res = await acceptSwapProposal(
@@ -110,6 +113,7 @@ export default function AcceptSwapModal({
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'An unexpected error occurred.');
     } finally {
+      isSubmittingRef.current = false;
       setIsSubmitting(false);
     }
   };

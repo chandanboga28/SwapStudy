@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { User } from '@/types';
 import { useAuth } from '@/context/AuthContext';
 import { useApp } from '@/context/AppContext';
@@ -44,6 +44,8 @@ export default function SkillSwapInviteModal({
       : `Hey ${partner.name.split(' ')[0]}! Would love to exchange skills with you. Let's coordinate our schedules!`
   );
   const [error, setError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const isSubmittingRef = useRef(false);
 
   // Update default note when skill selection changes
   const handleOfferedChange = (val: string) => {
@@ -60,8 +62,9 @@ export default function SkillSwapInviteModal({
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmittingRef.current || isSubmitting) return;
     setError(null);
 
     if (!user) {
@@ -83,19 +86,26 @@ export default function SkillSwapInviteModal({
 
     const credits = requestedSkillObj?.hourlyCredits || offeredSkillObj?.hourlyCredits || 1;
 
-    const res = sendSkillSwapInvitation(conversationId, {
-      offeredSkillId: offeredSkillObj?.id || '',
-      offeredSkillTitle: selectedOfferedSkill,
-      requestedSkillId: requestedSkillObj?.id || '',
-      requestedSkillTitle: selectedRequestedSkill,
-      credits,
-      note: note.trim(),
-    });
+    isSubmittingRef.current = true;
+    setIsSubmitting(true);
+    try {
+      const res = await sendSkillSwapInvitation(conversationId, {
+        offeredSkillId: offeredSkillObj?.id || '',
+        offeredSkillTitle: selectedOfferedSkill,
+        requestedSkillId: requestedSkillObj?.id || '',
+        requestedSkillTitle: selectedRequestedSkill,
+        credits,
+        note: note.trim(),
+      });
 
-    if (res.success) {
-      onClose();
-    } else {
-      setError(res.error || 'Failed to send Skill Swap invitation.');
+      if (res.success) {
+        onClose();
+      } else {
+        setError(res.error || 'Failed to send Skill Swap invitation.');
+      }
+    } finally {
+      isSubmittingRef.current = false;
+      setIsSubmitting(false);
     }
   };
 
@@ -232,11 +242,11 @@ export default function SkillSwapInviteModal({
             </button>
             <button
               type="submit"
-              disabled={!selectedOfferedSkill || !selectedRequestedSkill}
+              disabled={!selectedOfferedSkill || !selectedRequestedSkill || isSubmitting}
               className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-semibold text-xs shadow-xs transition-all flex items-center gap-1.5"
             >
               <ArrowRightLeft className="w-3.5 h-3.5" />
-              Send Swap Invitation
+              {isSubmitting ? 'Sending...' : 'Send Swap Invitation'}
             </button>
           </div>
         </form>

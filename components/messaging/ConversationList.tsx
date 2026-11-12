@@ -103,11 +103,11 @@ export default function ConversationList({
           </div>
           <button
             onClick={onOpenNewMessageModal}
-            className="p-1.5 rounded-lg bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200/80 transition-colors flex items-center gap-1 text-xs font-semibold"
-            title="Start a new message"
+            className="px-2.5 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200/80 transition-colors flex items-center gap-1 text-xs font-semibold"
+            title="Start Messaging"
           >
             <Plus className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">New Chat</span>
+            <span>Start Messaging</span>
           </button>
         </div>
 
@@ -176,7 +176,7 @@ export default function ConversationList({
                 onClick={onOpenNewMessageModal}
                 className="px-3.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold shadow-xs transition-colors"
               >
-                Start New Chat
+                Start Messaging
               </button>
             )}
           </div>
