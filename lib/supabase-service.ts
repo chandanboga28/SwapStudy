@@ -421,6 +421,7 @@ export async function fetchUserSessions(userId: string): Promise<Session[]> {
       durationMinutes: r.duration_minutes || 60,
       status: r.status,
       meetingLink: r.meeting_link,
+      meetingUrl: r.meeting_url || null,
       learnerNotes: r.learner_notes,
       teacherNotes: r.teacher_notes,
       createdAt: r.created_at,
@@ -474,6 +475,28 @@ export async function acceptSession(sessionId: string): Promise<{ success: boole
     return { success: true };
   } catch (err: any) {
     return { success: false, error: err.message || 'Failed to accept session' };
+  }
+}
+
+export async function updateSessionMeetingUrlRpc(
+  sessionId: string,
+  meetingUrl: string
+): Promise<{ success: boolean; meetingUrl?: string; error?: string }> {
+  if (!supabase) return { success: false, error: 'Database not connected' };
+
+  try {
+    const { data, error } = await supabase.rpc('fn_update_session_meeting_url', {
+      p_session_id: sessionId,
+      p_meeting_url: meetingUrl,
+    });
+
+    if (error) {
+      return { success: false, error: error.message };
+    }
+
+    return { success: true, meetingUrl: data || meetingUrl };
+  } catch (err: any) {
+    return { success: false, error: err.message || 'Failed to update meeting link' };
   }
 }
 

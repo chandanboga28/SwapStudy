@@ -18,9 +18,11 @@ import {
   sendMutualSwapProposal,
   acceptMutualSwapProposal as acceptMutualSwapProposalApi,
   declineMutualSwapProposal as declineMutualSwapProposalApi,
+  updateSessionMeetingUrlRpc,
 } from '@/lib/supabase-service';
 import { INITIAL_SKILLS, INITIAL_SESSIONS, INITIAL_TRANSACTIONS, INITIAL_REVIEWS } from '@/lib/mock-data';
-import { isSupabaseConfigured } from '@/lib/supabase';
+import { isSupabaseConfigured, supabase } from '@/lib/supabase';
+import { validateGoogleMeetUrl } from '@/lib/meeting-url';
 
 interface AppContextType {
   skills: Skill[];
@@ -38,6 +40,10 @@ interface AppContextType {
     notes?: string;
   }) => Promise<{ success: boolean; error?: string; sessionId?: string }>;
   acceptSession: (sessionId: string) => Promise<{ success: boolean; error?: string }>;
+  updateSessionMeetingUrl: (
+    sessionId: string,
+    meetingUrl: string
+  ) => Promise<{ success: boolean; meetingUrl?: string; error?: string }>;
   declineSession: (sessionId: string, reason?: string) => Promise<{ success: boolean; error?: string }>;
   completeSession: (sessionId: string, rating: number, review: string) => Promise<{ success: boolean; error?: string }>;
   cancelSession: (sessionId: string) => Promise<{ success: boolean; error?: string }>;
@@ -140,6 +146,87 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     loadAppData();
   }, [loadAppData]);
+
+  // Keep participant session states and Google Meet links synced live across tabs/users
+  const currentUserId = user?.id;
+  useEffect(() => {
+    const client = supabase;
+    if (!isSupabaseConfigured || !client || !currentUserId) return;
+
+    const channel = client
+      .channel(`sessions-live-${currentUserId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'sessions',
+        },
+        (payload) => {
+          const newRow = (payload.new || {}) as {
+            id?: string;
+            learner_id?: string;
+            teacher_id?: string;
+            meeting_url?: string | null;
+            meeting_link?: string | null;
+            status?: string;
+          };
+          const oldRow = (payload.old || {}) as {
+            id?: string;
+            learner_id?: string;
+            teacher_id?: string;
+          };
+
+          const rowId = newRow.id || oldRow.id;
+          if (!rowId) return;
+
+          const involvesUser =
+            newRow.learner_id === currentUserId ||
+            newRow.teacher_id === currentUserId ||
+            oldRow.learner_id === currentUserId ||
+            oldRow.teacher_id === currentUserId;
+
+          if (payload.eventType === 'INSERT') {
+            if (involvesUser) {
+              void loadAppData();
+            }
+            return;
+          }
+
+          if (payload.eventType === 'DELETE') {
+            setSessions((prev) => prev.filter((s) => s.id !== rowId));
+            return;
+          }
+
+          setSessions((prev) =>
+            prev.map((s) => {
+              if (s.id !== rowId) return s;
+              const nextStatus =
+                typeof newRow.status === 'string'
+                  ? (newRow.status as typeof s.status)
+                  : s.status;
+              const nextMeetingUrl =
+                typeof newRow.meeting_url === 'string'
+                  ? newRow.meeting_url
+                  : newRow.meeting_url === null
+                  ? null
+                  : s.meetingUrl;
+              return {
+                ...s,
+                status: nextStatus,
+                meetingUrl: nextMeetingUrl,
+                meetingLink: newRow.meeting_link ?? s.meetingLink,
+              };
+            })
+          );
+        }
+      )
+      .subscribe();
+
+    return () => {
+      void client.removeChannel(channel);
+    };
+  }, [currentUserId, loadAppData]);
 
   // Add new skill listing
   const addSkill = async (
@@ -517,6 +604,56 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     );
   };
 
+  // Add or update Google Meet URL for a confirmed session (assigned teacher only)
+  const updateSessionMeetingUrl = async (sessionId: string, meetingUrl: string) => {
+    if (!user) {
+      return { success: false, error: 'Must be logged in to update a meeting link.' };
+    }
+
+    const validation = validateGoogleMeetUrl(meetingUrl);
+    if (!validation.valid || !validation.normalizedUrl) {
+      return { success: false, error: validation.error || 'Invalid Google Meet link.' };
+    }
+    const normalizedUrl = validation.normalizedUrl;
+
+    const targetSession = sessions.find((s) => s.id === sessionId);
+    if (!targetSession) {
+      return { success: false, error: 'Session not found.' };
+    }
+    if (targetSession.teacherId !== user.id) {
+      return { success: false, error: 'Only the assigned teacher can update the meeting link.' };
+    }
+    if (targetSession.status !== 'confirmed') {
+      return {
+        success: false,
+        error: 'Meeting links can only be added or updated while the session is confirmed.',
+      };
+    }
+
+    return withOperationLock(
+      `meeting-url:${sessionId}`,
+      'Meeting link update is already in progress.',
+      async () => {
+        if (!isSupabaseConfigured) {
+          setSessions((prev) =>
+            prev.map((s) => (s.id === sessionId ? { ...s, meetingUrl: normalizedUrl } : s))
+          );
+          return { success: true, meetingUrl: normalizedUrl };
+        }
+
+        const res = await updateSessionMeetingUrlRpc(sessionId, normalizedUrl);
+        if (res.success) {
+          const savedUrl = res.meetingUrl || normalizedUrl;
+          setSessions((prev) =>
+            prev.map((s) => (s.id === sessionId ? { ...s, meetingUrl: savedUrl } : s))
+          );
+          return { success: true, meetingUrl: savedUrl };
+        }
+        return { success: false, error: res.error };
+      }
+    );
+  };
+
   return (
     <AppContext.Provider
       value={{
@@ -536,6 +673,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         sendSwapProposal,
         acceptSwapProposal,
         declineSwapProposal,
+        updateSessionMeetingUrl,
         refreshData: loadAppData,
       }}
     >

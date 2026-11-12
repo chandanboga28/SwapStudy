@@ -9,6 +9,7 @@ import MutualSwapModal from '@/components/MutualSwapModal';
 import AcceptSwapModal from '@/components/AcceptSwapModal';
 import SmartMatchCard from '@/components/SmartMatchCard';
 import StudentProfileModal from '@/components/StudentProfileModal';
+import SessionMeetingSection from '@/components/SessionMeetingSection';
 import { calculateSmartMatches } from '@/lib/matching';
 import { Session, Skill, User, SmartMatch, SkillSwapInvitation } from '@/types';
 import {
@@ -17,7 +18,6 @@ import {
   Plus,
   Calendar,
   CheckCircle2,
-  Video,
   Sparkles,
   ArrowUpRight,
   ArrowDownLeft,
@@ -46,6 +46,7 @@ export default function DashboardPage() {
     declineSession,
     cancelSession,
     declineSwapProposal,
+    updateSessionMeetingUrl,
   } = useApp();
   const { totalUnreadCount } = useMessaging();
 
@@ -135,7 +136,7 @@ export default function DashboardPage() {
     try {
       const res = await acceptSession(sessionId);
       if (res.success) {
-        setNotification('Session confirmed! Meeting link has been generated.');
+        setNotification('Session confirmed! You can now add a Google Meet link in session details.');
         setNotificationType('success');
       } else {
         setNotification(res.error || 'Failed to accept session.');
@@ -866,7 +867,7 @@ export default function DashboardPage() {
                           </span>
                         </div>
 
-                        <div className="flex items-center justify-between gap-3 text-xs">
+                        <div className="flex flex-wrap items-center justify-between gap-3 text-xs">
                           <div className="flex items-center gap-2">
                             <img
                               src={partnerAvatar}
@@ -883,30 +884,23 @@ export default function DashboardPage() {
                             </div>
                           </div>
 
-                          <div className="flex items-center gap-2">
-                            {sess.meetingLink && (
-                              <a
-                                href={sess.meetingLink}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="px-2.5 py-1 rounded-md bg-slate-900 text-white hover:bg-slate-800 font-semibold text-xs flex items-center gap-1.5 transition-colors"
-                              >
-                                <Video className="w-3.5 h-3.5 text-emerald-400" />
-                                Join Call
-                              </a>
-                            )}
-
-                            {!isTeaching && (
-                              <button
-                                onClick={() => setReviewingSession(sess)}
-                                className="px-2.5 py-1 rounded-md bg-emerald-600 text-white hover:bg-emerald-500 font-semibold text-xs transition-colors flex items-center gap-1"
-                              >
-                                <CheckCircle2 className="w-3 h-3" />
-                                Complete & Review
-                              </button>
-                            )}
-                          </div>
+                          {!isTeaching && (
+                            <button
+                              onClick={() => setReviewingSession(sess)}
+                              className="px-2.5 py-1 rounded-md bg-emerald-600 text-white hover:bg-emerald-500 font-semibold text-xs transition-colors flex items-center gap-1"
+                            >
+                              <CheckCircle2 className="w-3 h-3" />
+                              Complete & Review
+                            </button>
+                          )}
                         </div>
+
+                        <SessionMeetingSection
+                          session={sess}
+                          isTeacher={isTeaching}
+                          onSaveMeetingUrl={updateSessionMeetingUrl}
+                          onSavedSuccess={(message) => setNotification(message)}
+                        />
                       </div>
                     );
                   })}

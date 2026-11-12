@@ -60,6 +60,7 @@ export interface Session {
   durationMinutes: number;
   status: SessionStatus;
   meetingLink?: string;
+  meetingUrl?: string | null;
   learnerNotes?: string;
   teacherNotes?: string;
   createdAt: string;

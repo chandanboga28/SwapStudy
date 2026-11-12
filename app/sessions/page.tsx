@@ -5,11 +5,11 @@ import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
 import { useApp } from '@/context/AppContext';
 import ReviewModal from '@/components/ReviewModal';
+import SessionMeetingSection from '@/components/SessionMeetingSection';
 import { Session, SessionStatus } from '@/types';
 import {
   Calendar,
   Clock,
-  Video,
   CheckCircle2,
   Coins,
   Star,
@@ -21,7 +21,14 @@ import {
 
 export default function SessionsPage() {
   const { user, isLoading: authLoading } = useAuth();
-  const { sessions, isLoading: appLoading, acceptSession, declineSession, cancelSession } = useApp();
+  const {
+    sessions,
+    isLoading: appLoading,
+    acceptSession,
+    declineSession,
+    cancelSession,
+    updateSessionMeetingUrl,
+  } = useApp();
 
   const [activeTab, setActiveTab] = useState<'learning' | 'teaching'>('learning');
   const [statusFilter, setStatusFilter] = useState<'all' | SessionStatus>('all');
@@ -71,7 +78,7 @@ export default function SessionsPage() {
     try {
       const res = await acceptSession(id);
       if (res.success) {
-        setToastMessage('Session confirmed! Meeting room created.');
+        setToastMessage('Session confirmed! You can now add a Google Meet link for your learner.');
         setToastType('success');
       } else {
         setToastMessage(res.error || 'Failed to accept session.');
@@ -341,6 +348,16 @@ export default function SessionsPage() {
                     </div>
                   )}
 
+                  <SessionMeetingSection
+                    session={sess}
+                    isTeacher={!isLearner}
+                    onSaveMeetingUrl={updateSessionMeetingUrl}
+                    onSavedSuccess={(message) => {
+                      setToastMessage(message);
+                      setToastType('success');
+                    }}
+                  />
+
                   {/* Action Bar */}
                   <div className="pt-2.5 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2 text-xs">
                     <span className="text-slate-400 text-[11px]">Booked on {sess.createdAt}</span>
@@ -385,17 +402,6 @@ export default function SessionsPage() {
                         </button>
                       )}
 
-                      {sess.status === 'confirmed' && sess.meetingLink && (
-                        <a
-                          href={sess.meetingLink}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-white font-semibold text-xs flex items-center gap-1.5 transition-colors"
-                        >
-                          <Video className="w-3 h-3 text-emerald-400" />
-                          Open Meeting Room
-                        </a>
-                      )}
 
                       {isLearner && sess.status === 'confirmed' && (
                         <button
