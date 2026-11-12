@@ -58,15 +58,15 @@ export default function ConversationList({
   };
 
   return (
-    <div className="flex flex-col h-full bg-[#111110] border-r border-[#37332E]">
+    <div className="flex flex-col h-full bg-[#E6E3DA] border-r border-[#4A4E57]">
       {/* Header */}
-      <div className="p-4 sm:p-5 border-b border-[#37332E] space-y-4 shrink-0">
+      <div className="p-4 sm:p-5 border-b border-[#CEC9BC] space-y-4 shrink-0">
         <div className="flex items-center justify-between gap-2">
-          <h1 className="text-xl font-extrabold text-[#F7F5F0]">Messages</h1>
+          <h1 className="text-xl font-extrabold text-[#1F2227]">Messages</h1>
           <button
             type="button"
             onClick={onNewChat}
-            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-[#FF9B45] hover:bg-[#F5B66B] text-[#171715] text-xs font-bold transition-colors cursor-pointer"
+            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-[#3B5CA8] hover:bg-[#314E91] border-[1.5px] border-[#2A3F75] shadow-[0_2px_0_#2A3F75] text-[#FFFFFF] text-xs font-bold transition-colors cursor-pointer"
           >
             <Plus className="w-3.5 h-3.5" />
             New Chat
@@ -74,13 +74,13 @@ export default function ConversationList({
         </div>
 
         <div className="relative">
-          <Search className="w-4 h-4 text-[#AAA69F] absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+          <Search className="w-4 h-4 text-[#464B55] absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search conversations..."
-            className="w-full pl-9 pr-4 py-2 rounded-full bg-[#22211F] border border-[#37332E] focus:border-[#FF9B45] text-sm text-[#F7F5F0] placeholder-[#AAA69F]/60 focus:outline-none"
+            className="w-full pl-9 pr-4 py-2 rounded-full bg-[#F8F6F0] border border-[#4A4E57] focus:border-[#3B5CA8] text-sm text-[#1F2227] placeholder-[#5A606B] focus:outline-none"
           />
         </div>
 
@@ -92,8 +92,8 @@ export default function ConversationList({
               onClick={() => setFilterMode(mode)}
               className={`px-3.5 py-1 rounded-full text-xs font-bold capitalize transition-colors cursor-pointer ${
                 filterMode === mode
-                  ? 'bg-[#2B2824] border border-[#FF9B45] text-[#FF9B45]'
-                  : 'bg-[#171715] border border-[#37332E] text-[#AAA69F] hover:text-[#F7F5F0]'
+                  ? 'bg-[#E6E3DA] border border-[#3B5CA8] text-[#2F4D96]'
+                  : 'bg-[#EFECE4] border border-[#4A4E57] text-[#464B55] hover:text-[#1F2227]'
               }`}
             >
               {mode}
@@ -106,9 +106,9 @@ export default function ConversationList({
       <div className="flex-1 overflow-y-auto p-2.5 space-y-1.5">
         {filteredConversations.length === 0 ? (
           <div className="py-12 px-4 text-center space-y-2.5">
-            <MessageSquare className="w-8 h-8 text-[#FF9B45] mx-auto" />
-            <p className="text-sm font-bold text-[#F7F5F0]">No conversations yet</p>
-            <p className="text-xs text-[#AAA69F]">
+            <MessageSquare className="w-8 h-8 text-[#2F4D96] mx-auto" />
+            <p className="text-sm font-bold text-[#1F2227]">No conversations yet</p>
+            <p className="text-xs text-[#464B55]">
               Start a direct chat with a connected campus peer to coordinate your next session.
             </p>
           </div>
@@ -132,8 +132,8 @@ export default function ConversationList({
                 }}
                 className={`p-3.5 rounded-2xl flex items-center gap-3 cursor-pointer transition-colors border ${
                   isSelected
-                    ? 'bg-[#2B2824] border-[#37332E]'
-                    : 'bg-transparent border-transparent hover:bg-[#1B1A18]'
+                    ? 'bg-[#E6E3DA] border-[#4A4E57]'
+                    : 'bg-transparent border-transparent hover:bg-[#E6E3DA]'
                 }`}
               >
                 <img
@@ -144,15 +144,15 @@ export default function ConversationList({
                     )}`
                   }
                   alt={partner?.name || 'Peer'}
-                  className="w-11 h-11 rounded-full object-cover border border-[#37332E] bg-[#22211F] shrink-0"
+                  className="w-11 h-11 rounded-full object-cover border border-[#4A4E57] bg-[#F8F6F0] shrink-0"
                 />
 
                 <div className="min-w-0 flex-1 space-y-1">
                   <div className="flex items-center justify-between gap-2">
-                    <p className="text-sm font-bold text-[#F7F5F0] truncate">
+                    <p className="text-sm font-bold text-[#1F2227] truncate">
                       {partner?.name || conv.groupName || 'Campus Peer'}
                     </p>
-                    <span className="text-[11px] text-[#AAA69F] shrink-0">
+                    <span className="text-[11px] text-[#464B55] shrink-0">
                       {formatTime(conv.lastMessage?.createdAt || conv.updatedAt)}
                     </span>
                   </div>
@@ -160,13 +160,13 @@ export default function ConversationList({
                   <div className="flex items-center justify-between gap-2">
                     <p
                       className={`text-xs truncate ${
-                        unread > 0 ? 'font-bold text-[#F7F5F0]' : 'text-[#AAA69F]'
+                        unread > 0 ? 'font-bold text-[#1F2227]' : 'text-[#464B55]'
                       }`}
                     >
                       {conv.lastMessage?.text || 'Direct conversation started'}
                     </p>
                     {unread > 0 && (
-                      <span className="min-w-[20px] h-5 px-1.5 rounded-full bg-[#FF9B45] text-[#171715] text-[11px] font-extrabold flex items-center justify-center shrink-0 tabular-nums">
+                      <span className="min-w-[20px] h-5 px-1.5 rounded-full bg-[#3B5CA8] text-[#FFFFFF] text-[11px] font-extrabold flex items-center justify-center shrink-0 tabular-nums">
                         {unread}
                       </span>
                     )}

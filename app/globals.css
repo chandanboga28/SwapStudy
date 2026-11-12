@@ -2,34 +2,42 @@
 
 @theme inline {
   --font-sans: var(--font-manrope), system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  --color-bg-main: #171715;
-  --color-bg-sidebar: #111110;
-  --color-bg-card: #22211F;
-  --color-bg-secondary: #2B2824;
-  --color-accent-primary: #FF9B45;
-  --color-accent-secondary: #F5B66B;
-  --color-text-main: #F7F5F0;
-  --color-text-secondary: #AAA69F;
-  --color-border-subtle: #37332E;
-  --color-status-success: #65C995;
-  --color-status-error: #F07878;
+  --font-mono: var(--font-jetbrains-mono), ui-monospace, "SF Mono", Menlo, monospace;
+  --color-bg-main: #EFECE4;
+  --color-bg-sidebar: #E6E3DA;
+  --color-bg-card: #F8F6F0;
+  --color-bg-secondary: #ECE9E0;
+  --color-bg-oled: #25282E;
+  --color-accent-primary: #3B5CA8;
+  --color-accent-coral: #C25138;
+  --color-accent-lime: #DCEB8E;
+  --color-accent-yellow: #F4DC82;
+  --color-text-main: #1F2227;
+  --color-text-secondary: #464B55;
+  --color-border-subtle: #4A4E57;
+  --color-status-success: #195434;
+  --color-status-error: #8F2618;
 }
 
 :root {
-  --background: #171715;
-  --foreground: #F7F5F0;
-  --muted: #AAA69F;
-  --accent-primary: #FF9B45;
-  --accent-secondary: #F5B66B;
-  --card-surface: #22211F;
-  --card-secondary: #2B2824;
-  --border-subtle: #37332E;
-  --status-success: #65C995;
-  --status-error: #F07878;
+  --background: #EFECE4;
+  --foreground: #1F2227;
+  --muted: #464B55;
+  --accent-primary: #3B5CA8;
+  --accent-coral: #C25138;
+  --accent-lime: #DCEB8E;
+  --accent-yellow: #F4DC82;
+  --card-surface: #F8F6F0;
+  --card-secondary: #E6E3DA;
+  --oled-surface: #25282E;
+  --border-subtle: #4A4E57;
+  --shadow-putty: #C5C0B4;
+  --status-success: #195434;
+  --status-error: #8F2618;
 }
 
 html {
-  color-scheme: dark;
+  color-scheme: light;
   scroll-behavior: smooth;
 }
 
@@ -42,56 +50,85 @@ body {
 }
 
 ::selection {
-  background-color: rgba(255, 155, 69, 0.28);
-  color: #F7F5F0;
+  background-color: #DCEB8E;
+  color: #1F2227;
 }
 
-/* Custom Dark Scrollbar */
+/* Custom Tactile Scrollbar */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #171715;
+  background: #EFECE4;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #37332E;
+  background: #B8B3A7;
   border-radius: 9999px;
-  border: 2px solid #171715;
+  border: 2px solid #EFECE4;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #4F4942;
+  background: #8D887D;
 }
 
-/* Shared Design System Surface Utilities */
-.card-subtle {
-  background-color: #22211F;
-  border: 1px solid #37332E;
+/* OP-01 // Matte Synth Design Utilities */
+@layer components {
+  .synth-dot-canvas {
+    background-color: #EFECE4;
+    background-image: radial-gradient(#C5C0B3 1.15px, transparent 1.15px);
+    background-size: 22px 22px;
+  }
+
+  .card-subtle {
+    background-color: #F8F6F0;
+    border: 1.5px solid #4A4E57;
+    box-shadow: 3.5px 3.5px 0 #C5C0B4;
+  }
+
+  .card-subtle-hover {
+    background-color: #F8F6F0;
+    border: 1.5px solid #4A4E57;
+    box-shadow: 3.5px 3.5px 0 #C5C0B4;
+    transition: background-color 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease;
+  }
+
+  .card-subtle-hover:hover {
+    background-color: #FCFBF7;
+    transform: translate(-1px, -1px);
+    box-shadow: 4.5px 4.5px 0 #B5B0A3;
+  }
+
+  .synth-oled {
+    background-color: #25282E;
+    color: #F2EFE8;
+    border: 1.5px solid #4A4E57;
+    box-shadow: 4px 4px 0 #C5C0B4;
+  }
+
+  .synth-key {
+    border: 1.5px solid #4A4E57;
+    box-shadow: 0 2.5px 0 #9D998F;
+    transition: transform 0.12s ease, box-shadow 0.12s ease, background-color 0.15s ease;
+  }
+
+  .synth-key:active {
+    transform: translateY(1.5px);
+    box-shadow: 0 1px 0 #9D998F;
+  }
+
+  .hero-synth-cobalt {
+    background-color: #3B5CA8;
+    color: #FFFFFF;
+    border: 1.5px solid #2C437A;
+    box-shadow: 4px 4px 0 #C5C0B4;
+  }
 }
 
-.card-subtle-hover {
-  background-color: #22211F;
-  border: 1px solid #37332E;
-  transition: background-color 0.2s cubic-bezier(0.16, 1, 0.3, 1),
-    border-color 0.2s cubic-bezier(0.16, 1, 0.3, 1),
-    transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-.card-subtle-hover:hover {
-  background-color: #262420;
-  border-color: #4F4942;
-}
-
-.hero-bronze {
-  background: linear-gradient(135deg, #845C39 0%, #6D4B2E 100%);
-  border: 1px solid rgba(245, 182, 107, 0.22);
-}
-
-/* Form Date/Time Picker Dark Color Scheme */
+/* Light Color Scheme for Native Date/Time Inputs */
 input[type="date"],
 input[type="time"] {
-  color-scheme: dark;
+  color-scheme: light;
 }

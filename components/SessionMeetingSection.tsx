@@ -91,11 +91,11 @@ export default function SessionMeetingSection({
   if (session.status === 'pending') {
     return (
       <div
-        className={`rounded-xl border border-[#37332E] bg-[#2B2824]/70 ${
+        className={`rounded-xl border border-[#4A4E57] bg-[#E6E3DA] ${
           compact ? 'px-3.5 py-2.5' : 'px-4 py-3'
-        } flex items-center gap-2.5 text-xs text-[#AAA69F]`}
+        } flex items-center gap-2.5 text-xs text-[#464B55]`}
       >
-        <Clock className="w-4 h-4 text-[#F5B66B] shrink-0" />
+        <Clock className="w-4 h-4 text-[#9E3922] shrink-0" />
         <span>
           {isTeacher
             ? 'Accept this request first to add a Google Meet room link.'
@@ -110,15 +110,15 @@ export default function SessionMeetingSection({
     if (!hasSavedMeetingUrl) return null;
     return (
       <div
-        className={`rounded-xl border border-[#37332E] bg-[#171715] ${
+        className={`rounded-xl border border-[#4A4E57] bg-[#EFECE4] ${
           compact ? 'px-3.5 py-2.5' : 'px-4 py-3'
         } flex items-center justify-between gap-3`}
       >
-        <div className="flex items-center gap-2 min-w-0 text-xs text-[#AAA69F]">
-          <Video className="w-4 h-4 text-[#AAA69F] shrink-0" />
+        <div className="flex items-center gap-2 min-w-0 text-xs text-[#464B55]">
+          <Video className="w-4 h-4 text-[#464B55] shrink-0" />
           <span className="truncate">{savedMeetingUrl}</span>
         </div>
-        <span className="text-xs font-semibold text-[#65C995] shrink-0">Meeting Completed</span>
+        <span className="text-xs font-semibold text-[#195434] shrink-0">Meeting Completed</span>
       </div>
     );
   }
@@ -128,8 +128,8 @@ export default function SessionMeetingSection({
     <div
       className={`rounded-xl border ${
         hasSavedMeetingUrl
-          ? 'border-[#65C995]/30 bg-[#171715]'
-          : 'border-[#37332E] bg-[#2B2824]'
+          ? 'border-[#47785B] bg-[#F2FAF5]'
+          : 'border-[#4A4E57] bg-[#E6E3DA]'
       } ${compact ? 'p-3.5' : 'p-4'} space-y-3`}
     >
       {/* Header Row */}
@@ -138,18 +138,18 @@ export default function SessionMeetingSection({
           <div
             className={`w-7 h-7 rounded-lg flex items-center justify-center ${
               hasSavedMeetingUrl
-                ? 'bg-[#65C995]/15 text-[#65C995]'
-                : 'bg-[#FF9B45]/15 text-[#FF9B45]'
+                ? 'bg-[#DCF2E4] text-[#195434]'
+                : 'bg-[#DCEB8E] text-[#1F2227]'
             }`}
           >
             <Video className="w-4 h-4" />
           </div>
           <div>
-            <p className="text-xs font-bold uppercase tracking-wider text-[#F7F5F0]">
+            <p className="text-xs font-bold uppercase tracking-wider text-[#1F2227]">
               Google Meet Room
             </p>
             {savedNotice && (
-              <p className="text-xs text-[#65C995] font-medium">Meeting link saved</p>
+              <p className="text-xs text-[#195434] font-medium">Meeting link saved</p>
             )}
           </div>
         </div>
@@ -159,11 +159,11 @@ export default function SessionMeetingSection({
             <button
               type="button"
               onClick={handleCopy}
-              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[#22211F] hover:bg-[#2B2824] border border-[#37332E] text-xs font-semibold text-[#AAA69F] hover:text-[#F7F5F0] transition-colors cursor-pointer"
+              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[#F8F6F0] hover:bg-[#E6E3DA] border border-[#4A4E57] text-xs font-semibold text-[#464B55] hover:text-[#1F2227] transition-colors cursor-pointer"
             >
               {copied ? (
                 <>
-                  <Check className="w-3.5 h-3.5 text-[#65C995]" />
+                  <Check className="w-3.5 h-3.5 text-[#195434]" />
                   Copied
                 </>
               ) : (
@@ -177,7 +177,7 @@ export default function SessionMeetingSection({
               <button
                 type="button"
                 onClick={handleOpenEdit}
-                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[#22211F] hover:bg-[#2B2824] border border-[#37332E] text-xs font-semibold text-[#F5B66B] transition-colors cursor-pointer"
+                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[#F8F6F0] hover:bg-[#E6E3DA] border border-[#4A4E57] text-xs font-semibold text-[#9E3922] transition-colors cursor-pointer"
               >
                 <Pencil className="w-3 h-3" />
                 Edit
@@ -190,14 +190,14 @@ export default function SessionMeetingSection({
       {/* Saved Link Display + Join Button */}
       {hasSavedMeetingUrl && !isEditing && (
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1">
-          <p className="text-xs sm:text-sm text-[#AAA69F] font-mono truncate">
+          <p className="text-xs sm:text-sm text-[#464B55] font-mono truncate">
             {savedMeetingUrl}
           </p>
           <a
             href={savedMeetingUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-full bg-[#65C995] hover:bg-[#53b984] text-[#171715] text-xs sm:text-sm font-bold transition-colors shrink-0"
+            className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-full bg-[#8AD7A8] hover:bg-[#77CA97] border-[1.5px] border-[#47785B] shadow-[0_2px_0_#47785B] text-[#18241C] text-xs sm:text-sm font-bold transition-colors shrink-0"
           >
             Join Meeting
             <ExternalLink className="w-3.5 h-3.5" />
@@ -218,13 +218,13 @@ export default function SessionMeetingSection({
               }}
               placeholder="https://meet.google.com/abc-defg-hij"
               disabled={isSaving}
-              className="flex-1 px-3.5 py-2 rounded-xl bg-[#171715] border border-[#37332E] focus:border-[#FF9B45] text-sm text-[#F7F5F0] placeholder-[#AAA69F]/60 focus:outline-none transition-colors"
+              className="flex-1 px-3.5 py-2 rounded-xl bg-[#FFFFFF] border-[1.5px] border-[#4A4E57] focus:border-[#3B5CA8] text-sm text-[#1F2227] placeholder-[#5A606B] focus:outline-none transition-colors"
             />
             <div className="flex items-center gap-2 shrink-0">
               <button
                 type="submit"
                 disabled={isSaving}
-                className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-full bg-[#FF9B45] hover:bg-[#F5B66B] disabled:opacity-60 text-[#171715] text-xs sm:text-sm font-bold transition-colors cursor-pointer"
+                className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-full bg-[#3B5CA8] hover:bg-[#314E91] disabled:opacity-60 border-[1.5px] border-[#2A3F75] text-[#FFFFFF] text-xs sm:text-sm font-bold transition-colors cursor-pointer"
               >
                 {isSaving ? (
                   <>
@@ -246,7 +246,7 @@ export default function SessionMeetingSection({
                     setUrlInput(savedMeetingUrl);
                   }}
                   disabled={isSaving}
-                  className="px-3.5 py-2 rounded-full bg-[#22211F] hover:bg-[#37332E] border border-[#37332E] text-xs font-semibold text-[#AAA69F] hover:text-[#F7F5F0] transition-colors cursor-pointer"
+                  className="px-3.5 py-2 rounded-full bg-[#F8F6F0] hover:bg-[#DCD8CD] border border-[#4A4E57] text-xs font-semibold text-[#464B55] hover:text-[#1F2227] transition-colors cursor-pointer"
                 >
                   Cancel
                 </button>
@@ -255,19 +255,19 @@ export default function SessionMeetingSection({
           </div>
 
           {errorMsg && (
-            <div className="flex items-start gap-2 text-xs text-[#F07878]">
+            <div className="flex items-start gap-2 text-xs text-[#8F2618]">
               <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
               <span>{errorMsg}</span>
             </div>
           )}
 
-          <div className="flex items-center justify-between text-xs text-[#AAA69F]">
+          <div className="flex items-center justify-between text-xs text-[#464B55]">
             <span>Only https://meet.google.com/ room links are accepted.</span>
             <a
               href="https://meet.google.com/new"
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-1 text-[#FF9B45] hover:text-[#F5B66B] font-semibold shrink-0 ml-2"
+              className="inline-flex items-center gap-1 text-[#2F4D96] hover:text-[#9E3922] font-semibold shrink-0 ml-2"
             >
               Create Meet
               <ExternalLink className="w-3 h-3" />
@@ -278,7 +278,7 @@ export default function SessionMeetingSection({
 
       {/* Learner Waiting Empty State */}
       {!isTeacher && !hasSavedMeetingUrl && (
-        <p className="text-xs sm:text-sm text-[#AAA69F]">
+        <p className="text-xs sm:text-sm text-[#464B55]">
           Waiting for {session.teacherName} to share the Google Meet link for this session.
         </p>
       )}

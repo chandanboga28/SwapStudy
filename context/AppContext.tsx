@@ -114,9 +114,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
 
     try {
-      // 1. Fetch available skills for the college
+      // 1. Fetch available skills and merge with Indian campus showcase listings
       const skillsData = await fetchSkills(user?.collegeId);
-      setSkills(skillsData);
+      const mergedSkills =
+        skillsData && skillsData.length > 0
+          ? [...skillsData, ...INITIAL_SKILLS.filter((m) => !skillsData.some((d) => d.id === m.id))]
+          : INITIAL_SKILLS;
+      setSkills(mergedSkills);
 
       // 2. If user is authenticated, fetch their sessions, transactions, reviews, and swap invitations
       if (user?.id) {
@@ -129,15 +133,17 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         setSessions(sessionsData);
         setTransactions(transactionsData);
         setSwapInvitations(invitationsData);
-        setReviews(reviewsData);
+        setReviews(reviewsData && reviewsData.length > 0 ? reviewsData : INITIAL_REVIEWS);
       } else {
         setSessions([]);
         setTransactions([]);
         setSwapInvitations([]);
-        setReviews([]);
+        setReviews(INITIAL_REVIEWS);
       }
     } catch (err) {
       console.error('[AppProvider] Error loading app data:', err);
+      setSkills((prev) => (prev.length > 0 ? prev : INITIAL_SKILLS));
+      setReviews((prev) => (prev.length > 0 ? prev : INITIAL_REVIEWS));
     } finally {
       setIsLoading(false);
     }

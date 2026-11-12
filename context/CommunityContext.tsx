@@ -7,9 +7,11 @@ import {
   LearningGroup,
   StudentConnection,
   PostCategory,
+  PostComment,
   User,
 } from '@/types';
 import { COLLEGES, INITIAL_POSTS, INITIAL_GROUPS, INITIAL_CONNECTIONS } from '@/lib/mock-community-data';
+import { INITIAL_USERS } from '@/lib/mock-data';
 import { useAuth } from './AuthContext';
 import {
   fetchColleges,
@@ -64,8 +66,104 @@ interface CommunityContextType {
   getConnectionRecord: (targetUserId: string) => StudentConnection | null;
   refreshConnections: () => Promise<void>;
   switchCollege: (collegeId: string) => void;
+  authPromptAction: string | null;
+  openAuthPrompt: (actionLabel: string) => void;
+  closeAuthPrompt: () => void;
   isLoading: boolean;
 }
+
+interface ShowcaseOverlay {
+  likedPostIds: string[];
+  savedPostIds: string[];
+  addedComments: Record<string, PostComment[]>;
+  joinedGroupIds: string[];
+}
+
+const EMPTY_OVERLAY: ShowcaseOverlay = {
+  likedPostIds: [],
+  savedPostIds: [],
+  addedComments: {},
+  joinedGroupIds: [],
+};
+
+function getOverlayKey(userId: string) {
+  return `swapstudy_community_showcase_v1:${userId}`;
+}
+
+function readShowcaseOverlay(userId?: string): ShowcaseOverlay {
+  if (!userId || typeof window === 'undefined') return EMPTY_OVERLAY;
+  try {
+    const raw = localStorage.getItem(getOverlayKey(userId));
+    if (!raw) return EMPTY_OVERLAY;
+    const parsed = JSON.parse(raw) as Partial<ShowcaseOverlay>;
+    return {
+      likedPostIds: Array.isArray(parsed.likedPostIds) ? parsed.likedPostIds : [],
+      savedPostIds: Array.isArray(parsed.savedPostIds) ? parsed.savedPostIds : [],
+      addedComments: parsed.addedComments && typeof parsed.addedComments === 'object' ? parsed.addedComments : {},
+      joinedGroupIds: Array.isArray(parsed.joinedGroupIds) ? parsed.joinedGroupIds : [],
+    };
+  } catch {
+    return EMPTY_OVERLAY;
+  }
+}
+
+function writeShowcaseOverlay(userId: string, overlay: ShowcaseOverlay) {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(getOverlayKey(userId), JSON.stringify(overlay));
+  } catch {
+    // Ignore storage quota issues cleanly
+  }
+}
+
+function applyOverlayToPosts(postsList: CommunityPost[], userId?: string): CommunityPost[] {
+  if (!userId) return postsList;
+  const overlay = readShowcaseOverlay(userId);
+  return postsList.map((post) => {
+    if (!post.id.startsWith('post-')) return post;
+    const extraLiked = overlay.likedPostIds.includes(post.id) && !post.likedBy.includes(userId);
+    const extraSaved = overlay.savedPostIds.includes(post.id) && !post.savedBy.includes(userId);
+    const extraComments = overlay.addedComments[post.id] || [];
+    const existingIds = new Set(post.comments.map((c) => c.id));
+    const mergedComments = [
+      ...post.comments,
+      ...extraComments.filter((c) => !existingIds.has(c.id)),
+    ];
+    return {
+      ...post,
+      likedBy: extraLiked ? [...post.likedBy, userId] : post.likedBy,
+      likesCount: post.likesCount + (extraLiked ? 1 : 0),
+      savedBy: extraSaved ? [...post.savedBy, userId] : post.savedBy,
+      comments: mergedComments,
+    };
+  });
+}
+
+function applyOverlayToGroups(groupsList: LearningGroup[], userId?: string): LearningGroup[] {
+  if (!userId) return groupsList;
+  const overlay = readShowcaseOverlay(userId);
+  return groupsList.map((group) => {
+    if (!group.id.startsWith('group-')) return group;
+    const joined = overlay.joinedGroupIds.includes(group.id) && !group.memberIds.includes(userId);
+    return {
+      ...group,
+      memberIds: joined ? [...group.memberIds, userId] : group.memberIds,
+    };
+  });
+}
+
+const ALL_CAMPUSES: College = {
+  id: 'all',
+  name: 'ADYPU, NST, Vedam & upGrad Campuses',
+  shortName: 'ALL CAMPUSES',
+  domain: 'campus.edu.in',
+  location: 'India',
+  mascot: 'Peers',
+  badgeColor: '#3B5CA8',
+  memberCount: 2650,
+  verifiedCount: 2500,
+  description: 'Cross-campus student hub featuring ADYPU, Newton School of Technology, Vedam, and upGrad communities.',
+};
 
 const DEFAULT_CAMPUS: College = {
   id: 'adypu',
@@ -75,30 +173,55 @@ const DEFAULT_CAMPUS: College = {
   location: 'Pune, India',
   mascot: 'Titans',
   badgeColor: '#059669',
-  memberCount: 0,
-  verifiedCount: 0,
+  memberCount: 840,
+  verifiedCount: 790,
   description: 'Campus peer learning community for ADYPU students.',
 };
+
+function interleaveByCollege<T extends { collegeId: string }>(items: T[]): T[] {
+  const campusOrder = ['adypu', 'nst', 'vedam', 'upgrad'];
+  const buckets = campusOrder.map((id) => items.filter((item) => item.collegeId === id));
+  const other = items.filter((item) => !campusOrder.includes(item.collegeId));
+  const result: T[] = [];
+  const maxLen = Math.max(...buckets.map((b) => b.length), 0);
+  for (let i = 0; i < maxLen; i += 1) {
+    for (const bucket of buckets) {
+      if (bucket[i]) result.push(bucket[i]);
+    }
+  }
+  return [...result, ...other];
+}
 
 const CommunityContext = createContext<CommunityContextType | undefined>(undefined);
 
 export function CommunityProvider({ children }: { children: React.ReactNode }) {
   const { user, allUsers } = useAuth();
 
-  const [colleges, setColleges] = useState<College[]>(isSupabaseConfigured ? [] : COLLEGES);
-  const [selectedCollegeId, setSelectedCollegeId] = useState<string>('adypu');
-  const [posts, setPosts] = useState<CommunityPost[]>(isSupabaseConfigured ? [] : INITIAL_POSTS);
-  const [groups, setGroups] = useState<LearningGroup[]>(isSupabaseConfigured ? [] : INITIAL_GROUPS);
+  const [colleges, setColleges] = useState<College[]>(COLLEGES);
+  const [selectedCollegeId, setSelectedCollegeId] = useState<string>('all');
+  const [posts, setPosts] = useState<CommunityPost[]>(() => interleaveByCollege(INITIAL_POSTS));
+  const [groups, setGroups] = useState<LearningGroup[]>(() => interleaveByCollege(INITIAL_GROUPS));
   const [connections, setConnections] = useState<StudentConnection[]>(
     isSupabaseConfigured ? [] : INITIAL_CONNECTIONS
   );
   const [savedPostIds, setSavedPostIds] = useState<string[]>([]);
+  const [authPromptAction, setAuthPromptAction] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
-  // Sync selected college with current user's profile
+  const openAuthPrompt = useCallback((actionLabel: string) => {
+    setAuthPromptAction(actionLabel);
+  }, []);
+
+  const closeAuthPrompt = useCallback(() => {
+    setAuthPromptAction(null);
+  }, []);
+
+  // Sync selected college with current user's profile when signed in; show all campuses for guest visitors
   useEffect(() => {
     if (user?.collegeId) {
       setSelectedCollegeId(user.collegeId);
+    } else {
+      setSelectedCollegeId('all');
     }
   }, [user?.collegeId]);
 
@@ -108,7 +231,10 @@ export function CommunityProvider({ children }: { children: React.ReactNode }) {
       try {
         const dbColleges = await fetchColleges();
         if (dbColleges && dbColleges.length > 0) {
-          setColleges(dbColleges);
+          setColleges([
+            ...dbColleges,
+            ...COLLEGES.filter((c) => !dbColleges.some((d) => d.id === c.id)),
+          ]);
         }
       } catch (err) {
         console.warn('Error loading colleges from DB, using defaults:', err);
@@ -118,10 +244,12 @@ export function CommunityProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const currentCollege = useMemo(() => {
+    if (selectedCollegeId === 'all') return ALL_CAMPUSES;
     return (
       colleges.find((c) => c.id === selectedCollegeId) ||
+      COLLEGES.find((c) => c.id === selectedCollegeId) ||
       colleges[0] ||
-      (isSupabaseConfigured ? DEFAULT_CAMPUS : COLLEGES[0])
+      DEFAULT_CAMPUS
     );
   }, [colleges, selectedCollegeId]);
 
@@ -130,20 +258,49 @@ export function CommunityProvider({ children }: { children: React.ReactNode }) {
     if (!currentCollege?.id) return;
     setIsLoading(true);
 
+    const filterShowcasePosts = applyOverlayToPosts(
+      currentCollege.id === 'all'
+        ? interleaveByCollege(INITIAL_POSTS)
+        : INITIAL_POSTS.filter((p) => p.collegeId === currentCollege.id),
+      user?.id
+    );
+    const filterShowcaseGroups = applyOverlayToGroups(
+      currentCollege.id === 'all'
+        ? interleaveByCollege(INITIAL_GROUPS)
+        : INITIAL_GROUPS.filter((g) => g.collegeId === currentCollege.id),
+      user?.id
+    );
+
     if (!isSupabaseConfigured) {
-      setPosts(INITIAL_POSTS.filter((p) => p.collegeId === currentCollege.id));
-      setGroups(INITIAL_GROUPS.filter((g) => g.collegeId === currentCollege.id));
+      setPosts(filterShowcasePosts);
+      setGroups(filterShowcaseGroups);
       setConnections(INITIAL_CONNECTIONS);
+      if (user) {
+        const userSaved = filterShowcasePosts
+          .filter((p) => p.savedBy?.includes(user.id))
+          .map((p) => p.id);
+        setSavedPostIds(userSaved);
+      } else {
+        setSavedPostIds([]);
+      }
       setIsLoading(false);
       return;
     }
 
     try {
-      // 1. Fetch posts directly from Supabase
-      const dbPosts = await fetchCommunityPosts(currentCollege.id);
-      setPosts(dbPosts || []);
-      if (user && dbPosts) {
-        const userSaved = dbPosts
+      const dbTargetCollegeId =
+        currentCollege.id === 'all' ? user?.collegeId || 'adypu' : currentCollege.id;
+
+      // 1. Fetch posts from Supabase when accessible; fall back/merge with campus showcase data for visitors & MVPs
+      const dbPosts = await fetchCommunityPosts(dbTargetCollegeId);
+      const mergedPosts =
+        dbPosts && dbPosts.length > 0
+          ? [...dbPosts, ...filterShowcasePosts.filter((m) => !dbPosts.some((d) => d.id === m.id))]
+          : filterShowcasePosts;
+      setPosts(mergedPosts);
+
+      if (user) {
+        const userSaved = mergedPosts
           .filter((p) => p.savedBy?.includes(user.id))
           .map((p) => p.id);
         setSavedPostIds(userSaved);
@@ -151,9 +308,13 @@ export function CommunityProvider({ children }: { children: React.ReactNode }) {
         setSavedPostIds([]);
       }
 
-      // 2. Fetch learning groups directly from Supabase
-      const dbGroups = await fetchLearningGroups(currentCollege.id);
-      setGroups(dbGroups || []);
+      // 2. Fetch learning groups from Supabase; fall back/merge with campus showcase circles
+      const dbGroups = await fetchLearningGroups(dbTargetCollegeId);
+      const mergedGroups =
+        dbGroups && dbGroups.length > 0
+          ? [...dbGroups, ...filterShowcaseGroups.filter((m) => !dbGroups.some((d) => d.id === m.id))]
+          : filterShowcaseGroups;
+      setGroups(mergedGroups);
 
       // 3. Fetch connections if user is logged in
       if (user?.id) {
@@ -163,7 +324,9 @@ export function CommunityProvider({ children }: { children: React.ReactNode }) {
         setConnections([]);
       }
     } catch (err) {
-      console.warn('Failed to load community data from Supabase:', err);
+      console.warn('Failed to load community data from Supabase, using campus defaults:', err);
+      setPosts(filterShowcasePosts);
+      setGroups(filterShowcaseGroups);
     } finally {
       setIsLoading(false);
     }
@@ -189,13 +352,14 @@ export function CommunityProvider({ children }: { children: React.ReactNode }) {
 
   // Realtime subscription for posts, comments, and student connections
   useEffect(() => {
-    if (!supabase || !currentCollegeId) return;
+    if (!supabase || !currentCollegeId || !currentUserId) return;
+    const realtimeCollegeId = currentCollegeId === 'all' ? 'adypu' : currentCollegeId;
 
     const channel = supabase
-      .channel(`community-feed-${currentCollegeId}-${currentUserId || 'anon'}`)
+      .channel(`community-feed-${realtimeCollegeId}-${currentUserId}`)
       .on(
         'postgres_changes',
-        { event: '*', schema: 'public', table: 'community_posts', filter: `college_id=eq.${currentCollegeId}` },
+        { event: '*', schema: 'public', table: 'community_posts', filter: `college_id=eq.${realtimeCollegeId}` },
         () => {
           refreshCommunityData();
         }
@@ -216,12 +380,14 @@ export function CommunityProvider({ children }: { children: React.ReactNode }) {
     };
   }, [currentCollegeId, currentUserId, refreshCommunityData, refreshConnections]);
 
-  // Discover students from the SAME college only (excluding self)
+  // Discover students from selected college (or both ADYPU + NST when browsing 'all')
   const sameCollegeStudents = useMemo(() => {
-    if (!user) return [];
-    return allUsers.filter(
-      (u) => (u.collegeId || 'adypu') === currentCollege.id && u.id !== user.id
-    );
+    const pool = allUsers.length > 0 ? allUsers : INITIAL_USERS;
+    return pool.filter((u) => {
+      if (u.id === user?.id) return false;
+      if (currentCollege.id === 'all') return true;
+      return (u.collegeId || 'adypu') === currentCollege.id;
+    });
   }, [allUsers, currentCollege.id, user]);
 
   // Create post (Optimistic with Supabase background persistence)
@@ -238,9 +404,11 @@ export function CommunityProvider({ children }: { children: React.ReactNode }) {
     if (!data.title.trim()) return { success: false, error: 'Post title is required.' };
     if (!data.content.trim()) return { success: false, error: 'Post content cannot be empty.' };
 
+    const targetCollegeId = currentCollege.id === 'all' ? user.collegeId || 'adypu' : currentCollege.id;
+
     const newPost: CommunityPost = {
       id: `post-${Date.now()}`,
-      collegeId: currentCollege.id,
+      collegeId: targetCollegeId,
       authorId: user.id,
       authorName: user.name,
       authorAvatar: user.avatar,
@@ -264,7 +432,7 @@ export function CommunityProvider({ children }: { children: React.ReactNode }) {
 
     // Persist to Supabase
     createCommunityPost({
-      collegeId: currentCollege.id,
+      collegeId: targetCollegeId,
       authorId: user.id,
       title: data.title.trim(),
       content: data.content.trim(),
@@ -284,7 +452,10 @@ export function CommunityProvider({ children }: { children: React.ReactNode }) {
 
   // Like / Unlike post
   const likePost = (postId: string) => {
-    if (!user) return;
+    if (!user) {
+      openAuthPrompt('like posts');
+      return;
+    }
 
     const target = posts.find((p) => p.id === postId);
     const alreadyLiked = target ? target.likedBy.includes(user.id) : false;
@@ -303,17 +474,28 @@ export function CommunityProvider({ children }: { children: React.ReactNode }) {
       })
     );
 
-    togglePostLike(postId, user.id, alreadyLiked).catch((err) => {
-      console.warn('Failed to sync like with Supabase:', err);
-    });
+    if (postId.startsWith('post-')) {
+      const overlay = readShowcaseOverlay(user.id);
+      const nextLiked = alreadyLiked
+        ? overlay.likedPostIds.filter((id) => id !== postId)
+        : Array.from(new Set([...overlay.likedPostIds, postId]));
+      writeShowcaseOverlay(user.id, { ...overlay, likedPostIds: nextLiked });
+    } else {
+      togglePostLike(postId, user.id, alreadyLiked).catch((err) => {
+        console.warn('Failed to sync like with Supabase:', err);
+      });
+    }
   };
 
   // Comment on post
   const commentPost = (postId: string, content: string): { success: boolean; error?: string } => {
-    if (!user) return { success: false, error: 'Must be signed in to comment.' };
+    if (!user) {
+      openAuthPrompt('comment on posts');
+      return { success: false, error: 'Must be signed in to comment.' };
+    }
     if (!content.trim()) return { success: false, error: 'Comment cannot be empty.' };
 
-    const newComment = {
+    const newComment: PostComment = {
       id: `comm-${Date.now()}`,
       postId,
       authorId: user.id,
@@ -336,16 +518,28 @@ export function CommunityProvider({ children }: { children: React.ReactNode }) {
       })
     );
 
-    addPostComment(postId, user.id, content.trim()).catch((err) => {
-      console.warn('Failed to sync comment with Supabase:', err);
-    });
+    if (postId.startsWith('post-')) {
+      const overlay = readShowcaseOverlay(user.id);
+      const existing = overlay.addedComments[postId] || [];
+      writeShowcaseOverlay(user.id, {
+        ...overlay,
+        addedComments: { ...overlay.addedComments, [postId]: [...existing, newComment] },
+      });
+    } else {
+      addPostComment(postId, user.id, content.trim()).catch((err) => {
+        console.warn('Failed to sync comment with Supabase:', err);
+      });
+    }
 
     return { success: true };
   };
 
   // Save / Unsave post
   const savePost = (postId: string) => {
-    if (!user) return;
+    if (!user) {
+      openAuthPrompt('save posts');
+      return;
+    }
 
     const alreadySaved = savedPostIds.includes(postId);
     const nextSaved = alreadySaved
@@ -366,9 +560,17 @@ export function CommunityProvider({ children }: { children: React.ReactNode }) {
       })
     );
 
-    togglePostBookmark(postId, user.id, alreadySaved).catch((err) => {
-      console.warn('Failed to sync bookmark with Supabase:', err);
-    });
+    if (postId.startsWith('post-')) {
+      const overlay = readShowcaseOverlay(user.id);
+      const nextOverlaySaved = alreadySaved
+        ? overlay.savedPostIds.filter((id) => id !== postId)
+        : Array.from(new Set([...overlay.savedPostIds, postId]));
+      writeShowcaseOverlay(user.id, { ...overlay, savedPostIds: nextOverlaySaved });
+    } else {
+      togglePostBookmark(postId, user.id, alreadySaved).catch((err) => {
+        console.warn('Failed to sync bookmark with Supabase:', err);
+      });
+    }
   };
 
   // Create learning group
@@ -383,9 +585,11 @@ export function CommunityProvider({ children }: { children: React.ReactNode }) {
     if (!data.name.trim()) return { success: false, error: 'Group name is required.' };
     if (!data.description.trim()) return { success: false, error: 'Group description is required.' };
 
+    const targetCollegeId = currentCollege.id === 'all' ? user.collegeId || 'adypu' : currentCollege.id;
+
     const optimisticGroup: LearningGroup = {
       id: `group-${Date.now()}`,
-      collegeId: currentCollege.id,
+      collegeId: targetCollegeId,
       name: data.name.trim(),
       description: data.description.trim(),
       topic: data.topic.trim(),
@@ -402,7 +606,7 @@ export function CommunityProvider({ children }: { children: React.ReactNode }) {
     setGroups((prev) => [optimisticGroup, ...prev]);
 
     createLearningGroup({
-      collegeId: currentCollege.id,
+      collegeId: targetCollegeId,
       creatorId: user.id,
       name: data.name.trim(),
       description: data.description.trim(),
@@ -422,7 +626,10 @@ export function CommunityProvider({ children }: { children: React.ReactNode }) {
 
   // Join group
   const joinGroup = (groupId: string) => {
-    if (!user) return;
+    if (!user) {
+      openAuthPrompt('join study circles');
+      return;
+    }
     setGroups((prev) =>
       prev.map((group) => {
         if (group.id !== groupId) return group;
@@ -434,14 +641,23 @@ export function CommunityProvider({ children }: { children: React.ReactNode }) {
       })
     );
 
-    joinLearningGroup(groupId, user.id).catch((err) => {
-      console.warn('Failed to join group in DB:', err);
-    });
+    if (groupId.startsWith('group-')) {
+      const overlay = readShowcaseOverlay(user.id);
+      const nextJoined = Array.from(new Set([...overlay.joinedGroupIds, groupId]));
+      writeShowcaseOverlay(user.id, { ...overlay, joinedGroupIds: nextJoined });
+    } else {
+      joinLearningGroup(groupId, user.id).catch((err) => {
+        console.warn('Failed to join group in DB:', err);
+      });
+    }
   };
 
   // Leave group
   const leaveGroup = (groupId: string) => {
-    if (!user) return;
+    if (!user) {
+      openAuthPrompt('manage study circle memberships');
+      return;
+    }
     setGroups((prev) =>
       prev.map((group) => {
         if (group.id !== groupId) return group;
@@ -452,9 +668,15 @@ export function CommunityProvider({ children }: { children: React.ReactNode }) {
       })
     );
 
-    leaveLearningGroup(groupId, user.id).catch((err) => {
-      console.warn('Failed to leave group in DB:', err);
-    });
+    if (groupId.startsWith('group-')) {
+      const overlay = readShowcaseOverlay(user.id);
+      const nextJoined = overlay.joinedGroupIds.filter((id) => id !== groupId);
+      writeShowcaseOverlay(user.id, { ...overlay, joinedGroupIds: nextJoined });
+    } else {
+      leaveLearningGroup(groupId, user.id).catch((err) => {
+        console.warn('Failed to leave group in DB:', err);
+      });
+    }
   };
 
   // Send connection request
@@ -613,6 +835,9 @@ export function CommunityProvider({ children }: { children: React.ReactNode }) {
         getConnectionRecord,
         refreshConnections,
         switchCollege,
+        authPromptAction,
+        openAuthPrompt,
+        closeAuthPrompt,
         isLoading,
       }}
     >

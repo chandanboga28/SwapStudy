@@ -29,13 +29,13 @@ export default function HomePage() {
   if (!isHydrated || isLoading || user) {
     return (
       <div
-        className="flex min-h-screen w-full items-center justify-center bg-[#171715]"
+        className="flex min-h-screen w-full items-center justify-center bg-[#F5F8FF]"
         role="status"
         aria-label="Checking session"
       >
         <div className="flex flex-col items-center gap-3">
-          <div className="h-9 w-9 animate-spin rounded-full border-2 border-[#37332E] border-t-[#F1ECE5]" />
-          <span className="text-xs font-medium tracking-wide text-[#9A958D]">
+          <div className="h-9 w-9 animate-spin rounded-full border-2 border-[#DCE7FF] border-t-[#2855D9]" />
+          <span className="text-xs font-semibold tracking-wide text-[#17213A]">
             SwapStudy
           </span>
         </div>

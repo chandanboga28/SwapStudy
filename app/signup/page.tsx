@@ -116,20 +116,20 @@ export default function SignupPage() {
 
   if (needsEmailConfirmation) {
     return (
-      <div className="flex-1 flex items-center justify-center px-4 py-12 bg-[#171715]">
-        <div className="w-full max-w-md bg-[#22211F] border border-[#37332E] rounded-2xl p-8 text-center space-y-6 shadow-2xl">
-          <div className="w-14 h-14 rounded-2xl bg-[#65C995]/15 border border-[#65C995]/30 text-[#65C995] flex items-center justify-center mx-auto">
+      <div className="flex-1 flex items-center justify-center px-4 py-12">
+        <div className="w-full max-w-md bg-[#F8F6F0] border-[1.5px] border-[#4A4E57] shadow-[4px_4px_0_#C5C0B4] rounded-2xl p-8 text-center space-y-6">
+          <div className="w-14 h-14 rounded-2xl bg-[#DCF2E4] border border-[#47785B] text-[#195434] flex items-center justify-center mx-auto">
             <CheckCircle2 className="w-7 h-7" />
           </div>
           <div className="space-y-2">
-            <h1 className="text-2xl font-extrabold text-[#F7F5F0]">Check your inbox</h1>
-            <p className="text-sm text-[#AAA69F] leading-relaxed">
-              We sent a confirmation link to <strong className="text-[#F7F5F0]">{email}</strong>. Verify your email address, then log in to start swapping skills.
+            <h1 className="text-2xl font-extrabold text-[#1F2227]">Check your inbox</h1>
+            <p className="text-sm text-[#464B55] leading-relaxed">
+              We sent a confirmation link to <strong className="text-[#1F2227]">{email}</strong>. Verify your email address, then log in to start swapping skills.
             </p>
           </div>
           <Link
             href="/login"
-            className="inline-flex items-center justify-center gap-2 w-full py-3 rounded-full bg-[#FF9B45] hover:bg-[#F5B66B] text-[#171715] text-sm font-bold transition-colors"
+            className="inline-flex items-center justify-center gap-2 w-full py-3 rounded-xl bg-[#3B5CA8] hover:bg-[#314E91] border-[1.5px] border-[#2A3F75] shadow-[0_2.5px_0_#2A3F75] text-[#FFFFFF] text-sm font-bold transition-colors"
           >
             Go to Login
             <ArrowRight className="w-4 h-4" />
@@ -140,18 +140,23 @@ export default function SignupPage() {
   }
 
   return (
-    <div className="flex-1 flex items-center justify-center px-4 sm:px-6 py-12 bg-[#171715]">
-      <div className="w-full max-w-2xl bg-[#22211F] border border-[#37332E] rounded-2xl p-7 sm:p-10 shadow-2xl space-y-8">
+    <div className="flex-1 flex items-center justify-center px-4 sm:px-6 py-12">
+      <div className="w-full max-w-2xl bg-[#F8F6F0] border-[1.5px] border-[#4A4E57] shadow-[4px_4px_0_#C5C0B4] rounded-2xl p-7 sm:p-10 space-y-8">
         {/* Header */}
         <div className="space-y-3">
-          <div className="w-11 h-11 rounded-xl bg-[#FF9B45] text-[#171715] flex items-center justify-center">
-            <Repeat className="w-5 h-5 stroke-[2.4]" />
+          <div className="flex items-center justify-between">
+            <div className="w-11 h-11 rounded-xl bg-[#DCEB8E] border-[1.5px] border-[#4A4E57] shadow-[2px_2px_0_#B9B4A8] text-[#1F2227] flex items-center justify-center">
+              <Repeat className="w-5 h-5 stroke-[2.4]" />
+            </div>
+            <span className="font-mono text-[11px] font-bold px-2.5 py-1 rounded-md bg-[#25282E] text-[#CCE27A] border border-[#4A4E57]">
+              NEW_STUDENT_ONBOARD
+            </span>
           </div>
           <div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold text-[#F7F5F0] tracking-tight">
+            <h1 className="text-2xl sm:text-3xl font-extrabold text-[#1F2227] tracking-tight">
               Create your student account
             </h1>
-            <p className="text-sm sm:text-base text-[#AAA69F] mt-1">
+            <p className="text-sm sm:text-base text-[#464B55] mt-1">
               Get matched with classmates who want to learn what you know and teach what you need.
             </p>
           </div>
@@ -161,35 +166,35 @@ export default function SignupPage() {
           {/* Basic Account Fields */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-[#AAA69F] mb-2">
+              <label className="block text-xs font-mono font-bold uppercase tracking-wider text-[#2F4D96] mb-2">
                 Full Name
               </label>
               <div className="relative">
-                <UserIcon className="w-4 h-4 text-[#AAA69F] absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <UserIcon className="w-4 h-4 text-[#464B55] absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                 <input
                   type="text"
                   required
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="Aarav Sharma"
-                  className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-[#171715] border border-[#37332E] focus:border-[#FF9B45] text-[15px] text-[#F7F5F0] placeholder-[#AAA69F]/60 focus:outline-none"
+                  className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-[#FFFFFF] border-[1.5px] border-[#4A4E57] focus:border-[#3B5CA8] text-[15px] text-[#1F2227] placeholder-[#5A606B] focus:outline-none"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-[#AAA69F] mb-2">
+              <label className="block text-xs font-mono font-bold uppercase tracking-wider text-[#2F4D96] mb-2">
                 Campus Email
               </label>
               <div className="relative">
-                <Mail className="w-4 h-4 text-[#AAA69F] absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <Mail className="w-4 h-4 text-[#464B55] absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                 <input
                   type="email"
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="you@adypu.edu.in"
-                  className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-[#171715] border border-[#37332E] focus:border-[#FF9B45] text-[15px] text-[#F7F5F0] placeholder-[#AAA69F]/60 focus:outline-none"
+                  className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-[#FFFFFF] border-[1.5px] border-[#4A4E57] focus:border-[#3B5CA8] text-[15px] text-[#1F2227] placeholder-[#5A606B] focus:outline-none"
                 />
               </div>
             </div>
@@ -197,11 +202,11 @@ export default function SignupPage() {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-[#AAA69F] mb-2">
+              <label className="block text-xs font-mono font-bold uppercase tracking-wider text-[#2F4D96] mb-2">
                 Password
               </label>
               <div className="relative">
-                <Lock className="w-4 h-4 text-[#AAA69F] absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <Lock className="w-4 h-4 text-[#464B55] absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                 <input
                   type="password"
                   required
@@ -209,24 +214,24 @@ export default function SignupPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Min. 6 characters"
-                  className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-[#171715] border border-[#37332E] focus:border-[#FF9B45] text-[15px] text-[#F7F5F0] placeholder-[#AAA69F]/60 focus:outline-none"
+                  className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-[#FFFFFF] border-[1.5px] border-[#4A4E57] focus:border-[#3B5CA8] text-[15px] text-[#1F2227] placeholder-[#5A606B] focus:outline-none"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-[#AAA69F] mb-2">
+              <label className="block text-xs font-mono font-bold uppercase tracking-wider text-[#2F4D96] mb-2">
                 Major / Program
               </label>
               <div className="relative">
-                <BookOpen className="w-4 h-4 text-[#AAA69F] absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <BookOpen className="w-4 h-4 text-[#464B55] absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                 <input
                   type="text"
                   required
                   value={major}
                   onChange={(e) => setMajor(e.target.value)}
                   placeholder="B.Tech Computer Science"
-                  className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-[#171715] border border-[#37332E] focus:border-[#FF9B45] text-[15px] text-[#F7F5F0] placeholder-[#AAA69F]/60 focus:outline-none"
+                  className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-[#FFFFFF] border-[1.5px] border-[#4A4E57] focus:border-[#3B5CA8] text-[15px] text-[#1F2227] placeholder-[#5A606B] focus:outline-none"
                 />
               </div>
             </div>
@@ -234,32 +239,32 @@ export default function SignupPage() {
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div className="sm:col-span-2">
-              <label className="block text-xs font-bold uppercase tracking-wider text-[#AAA69F] mb-2">
+              <label className="block text-xs font-mono font-bold uppercase tracking-wider text-[#2F4D96] mb-2">
                 University
               </label>
               <div className="relative">
-                <GraduationCap className="w-4 h-4 text-[#AAA69F] absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <GraduationCap className="w-4 h-4 text-[#464B55] absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                 <input
                   type="text"
                   required
                   value={university}
                   onChange={(e) => setUniversity(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-[#171715] border border-[#37332E] focus:border-[#FF9B45] text-[15px] text-[#F7F5F0] focus:outline-none"
+                  className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-[#FFFFFF] border-[1.5px] border-[#4A4E57] focus:border-[#3B5CA8] text-[15px] text-[#1F2227] focus:outline-none"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-[#AAA69F] mb-2">
+              <label className="block text-xs font-mono font-bold uppercase tracking-wider text-[#2F4D96] mb-2">
                 Grad Year
               </label>
               <select
                 value={graduationYear}
                 onChange={(e) => setGraduationYear(e.target.value)}
-                className="w-full px-3.5 py-2.5 rounded-xl bg-[#171715] border border-[#37332E] focus:border-[#FF9B45] text-[15px] text-[#F7F5F0] focus:outline-none"
+                className="w-full px-3.5 py-2.5 rounded-xl bg-[#FFFFFF] border-[1.5px] border-[#4A4E57] focus:border-[#3B5CA8] text-[15px] text-[#1F2227] focus:outline-none"
               >
                 {['2025', '2026', '2027', '2028', '2029', '2030'].map((yr) => (
-                  <option key={yr} value={yr} className="bg-[#22211F]">
+                  <option key={yr} value={yr} className="bg-[#FFFFFF]">
                     {yr}
                   </option>
                 ))}
@@ -270,8 +275,8 @@ export default function SignupPage() {
           {/* Skills Tag Builders */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 pt-2">
             {/* Can Teach */}
-            <div className="bg-[#2B2824] border border-[#37332E] rounded-xl p-4 space-y-3">
-              <label className="block text-xs font-bold uppercase tracking-wider text-[#FF9B45]">
+            <div className="bg-[#E6E3DA] border-[1.5px] border-[#4A4E57] rounded-xl p-4 space-y-3">
+              <label className="block text-xs font-mono font-bold uppercase tracking-wider text-[#9E3922]">
                 Skills You Can Teach
               </label>
               <div className="flex gap-2">
@@ -286,12 +291,12 @@ export default function SignupPage() {
                     }
                   }}
                   placeholder="e.g. Python, Figma"
-                  className="flex-1 min-w-0 px-3 py-2 rounded-xl bg-[#171715] border border-[#37332E] focus:border-[#FF9B45] text-sm text-[#F7F5F0] placeholder-[#AAA69F]/60 focus:outline-none"
+                  className="flex-1 min-w-0 px-3 py-2 rounded-lg bg-[#FFFFFF] border-[1.5px] border-[#4A4E57] focus:border-[#3B5CA8] text-sm text-[#1F2227] placeholder-[#5A606B] focus:outline-none"
                 />
                 <button
                   type="button"
                   onClick={() => addTag(teachInput, setTeachInput, skillsToTeach, setSkillsToTeach)}
-                  className="px-3 py-2 rounded-xl bg-[#FF9B45] hover:bg-[#F5B66B] text-[#171715] font-bold transition-colors shrink-0 cursor-pointer"
+                  className="px-3 py-2 rounded-lg bg-[#C25138] hover:bg-[#AE442D] border-[1.5px] border-[#7A3222] text-[#FFFFFF] font-bold transition-colors shrink-0 cursor-pointer"
                   aria-label="Add skill to teach"
                 >
                   <Plus className="w-4 h-4" />
@@ -302,7 +307,7 @@ export default function SignupPage() {
                   {skillsToTeach.map((tag) => (
                     <span
                       key={tag}
-                      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#171715] border border-[#37332E] text-xs font-semibold text-[#F7F5F0]"
+                      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-[#F8F6F0] border border-[#4A4E57] text-xs font-bold text-[#1F2227]"
                     >
                       {tag}
                       <button
@@ -310,7 +315,7 @@ export default function SignupPage() {
                         onClick={() =>
                           setSkillsToTeach(skillsToTeach.filter((t) => t !== tag))
                         }
-                        className="text-[#AAA69F] hover:text-[#F07878]"
+                        className="text-[#464B55] hover:text-[#8F2618] cursor-pointer"
                       >
                         <X className="w-3 h-3" />
                       </button>
@@ -321,8 +326,8 @@ export default function SignupPage() {
             </div>
 
             {/* Want to Learn */}
-            <div className="bg-[#2B2824] border border-[#37332E] rounded-xl p-4 space-y-3">
-              <label className="block text-xs font-bold uppercase tracking-wider text-[#65C995]">
+            <div className="bg-[#E6E3DA] border-[1.5px] border-[#4A4E57] rounded-xl p-4 space-y-3">
+              <label className="block text-xs font-mono font-bold uppercase tracking-wider text-[#195434]">
                 Skills You Want to Learn
               </label>
               <div className="flex gap-2">
@@ -337,12 +342,12 @@ export default function SignupPage() {
                     }
                   }}
                   placeholder="e.g. React, UI Design"
-                  className="flex-1 min-w-0 px-3 py-2 rounded-xl bg-[#171715] border border-[#37332E] focus:border-[#FF9B45] text-sm text-[#F7F5F0] placeholder-[#AAA69F]/60 focus:outline-none"
+                  className="flex-1 min-w-0 px-3 py-2 rounded-lg bg-[#FFFFFF] border-[1.5px] border-[#4A4E57] focus:border-[#3B5CA8] text-sm text-[#1F2227] placeholder-[#5A606B] focus:outline-none"
                 />
                 <button
                   type="button"
                   onClick={() => addTag(learnInput, setLearnInput, skillsToLearn, setSkillsToLearn)}
-                  className="px-3 py-2 rounded-xl bg-[#65C995] hover:bg-[#53b984] text-[#171715] font-bold transition-colors shrink-0 cursor-pointer"
+                  className="px-3 py-2 rounded-lg bg-[#8AD7A8] hover:bg-[#77CA97] border-[1.5px] border-[#47785B] text-[#18241C] font-bold transition-colors shrink-0 cursor-pointer"
                   aria-label="Add skill to learn"
                 >
                   <Plus className="w-4 h-4" />
@@ -353,7 +358,7 @@ export default function SignupPage() {
                   {skillsToLearn.map((tag) => (
                     <span
                       key={tag}
-                      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#171715] border border-[#37332E] text-xs font-semibold text-[#F7F5F0]"
+                      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-[#F8F6F0] border border-[#4A4E57] text-xs font-bold text-[#1F2227]"
                     >
                       {tag}
                       <button
@@ -361,7 +366,7 @@ export default function SignupPage() {
                         onClick={() =>
                           setSkillsToLearn(skillsToLearn.filter((t) => t !== tag))
                         }
-                        className="text-[#AAA69F] hover:text-[#F07878]"
+                        className="text-[#464B55] hover:text-[#8F2618] cursor-pointer"
                       >
                         <X className="w-3 h-3" />
                       </button>
@@ -373,7 +378,7 @@ export default function SignupPage() {
           </div>
 
           {errorMsg && (
-            <div className="flex items-start gap-2.5 p-3.5 rounded-xl bg-[#F07878]/10 border border-[#F07878]/30 text-sm text-[#F07878]">
+            <div className="flex items-start gap-2.5 p-3.5 rounded-xl bg-[#FCE7E3] border border-[#B34B39] text-sm font-medium text-[#8F2618]">
               <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
               <span>{errorMsg}</span>
             </div>
@@ -382,7 +387,7 @@ export default function SignupPage() {
           <button
             type="submit"
             disabled={submitting}
-            className="w-full inline-flex items-center justify-center gap-2 py-3.5 rounded-full bg-[#FF9B45] hover:bg-[#F5B66B] disabled:opacity-50 text-[#171715] text-base font-bold transition-colors cursor-pointer"
+            className="w-full inline-flex items-center justify-center gap-2 py-3.5 rounded-xl bg-[#3B5CA8] hover:bg-[#314E91] disabled:opacity-50 border-[1.5px] border-[#2A3F75] shadow-[0_2.5px_0_#2A3F75] text-[#FFFFFF] text-base font-bold transition-colors cursor-pointer"
           >
             {submitting ? (
               <>
@@ -398,9 +403,9 @@ export default function SignupPage() {
           </button>
         </form>
 
-        <p className="text-center text-sm text-[#AAA69F]">
+        <p className="text-center text-sm text-[#464B55]">
           Already have an account?{' '}
-          <Link href="/login" className="font-bold text-[#FF9B45] hover:text-[#F5B66B]">
+          <Link href="/login" className="font-bold text-[#2F4D96] hover:underline">
             Log in
           </Link>
         </p>

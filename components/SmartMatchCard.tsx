@@ -56,17 +56,17 @@ export default function SmartMatchCard({
   };
 
   return (
-    <div className="bg-[#22211F] border border-[#37332E] hover:border-[#4F4942] rounded-2xl p-6 flex flex-col justify-between transition-all duration-200">
+    <div className="bg-[#F8F6F0] border-[1.5px] border-[#4A4E57] shadow-[3.5px_3.5px_0_#C5C0B4] hover:-translate-y-0.5 hover:shadow-[4.5px_4.5px_0_#B5B0A3] rounded-2xl p-6 flex flex-col justify-between transition-all duration-200">
       <div>
-        {/* Header: Tier Badge & Score */}
+        {/* Header: Tier Badge & OLED Score */}
         <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
           <span
-            className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border ${
+            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md font-mono text-[11px] font-bold border ${
               isMutual
-                ? 'bg-[#65C995]/15 text-[#65C995] border-[#65C995]/30'
+                ? 'bg-[#DCF2E4] text-[#195434] border-[#47785B]'
                 : isOneWayLearn
-                ? 'bg-[#FF9B45]/15 text-[#FF9B45] border-[#FF9B45]/30'
-                : 'bg-[#F5B66B]/15 text-[#F5B66B] border-[#F5B66B]/30'
+                ? 'bg-[#DCEB8E] text-[#1F2227] border-[#4A4E57]'
+                : 'bg-[#F4DC82] text-[#1F2227] border-[#4A4E57]'
             }`}
           >
             {isMutual ? (
@@ -79,8 +79,8 @@ export default function SmartMatchCard({
             {compatibilityTier}
           </span>
 
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#171715] border border-[#37332E] text-xs font-bold text-[#F7F5F0]">
-            <span className="text-[#FF9B45] tabular-nums">{score}%</span> Match
+          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-[#25282E] border border-[#4A4E57] font-mono text-[11px] font-bold text-[#F2EFE8]">
+            <span className="text-[#CCE27A] tabular-nums">{score}%</span> MATCH
           </div>
         </div>
 
@@ -94,7 +94,7 @@ export default function SmartMatchCard({
             <img
               src={candidate.avatar}
               alt={candidate.name}
-              className="w-12 h-12 rounded-full object-cover border border-[#37332E] group-hover:border-[#FF9B45] transition-colors bg-[#171715]"
+              className="w-12 h-12 rounded-xl object-cover border-[1.5px] border-[#4A4E57] group-hover:border-[#3B5CA8] transition-colors bg-[#EFECE4]"
             />
           </button>
           <div className="min-w-0 flex-1">
@@ -103,19 +103,19 @@ export default function SmartMatchCard({
               onClick={() => onViewProfile(candidate.id)}
               className="text-left group cursor-pointer"
             >
-              <h3 className="text-lg font-bold text-[#F7F5F0] group-hover:text-[#FF9B45] transition-colors truncate">
+              <h3 className="text-lg font-extrabold text-[#1F2227] group-hover:text-[#2F4D96] transition-colors truncate">
                 {candidate.name}
               </h3>
             </button>
-            <p className="text-xs text-[#AAA69F] flex items-center gap-1.5 mt-0.5 truncate">
-              <GraduationCap className="w-3.5 h-3.5 text-[#AAA69F] shrink-0" />
-              <span className="truncate">
+            <p className="text-xs text-[#464B55] flex items-center gap-1.5 mt-0.5 truncate">
+              <GraduationCap className="w-3.5 h-3.5 text-[#464B55] shrink-0" />
+              <span className="truncate font-medium">
                 {candidate.major || 'Student'} · {candidate.university}
               </span>
             </p>
-            <div className="flex items-center gap-3 mt-1.5 text-xs text-[#AAA69F]">
-              <span className="inline-flex items-center gap-1 font-semibold text-[#F7F5F0]">
-                <Star className="w-3.5 h-3.5 text-[#FF9B45] fill-[#FF9B45]" />
+            <div className="flex items-center gap-3 mt-1.5 text-xs font-medium text-[#464B55]">
+              <span className="inline-flex items-center gap-1 font-bold text-[#1F2227]">
+                <Star className="w-3.5 h-3.5 text-[#8A6500] fill-[#F4DC82]" />
                 {candidate.repRating > 0 ? candidate.repRating.toFixed(1) : 'New'}
               </span>
               <span>{candidate.totalHoursTaught}h taught</span>
@@ -124,54 +124,54 @@ export default function SmartMatchCard({
         </div>
 
         {/* Exchange Breakdown Box */}
-        <div className="bg-[#2B2824] border border-[#37332E] rounded-xl p-4 space-y-3 mb-4">
+        <div className="bg-[#E6E3DA] border-[1.5px] border-[#4A4E57] rounded-xl p-4 space-y-2.5 mb-4">
           {isMutual ? (
             <>
               <div className="flex items-start justify-between gap-2 text-sm">
-                <span className="text-xs font-semibold text-[#AAA69F] uppercase tracking-wider shrink-0 pt-0.5">
+                <span className="font-mono text-[11px] font-bold text-[#464B55] uppercase tracking-wider shrink-0 pt-0.5">
                   They teach
                 </span>
-                <span className="font-bold text-[#F7F5F0] text-right truncate">
+                <span className="font-bold text-[#1F2227] text-right truncate">
                   {matchedListing?.title || skillTheyTeach}
                 </span>
               </div>
-              <div className="border-t border-[#37332E]" />
+              <div className="border-t border-dashed border-[#A8A396]" />
               <div className="flex items-start justify-between gap-2 text-sm">
-                <span className="text-xs font-semibold text-[#AAA69F] uppercase tracking-wider shrink-0 pt-0.5">
+                <span className="font-mono text-[11px] font-bold text-[#2F4D96] uppercase tracking-wider shrink-0 pt-0.5">
                   You offer
                 </span>
-                <span className="font-bold text-[#FF9B45] text-right truncate">
+                <span className="font-bold text-[#2F4D96] text-right truncate">
                   {skillYouTeach || 'Mutual Skill'}
                 </span>
               </div>
             </>
           ) : isOneWayLearn ? (
             <div className="flex items-start justify-between gap-2 text-sm">
-              <span className="text-xs font-semibold text-[#AAA69F] uppercase tracking-wider shrink-0 pt-0.5">
+              <span className="font-mono text-[11px] font-bold text-[#464B55] uppercase tracking-wider shrink-0 pt-0.5">
                 Available
               </span>
-              <span className="font-bold text-[#F7F5F0] text-right truncate">
+              <span className="font-bold text-[#1F2227] text-right truncate">
                 {matchedListing?.title || skillTheyTeach}
               </span>
             </div>
           ) : (
             <div className="flex items-start justify-between gap-2 text-sm">
-              <span className="text-xs font-semibold text-[#AAA69F] uppercase tracking-wider shrink-0 pt-0.5">
+              <span className="font-mono text-[11px] font-bold text-[#9E3922] uppercase tracking-wider shrink-0 pt-0.5">
                 Needs Help In
               </span>
-              <span className="font-bold text-[#F5B66B] text-right truncate">
+              <span className="font-bold text-[#1F2227] text-right truncate">
                 {skillYouTeach || 'Your Skill'}
               </span>
             </div>
           )}
 
           {matchedListing && (
-            <div className="pt-2 border-t border-[#37332E] flex items-center justify-between text-xs text-[#AAA69F]">
+            <div className="pt-2 border-t border-dashed border-[#A8A396] flex items-center justify-between text-xs font-mono font-bold text-[#464B55]">
               <span className="inline-flex items-center gap-1">
                 <Clock className="w-3.5 h-3.5" />
-                {matchedListing.sessionDurationMinutes} min
+                {matchedListing.sessionDurationMinutes}m
               </span>
-              <span className="inline-flex items-center gap-1 font-bold text-[#FF9B45]">
+              <span className="inline-flex items-center gap-1 text-[#2F4D96]">
                 <Coins className="w-3.5 h-3.5" />
                 {creditCost} {creditCost === 1 ? 'Credit' : 'Credits'}
               </span>
@@ -180,36 +180,36 @@ export default function SmartMatchCard({
         </div>
 
         {/* Explanation */}
-        <p className="text-sm text-[#AAA69F] leading-relaxed mb-5 line-clamp-2">
+        <p className="text-sm text-[#3A3E47] leading-relaxed mb-5 line-clamp-2">
           {explanation}
         </p>
       </div>
 
       {/* Footer Actions */}
-      <div className="space-y-2.5 pt-3 border-t border-[#37332E]">
+      <div className="space-y-2.5 pt-3 border-t border-dashed border-[#B9B4A8]">
         {!isExistingRequestPending && isOneWayLearn && !hasEnoughCredits && creditsNeeded > 0 && (
-          <p className="text-xs font-medium text-[#F5B66B] bg-[#F5B66B]/10 border border-[#F5B66B]/25 rounded-lg px-3 py-2">
+          <p className="text-xs font-bold text-[#5C4609] bg-[#FBF0C9] border border-[#8C7228] rounded-lg px-3 py-2">
             You need {creditsNeeded} more {creditsNeeded === 1 ? 'credit' : 'credits'} to book. Teach a session to earn credits.
           </p>
         )}
 
         <div className="flex items-center gap-2.5">
           {isExistingRequestPending ? (
-            <div className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-full bg-[#2B2824] border border-[#37332E] text-sm font-bold text-[#AAA69F]">
-              <CheckCircle2 className="w-4 h-4 text-[#65C995]" />
-              {existingSessionStatus === 'confirmed' ? 'Session Confirmed' : 'Request Pending'}
+            <div className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-[#DCF2E4] border-[1.5px] border-[#47785B] text-xs font-mono font-bold text-[#195434]">
+              <CheckCircle2 className="w-4 h-4 text-[#195434]" />
+              {existingSessionStatus === 'confirmed' ? 'SESSION_CONFIRMED' : 'REQUEST_PENDING'}
             </div>
           ) : (
             <button
               type="button"
               onClick={handlePrimaryAction}
-              className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-full bg-[#FF9B45] hover:bg-[#F5B66B] text-[#171715] text-sm font-bold transition-colors cursor-pointer"
+              className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-[#3B5CA8] hover:bg-[#314E91] border-[1.5px] border-[#2A3F75] shadow-[0_2px_0_#2A3F75] text-[#FFFFFF] text-xs font-mono font-bold transition-colors cursor-pointer"
             >
               {isMutual
-                ? 'Request Exchange'
+                ? 'PATCH_EXCHANGE'
                 : isOneWayLearn
-                ? 'Request Session'
-                : 'Connect to Teach'}
+                ? 'REQUEST_SLOT'
+                : 'CONNECT_TO_TEACH'}
               <ArrowRight className="w-4 h-4" />
             </button>
           )}
@@ -217,11 +217,11 @@ export default function SmartMatchCard({
           <button
             type="button"
             onClick={() => onViewProfile(candidate.id)}
-            className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2.5 rounded-full bg-[#2B2824] hover:bg-[#37332E] border border-[#37332E] text-sm font-semibold text-[#F7F5F0] transition-colors shrink-0 cursor-pointer"
+            className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-[#E6E3DA] hover:bg-[#EFECE4] border-[1.5px] border-[#4A4E57] shadow-[0_2px_0_#9D998F] text-xs font-mono font-bold text-[#1F2227] transition-colors shrink-0 cursor-pointer"
             title="View Student Profile"
           >
-            <UserIcon className="w-4 h-4 text-[#AAA69F]" />
-            <span className="hidden sm:inline">Profile</span>
+            <UserIcon className="w-4 h-4 text-[#464B55]" />
+            <span className="hidden sm:inline">PROFILE</span>
           </button>
         </div>
       </div>

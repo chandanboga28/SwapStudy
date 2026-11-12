@@ -90,22 +90,22 @@ export default function BookingModal({ skill, onClose, onSuccess }: BookingModal
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-xs">
-      <div className="w-full max-w-lg bg-[#22211F] border border-[#37332E] rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#1F2227]/45 backdrop-blur-xs">
+      <div className="w-full max-w-lg bg-[#F8F6F0] border-[1.5px] border-[#4A4E57] shadow-[3.5px_3.5px_0_#C5C0B4] rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
         {/* Modal Header */}
-        <div className="px-6 py-5 border-b border-[#37332E] flex items-start justify-between gap-4 bg-[#1B1A18]">
+        <div className="px-6 py-5 border-b border-[#CEC9BC] flex items-start justify-between gap-4 bg-[#E6E3DA]">
           <div>
-            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-[#2B2824] border border-[#37332E] text-[#FF9B45] mb-2">
+            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-[#E6E3DA] border border-[#4A4E57] text-[#2F4D96] mb-2">
               {skill.category}
             </span>
-            <h2 className="text-xl font-bold text-[#F7F5F0] leading-snug">
+            <h2 className="text-xl font-bold text-[#1F2227] leading-snug">
               {isSuccess ? 'Session Request Sent' : 'Request Learning Session'}
             </h2>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="p-2 rounded-xl text-[#AAA69F] hover:text-[#F7F5F0] hover:bg-[#2B2824] transition-colors cursor-pointer"
+            className="p-2 rounded-xl text-[#464B55] hover:text-[#1F2227] hover:bg-[#E6E3DA] transition-colors cursor-pointer"
             aria-label="Close modal"
           >
             <X className="w-5 h-5" />
@@ -114,15 +114,15 @@ export default function BookingModal({ skill, onClose, onSuccess }: BookingModal
 
         {isSuccess ? (
           <div className="p-6 sm:p-7 space-y-6 text-center">
-            <div className="w-14 h-14 rounded-2xl bg-[#65C995]/15 border border-[#65C995]/30 text-[#65C995] flex items-center justify-center mx-auto">
+            <div className="w-14 h-14 rounded-2xl bg-[#DCF2E4] border border-[#47785B] text-[#195434] flex items-center justify-center mx-auto">
               <CheckCircle2 className="w-7 h-7" />
             </div>
 
             <div className="space-y-2">
-              <h3 className="text-lg font-bold text-[#F7F5F0]">{skill.title}</h3>
-              <p className="text-sm text-[#AAA69F] leading-relaxed">
-                Your booking request with <span className="text-[#F7F5F0] font-semibold">{skill.teacherName}</span> for{' '}
-                <span className="text-[#F7F5F0] font-semibold">{date} at {time} IST</span> has been submitted.
+              <h3 className="text-lg font-bold text-[#1F2227]">{skill.title}</h3>
+              <p className="text-sm text-[#464B55] leading-relaxed">
+                Your booking request with <span className="text-[#1F2227] font-semibold">{skill.teacherName}</span> for{' '}
+                <span className="text-[#1F2227] font-semibold">{date} at {time} IST</span> has been submitted.
                 {' '}{skill.hourlyCredits} {skill.hourlyCredits === 1 ? 'credit is' : 'credits are'} safely held in escrow until completion.
               </p>
             </div>
@@ -131,7 +131,7 @@ export default function BookingModal({ skill, onClose, onSuccess }: BookingModal
               <Link
                 href="/sessions"
                 onClick={onClose}
-                className="flex-1 inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-full bg-[#FF9B45] hover:bg-[#F5B66B] text-[#171715] text-sm font-bold transition-colors"
+                className="flex-1 inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-full bg-[#3B5CA8] hover:bg-[#314E91] border-[1.5px] border-[#2A3F75] shadow-[0_2px_0_#2A3F75] text-[#FFFFFF] text-sm font-bold transition-colors"
               >
                 View My Sessions
                 <ArrowRight className="w-4 h-4" />
@@ -139,7 +139,7 @@ export default function BookingModal({ skill, onClose, onSuccess }: BookingModal
               <button
                 type="button"
                 onClick={onClose}
-                className="px-5 py-2.5 rounded-full bg-[#2B2824] hover:bg-[#37332E] border border-[#37332E] text-sm font-semibold text-[#F7F5F0] transition-colors cursor-pointer"
+                className="px-5 py-2.5 rounded-full bg-[#E6E3DA] hover:bg-[#DCD8CD] border border-[#4A4E57] text-sm font-semibold text-[#1F2227] transition-colors cursor-pointer"
               >
                 Done
               </button>
@@ -148,44 +148,44 @@ export default function BookingModal({ skill, onClose, onSuccess }: BookingModal
         ) : (
           <form onSubmit={handleSubmit} className="p-6 space-y-5">
             {/* Skill Summary Card */}
-            <div className="bg-[#2B2824] border border-[#37332E] rounded-xl p-4 flex items-center justify-between gap-4">
+            <div className="bg-[#E6E3DA] border border-[#4A4E57] rounded-xl p-4 flex items-center justify-between gap-4">
               <div className="flex items-center gap-3 min-w-0">
                 <img
                   src={skill.teacherAvatar}
                   alt={skill.teacherName}
-                  className="w-11 h-11 rounded-full object-cover border border-[#37332E] bg-[#171715] shrink-0"
+                  className="w-11 h-11 rounded-full object-cover border border-[#4A4E57] bg-[#EFECE4] shrink-0"
                 />
                 <div className="min-w-0">
-                  <p className="text-sm font-bold text-[#F7F5F0] truncate">{skill.title}</p>
-                  <p className="text-xs text-[#AAA69F] truncate">
+                  <p className="text-sm font-bold text-[#1F2227] truncate">{skill.title}</p>
+                  <p className="text-xs text-[#464B55] truncate">
                     Mentor: {skill.teacherName} · {skill.sessionDurationMinutes} min
                   </p>
                 </div>
               </div>
 
-              <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#171715] border border-[#37332E] text-sm font-bold text-[#FF9B45] shrink-0">
+              <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#EFECE4] border border-[#4A4E57] text-sm font-bold text-[#2F4D96] shrink-0">
                 <Coins className="w-4 h-4" />
                 {skill.hourlyCredits}
               </div>
             </div>
 
             {!user ? (
-              <div className="bg-[#2B2824] border border-[#37332E] rounded-xl p-5 text-center space-y-4">
-                <p className="text-sm text-[#AAA69F]">
+              <div className="bg-[#E6E3DA] border border-[#4A4E57] rounded-xl p-5 text-center space-y-4">
+                <p className="text-sm text-[#464B55]">
                   Sign in to book peer sessions and manage time-credit escrow safely.
                 </p>
                 <div className="flex items-center justify-center gap-3">
                   <Link
                     href="/login"
                     onClick={onClose}
-                    className="px-5 py-2 rounded-full bg-[#FF9B45] hover:bg-[#F5B66B] text-[#171715] text-sm font-bold"
+                    className="px-5 py-2 rounded-full bg-[#3B5CA8] hover:bg-[#314E91] border-[1.5px] border-[#2A3F75] shadow-[0_2px_0_#2A3F75] text-[#FFFFFF] text-sm font-bold"
                   >
                     Log in
                   </Link>
                   <Link
                     href="/signup"
                     onClick={onClose}
-                    className="px-5 py-2 rounded-full bg-[#22211F] border border-[#37332E] text-[#F7F5F0] text-sm font-semibold"
+                    className="px-5 py-2 rounded-full bg-[#F8F6F0] border border-[#4A4E57] text-[#1F2227] text-sm font-semibold"
                   >
                     Sign up
                   </Link>
@@ -194,14 +194,14 @@ export default function BookingModal({ skill, onClose, onSuccess }: BookingModal
             ) : (
               <>
                 {isOwnSkill && (
-                  <div className="flex items-start gap-2.5 p-3.5 rounded-xl bg-[#F07878]/10 border border-[#F07878]/30 text-sm text-[#F07878]">
+                  <div className="flex items-start gap-2.5 p-3.5 rounded-xl bg-[#FCE7E3] border border-[#B34B39] text-sm text-[#8F2618]">
                     <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
                     <span>This is your own skill listing. Choose another mentor&apos;s skill to learn.</span>
                   </div>
                 )}
 
                 {!isOwnSkill && !hasEnoughCredits && (
-                  <div className="flex items-start justify-between gap-3 p-3.5 rounded-xl bg-[#F5B66B]/10 border border-[#F5B66B]/30 text-sm text-[#F5B66B]">
+                  <div className="flex items-start justify-between gap-3 p-3.5 rounded-xl bg-[#FBF0C9] border border-[#8C7228] text-sm font-semibold text-[#5C4609]">
                     <div className="flex items-start gap-2.5">
                       <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
                       <span>
@@ -222,34 +222,34 @@ export default function BookingModal({ skill, onClose, onSuccess }: BookingModal
                 {/* Date & Time Row */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-xs font-bold uppercase tracking-wider text-[#AAA69F] mb-2">
+                    <label className="block text-xs font-bold uppercase tracking-wider text-[#464B55] mb-2">
                       Preferred Date (IST)
                     </label>
                     <div className="relative">
-                      <Calendar className="w-4 h-4 text-[#AAA69F] absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                      <Calendar className="w-4 h-4 text-[#464B55] absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                       <input
                         type="date"
                         min={minDate}
                         value={date}
                         onChange={(e) => setDate(e.target.value)}
                         required
-                        className="w-full pl-10 pr-3.5 py-2.5 rounded-xl bg-[#171715] border border-[#37332E] focus:border-[#FF9B45] text-sm text-[#F7F5F0] focus:outline-none"
+                        className="w-full pl-10 pr-3.5 py-2.5 rounded-xl bg-[#FFFFFF] border-[1.5px] border-[#4A4E57] focus:border-[#3B5CA8] text-sm text-[#1F2227] focus:outline-none"
                       />
                     </div>
                   </div>
 
                   <div>
-                    <label className="block text-xs font-bold uppercase tracking-wider text-[#AAA69F] mb-2">
+                    <label className="block text-xs font-bold uppercase tracking-wider text-[#464B55] mb-2">
                       Start Time (IST)
                     </label>
                     <div className="relative">
-                      <Clock className="w-4 h-4 text-[#AAA69F] absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                      <Clock className="w-4 h-4 text-[#464B55] absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                       <input
                         type="time"
                         value={time}
                         onChange={(e) => setTime(e.target.value)}
                         required
-                        className="w-full pl-10 pr-3.5 py-2.5 rounded-xl bg-[#171715] border border-[#37332E] focus:border-[#FF9B45] text-sm text-[#F7F5F0] focus:outline-none"
+                        className="w-full pl-10 pr-3.5 py-2.5 rounded-xl bg-[#FFFFFF] border-[1.5px] border-[#4A4E57] focus:border-[#3B5CA8] text-sm text-[#1F2227] focus:outline-none"
                       />
                     </div>
                   </div>
@@ -257,7 +257,7 @@ export default function BookingModal({ skill, onClose, onSuccess }: BookingModal
 
                 {/* Notes */}
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-[#AAA69F] mb-2">
+                  <label className="block text-xs font-bold uppercase tracking-wider text-[#464B55] mb-2">
                     Learning Goals (Optional)
                   </label>
                   <textarea
@@ -265,21 +265,21 @@ export default function BookingModal({ skill, onClose, onSuccess }: BookingModal
                     value={notes}
                     onChange={(e) => setNotes(e.target.value)}
                     placeholder="Share what specific concepts or questions you want to cover..."
-                    className="w-full px-4 py-3 rounded-xl bg-[#171715] border border-[#37332E] focus:border-[#FF9B45] text-sm text-[#F7F5F0] placeholder-[#AAA69F]/60 focus:outline-none resize-none"
+                    className="w-full px-4 py-3 rounded-xl bg-[#FFFFFF] border-[1.5px] border-[#4A4E57] focus:border-[#3B5CA8] text-sm text-[#1F2227] placeholder-[#5A606B] focus:outline-none resize-none"
                   />
                 </div>
 
                 {/* Escrow Notice */}
-                <div className="flex items-start gap-2.5 p-3.5 rounded-xl bg-[#171715] border border-[#37332E] text-xs text-[#AAA69F] leading-relaxed">
-                  <ShieldCheck className="w-4 h-4 text-[#65C995] shrink-0 mt-0.5" />
+                <div className="flex items-start gap-2.5 p-3.5 rounded-xl bg-[#EFECE4] border border-[#4A4E57] text-xs text-[#464B55] leading-relaxed">
+                  <ShieldCheck className="w-4 h-4 text-[#195434] shrink-0 mt-0.5" />
                   <span>
-                    <strong className="text-[#F7F5F0]">Escrow Protection:</strong>{' '}
+                    <strong className="text-[#1F2227]">Escrow Protection:</strong>{' '}
                     {skill.hourlyCredits} {skill.hourlyCredits === 1 ? 'credit' : 'credits'} will be reserved when you send this request and released to {skill.teacherName} only after completion. Full refund if declined or cancelled.
                   </span>
                 </div>
 
                 {errorMsg && (
-                  <div className="flex items-start gap-2.5 p-3.5 rounded-xl bg-[#F07878]/10 border border-[#F07878]/30 text-sm text-[#F07878]">
+                  <div className="flex items-start gap-2.5 p-3.5 rounded-xl bg-[#FCE7E3] border border-[#B34B39] text-sm text-[#8F2618]">
                     <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
                     <span>{errorMsg}</span>
                   </div>
@@ -290,14 +290,14 @@ export default function BookingModal({ skill, onClose, onSuccess }: BookingModal
                     type="button"
                     onClick={onClose}
                     disabled={isSubmitting}
-                    className="px-5 py-2.5 rounded-full bg-[#2B2824] hover:bg-[#37332E] border border-[#37332E] text-sm font-semibold text-[#F7F5F0] transition-colors cursor-pointer"
+                    className="px-5 py-2.5 rounded-full bg-[#E6E3DA] hover:bg-[#DCD8CD] border border-[#4A4E57] text-sm font-semibold text-[#1F2227] transition-colors cursor-pointer"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
                     disabled={isSubmitting || isOwnSkill || !hasEnoughCredits}
-                    className="inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-full bg-[#FF9B45] hover:bg-[#F5B66B] disabled:opacity-50 text-[#171715] text-sm font-bold transition-colors cursor-pointer"
+                    className="inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-full bg-[#3B5CA8] hover:bg-[#314E91] disabled:opacity-50 border-[1.5px] border-[#2A3F75] shadow-[0_2px_0_#2A3F75] text-[#FFFFFF] text-sm font-bold transition-colors cursor-pointer"
                   >
                     {isSubmitting ? (
                       <>

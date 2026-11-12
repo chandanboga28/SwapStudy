@@ -294,7 +294,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     }
 
-    setUser({ ...user, ...updatedData });
+    const nextUser = { ...user, ...updatedData };
+    setUser(nextUser);
+    setAllUsers((prev) => prev.map((u) => (u.id === user.id ? { ...u, ...updatedData } : u)));
     return { success: true };
   };
 

@@ -133,9 +133,9 @@ export async function updateUserProfile(
   if (!supabase) return { success: false, error: 'Database not connected' };
 
   try {
-    const payload: Record<string, any> = {
-      updated_at: new Date().toISOString(),
-    };
+    // Column-level UPDATE grant on public.profiles allows only safe user-editable attributes;
+    // updated_at is maintained automatically by the DB trigger tr_protect_profile_integrity.
+    const payload: Record<string, string | string[]> = {};
     if (updates.name !== undefined) payload.name = updates.name;
     if (updates.avatar !== undefined) payload.avatar_url = updates.avatar;
     if (updates.bio !== undefined) payload.bio = updates.bio;
@@ -143,6 +143,10 @@ export async function updateUserProfile(
     if (updates.graduationYear !== undefined) payload.graduation_year = updates.graduationYear;
     if (updates.skillsToTeach !== undefined) payload.skills_to_teach = updates.skillsToTeach;
     if (updates.skillsToLearn !== undefined) payload.skills_to_learn = updates.skillsToLearn;
+
+    if (Object.keys(payload).length === 0) {
+      return { success: true };
+    }
 
     const { error } = await supabase.from('profiles').update(payload).eq('id', userId);
     if (error) return { success: false, error: error.message };

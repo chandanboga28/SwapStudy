@@ -31,23 +31,23 @@ const STATUS_BADGE_MAP: Record<
 > = {
   pending: {
     label: 'Pending',
-    className: 'bg-[#F5B66B]/15 text-[#F5B66B] border-[#F5B66B]/30',
+    className: 'bg-[#FBF0C9] text-[#5C4609] border-[#8C7228]',
   },
   confirmed: {
     label: 'Confirmed',
-    className: 'bg-[#65C995]/15 text-[#65C995] border-[#65C995]/30',
+    className: 'bg-[#DCF2E4] text-[#195434] border-[#47785B]',
   },
   completed: {
     label: 'Completed',
-    className: 'bg-[#FF9B45]/15 text-[#FF9B45] border-[#FF9B45]/30',
+    className: 'bg-[#DCEB8E] text-[#1F2227] border-[#4A4E57]',
   },
   cancelled: {
     label: 'Cancelled',
-    className: 'bg-[#F07878]/15 text-[#F07878] border-[#F07878]/30',
+    className: 'bg-[#FCE7E3] text-[#8F2618] border-[#B34B39]',
   },
   declined: {
     label: 'Declined',
-    className: 'bg-[#F07878]/15 text-[#F07878] border-[#F07878]/30',
+    className: 'bg-[#FCE7E3] text-[#8F2618] border-[#B34B39]',
   },
 };
 
@@ -119,9 +119,9 @@ export default function SessionsPage() {
   if (authLoading || appLoading) {
     return (
       <div className="max-w-6xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-10 space-y-5">
-        <div className="h-24 rounded-2xl bg-[#22211F] border border-[#37332E] animate-pulse" />
-        <div className="h-56 rounded-2xl bg-[#22211F] border border-[#37332E] animate-pulse" />
-        <div className="h-56 rounded-2xl bg-[#22211F] border border-[#37332E] animate-pulse" />
+        <div className="h-24 rounded-2xl bg-[#F8F6F0] border border-[#4A4E57] animate-pulse" />
+        <div className="h-56 rounded-2xl bg-[#F8F6F0] border border-[#4A4E57] animate-pulse" />
+        <div className="h-56 rounded-2xl bg-[#F8F6F0] border border-[#4A4E57] animate-pulse" />
       </div>
     );
   }
@@ -129,24 +129,24 @@ export default function SessionsPage() {
   if (!user) {
     return (
       <div className="flex-1 flex items-center justify-center px-4 py-16">
-        <div className="max-w-md w-full bg-[#22211F] border border-[#37332E] rounded-2xl p-8 text-center space-y-5">
-          <Calendar className="w-10 h-10 text-[#FF9B45] mx-auto" />
+        <div className="max-w-md w-full bg-[#F8F6F0] border-[1.5px] border-[#4A4E57] shadow-[3.5px_3.5px_0_#C5C0B4] rounded-2xl p-8 text-center space-y-5">
+          <Calendar className="w-10 h-10 text-[#2F4D96] mx-auto" />
           <div className="space-y-2">
-            <h1 className="text-2xl font-extrabold text-[#F7F5F0]">Sign in to view Sessions</h1>
-            <p className="text-sm text-[#AAA69F]">
+            <h1 className="text-2xl font-extrabold text-[#1F2227]">Sign in to view Sessions</h1>
+            <p className="text-sm text-[#464B55]">
               Manage your learning bookings, teaching requests, and Google Meet rooms in one place.
             </p>
           </div>
           <div className="flex items-center justify-center gap-3">
             <Link
               href="/login"
-              className="px-6 py-2.5 rounded-full bg-[#FF9B45] hover:bg-[#F5B66B] text-[#171715] text-sm font-bold"
+              className="px-6 py-2.5 rounded-full bg-[#3B5CA8] hover:bg-[#314E91] border-[1.5px] border-[#2A3F75] shadow-[0_2px_0_#2A3F75] text-[#FFFFFF] text-sm font-bold"
             >
               Log in
             </Link>
             <Link
               href="/signup"
-              className="px-6 py-2.5 rounded-full bg-[#2B2824] border border-[#37332E] text-[#F7F5F0] text-sm font-semibold"
+              className="px-6 py-2.5 rounded-full bg-[#E6E3DA] border border-[#4A4E57] text-[#1F2227] text-sm font-semibold"
             >
               Sign up
             </Link>
@@ -161,20 +161,20 @@ export default function SessionsPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
         <div className="space-y-1.5">
-          <p className="text-xs font-bold uppercase tracking-wider text-[#FF9B45]">
+          <p className="text-xs font-bold uppercase tracking-wider text-[#2F4D96]">
             Schedule & Meetings
           </p>
-          <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-[#F7F5F0]">
+          <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-[#1F2227]">
             My Sessions
           </h1>
-          <p className="text-sm sm:text-base text-[#AAA69F]">
+          <p className="text-sm sm:text-base text-[#464B55]">
             Track requests, coordinate Google Meet rooms, and release escrow credits upon completion.
           </p>
         </div>
 
         <Link
           href="/skills"
-          className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-full bg-[#FF9B45] hover:bg-[#F5B66B] text-[#171715] text-sm font-bold transition-colors shrink-0"
+          className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-full bg-[#3B5CA8] hover:bg-[#314E91] border-[1.5px] border-[#2A3F75] shadow-[0_2px_0_#2A3F75] text-[#FFFFFF] text-sm font-bold transition-colors shrink-0"
         >
           Book a Session
           <ArrowUpRight className="w-4 h-4" />
@@ -186,8 +186,8 @@ export default function SessionsPage() {
         <div
           className={`flex items-center justify-between gap-3 px-4 py-3 rounded-2xl border text-sm font-medium ${
             toast.type === 'error'
-              ? 'bg-[#F07878]/10 border-[#F07878]/30 text-[#F07878]'
-              : 'bg-[#65C995]/10 border-[#65C995]/30 text-[#65C995]'
+              ? 'bg-[#FCE7E3] border-[#B34B39] text-[#8F2618]'
+              : 'bg-[#DCF2E4] border-[#47785B] text-[#195434]'
           }`}
         >
           <span className="flex items-center gap-2">
@@ -201,7 +201,7 @@ export default function SessionsPage() {
           <button
             type="button"
             onClick={() => setToast(null)}
-            className="p-1 rounded-lg hover:bg-black/20 cursor-pointer"
+            className="p-1 rounded-lg hover:bg-[#1F2227]/10 cursor-pointer"
           >
             <X className="w-4 h-4" />
           </button>
@@ -209,16 +209,16 @@ export default function SessionsPage() {
       )}
 
       {/* Role Switcher + Status Filter Controls */}
-      <div className="bg-[#22211F] border border-[#37332E] rounded-2xl p-4 sm:p-5 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+      <div className="bg-[#F8F6F0] border-[1.5px] border-[#4A4E57] shadow-[3.5px_3.5px_0_#C5C0B4] rounded-2xl p-4 sm:p-5 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         {/* Role Tabs */}
-        <div className="inline-flex p-1 rounded-full bg-[#171715] border border-[#37332E] self-start">
+        <div className="inline-flex p-1 rounded-full bg-[#EFECE4] border border-[#4A4E57] self-start">
           <button
             type="button"
             onClick={() => setActiveTab('learning')}
             className={`inline-flex items-center gap-2 px-5 py-2 rounded-full text-sm font-bold transition-colors cursor-pointer ${
               activeTab === 'learning'
-                ? 'bg-[#FF9B45] text-[#171715]'
-                : 'text-[#AAA69F] hover:text-[#F7F5F0]'
+                ? 'bg-[#3B5CA8] text-[#FFFFFF]'
+                : 'text-[#464B55] hover:text-[#1F2227]'
             }`}
           >
             <BookOpen className="w-4 h-4" />
@@ -229,8 +229,8 @@ export default function SessionsPage() {
             onClick={() => setActiveTab('teaching')}
             className={`inline-flex items-center gap-2 px-5 py-2 rounded-full text-sm font-bold transition-colors cursor-pointer ${
               activeTab === 'teaching'
-                ? 'bg-[#FF9B45] text-[#171715]'
-                : 'text-[#AAA69F] hover:text-[#F7F5F0]'
+                ? 'bg-[#3B5CA8] text-[#FFFFFF]'
+                : 'text-[#464B55] hover:text-[#1F2227]'
             }`}
           >
             <GraduationCap className="w-4 h-4" />
@@ -249,8 +249,8 @@ export default function SessionsPage() {
               onClick={() => setStatusFilter(status)}
               className={`px-3.5 py-1.5 rounded-full text-xs font-bold capitalize transition-colors cursor-pointer ${
                 statusFilter === status
-                  ? 'bg-[#2B2824] border border-[#FF9B45] text-[#FF9B45]'
-                  : 'bg-[#171715] border border-[#37332E] text-[#AAA69F] hover:text-[#F7F5F0]'
+                  ? 'bg-[#E6E3DA] border border-[#3B5CA8] text-[#2F4D96]'
+                  : 'bg-[#EFECE4] border border-[#4A4E57] text-[#464B55] hover:text-[#1F2227]'
               }`}
             >
               {status}
@@ -271,7 +271,7 @@ export default function SessionsPage() {
             return (
               <div
                 key={session.id}
-                className="bg-[#22211F] border border-[#37332E] rounded-2xl p-6 space-y-5"
+                className="bg-[#F8F6F0] border-[1.5px] border-[#4A4E57] shadow-[3.5px_3.5px_0_#C5C0B4] rounded-2xl p-6 space-y-5"
               >
                 {/* Top Metadata */}
                 <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
@@ -282,55 +282,55 @@ export default function SessionsPage() {
                       >
                         {statusMeta.label}
                       </span>
-                      <span className="px-3 py-1 rounded-full bg-[#2B2824] border border-[#37332E] text-xs font-semibold text-[#F5B66B]">
+                      <span className="px-3 py-1 rounded-full bg-[#E6E3DA] border border-[#4A4E57] text-xs font-semibold text-[#9E3922]">
                         {session.category}
                       </span>
                       {session.isMutualSwap && (
-                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-[#65C995]/15 border border-[#65C995]/30 text-xs font-bold text-[#65C995]">
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-[#DCF2E4] border border-[#47785B] text-xs font-bold text-[#195434]">
                           <Repeat className="w-3 h-3" />
                           Mutual Swap
                         </span>
                       )}
                     </div>
 
-                    <h2 className="text-xl font-bold text-[#F7F5F0]">{session.skillTitle}</h2>
+                    <h2 className="text-xl font-bold text-[#1F2227]">{session.skillTitle}</h2>
 
-                    <div className="flex flex-wrap items-center gap-4 text-xs sm:text-sm text-[#AAA69F]">
+                    <div className="flex flex-wrap items-center gap-4 text-xs sm:text-sm text-[#464B55]">
                       <span className="inline-flex items-center gap-1.5">
-                        <Calendar className="w-4 h-4 text-[#FF9B45]" />
+                        <Calendar className="w-4 h-4 text-[#2F4D96]" />
                         {session.date}
                       </span>
                       <span className="inline-flex items-center gap-1.5">
-                        <Clock className="w-4 h-4 text-[#FF9B45]" />
+                        <Clock className="w-4 h-4 text-[#2F4D96]" />
                         {session.time} IST ({session.durationMinutes} min)
                       </span>
-                      <span className="inline-flex items-center gap-1.5 font-bold text-[#F7F5F0]">
-                        <Coins className="w-4 h-4 text-[#FF9B45]" />
+                      <span className="inline-flex items-center gap-1.5 font-bold text-[#1F2227]">
+                        <Coins className="w-4 h-4 text-[#2F4D96]" />
                         {session.credits} {session.credits === 1 ? 'Credit' : 'Credits'}
                       </span>
                     </div>
                   </div>
 
                   {/* Partner Chip */}
-                  <div className="flex items-center gap-3 bg-[#2B2824] border border-[#37332E] rounded-xl px-4 py-2.5 shrink-0">
+                  <div className="flex items-center gap-3 bg-[#E6E3DA] border border-[#4A4E57] rounded-xl px-4 py-2.5 shrink-0">
                     <img
                       src={partnerAvatar}
                       alt={partnerName}
-                      className="w-9 h-9 rounded-full object-cover border border-[#37332E] bg-[#171715]"
+                      className="w-9 h-9 rounded-full object-cover border border-[#4A4E57] bg-[#EFECE4]"
                     />
                     <div>
-                      <p className="text-[11px] font-bold uppercase tracking-wider text-[#AAA69F]">
+                      <p className="text-[11px] font-bold uppercase tracking-wider text-[#464B55]">
                         {isTeacher ? 'Learner' : 'Teacher'}
                       </p>
-                      <p className="text-sm font-bold text-[#F7F5F0]">{partnerName}</p>
+                      <p className="text-sm font-bold text-[#1F2227]">{partnerName}</p>
                     </div>
                   </div>
                 </div>
 
                 {/* Learner Notes */}
                 {session.learnerNotes && (
-                  <div className="bg-[#171715] border border-[#37332E] rounded-xl px-4 py-3 text-sm text-[#AAA69F]">
-                    <span className="font-bold text-[#F7F5F0]">Session Note: </span>
+                  <div className="bg-[#EFECE4] border border-[#4A4E57] rounded-xl px-4 py-3 text-sm text-[#464B55]">
+                    <span className="font-bold text-[#1F2227]">Session Note: </span>
                     {session.learnerNotes}
                   </div>
                 )}
@@ -340,20 +340,20 @@ export default function SessionsPage() {
 
                 {/* Completed Review Display */}
                 {session.status === 'completed' && session.ratingGiven && (
-                  <div className="bg-[#2B2824] border border-[#37332E] rounded-xl px-4 py-3 flex flex-wrap items-center justify-between gap-2 text-sm">
-                    <div className="flex items-center gap-2 text-[#FF9B45] font-bold">
-                      <Star className="w-4 h-4 fill-[#FF9B45]" />
+                  <div className="bg-[#E6E3DA] border border-[#4A4E57] rounded-xl px-4 py-3 flex flex-wrap items-center justify-between gap-2 text-sm">
+                    <div className="flex items-center gap-2 text-[#2F4D96] font-bold">
+                      <Star className="w-4 h-4 text-[#8A6500] fill-[#F4DC82]" />
                       <span>Rated {session.ratingGiven}/5</span>
                     </div>
                     {session.reviewGiven && (
-                      <p className="text-[#AAA69F] italic">&ldquo;{session.reviewGiven}&rdquo;</p>
+                      <p className="text-[#464B55] italic">&ldquo;{session.reviewGiven}&rdquo;</p>
                     )}
                   </div>
                 )}
 
                 {/* Action Footer */}
                 {(session.status === 'pending' || session.status === 'confirmed') && (
-                  <div className="pt-3 border-t border-[#37332E] flex flex-wrap items-center justify-end gap-3">
+                  <div className="pt-3 border-t border-[#CEC9BC] flex flex-wrap items-center justify-end gap-3">
                     {session.status === 'pending' && isTeacher && (
                       <>
                         <button
@@ -366,7 +366,7 @@ export default function SessionsPage() {
                               'Request declined and credits refunded to learner.'
                             )
                           }
-                          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#2B2824] hover:bg-[#37332E] border border-[#37332E] text-xs sm:text-sm font-semibold text-[#F07878] transition-colors cursor-pointer"
+                          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#E6E3DA] hover:bg-[#DCD8CD] border border-[#4A4E57] text-xs sm:text-sm font-semibold text-[#8F2618] transition-colors cursor-pointer"
                         >
                           <XCircle className="w-4 h-4" />
                           Decline
@@ -381,7 +381,7 @@ export default function SessionsPage() {
                               'Session confirmed! Add your Google Meet link above.'
                             )
                           }
-                          className="inline-flex items-center gap-1.5 px-5 py-2 rounded-full bg-[#65C995] hover:bg-[#53b984] text-[#171715] text-xs sm:text-sm font-bold transition-colors cursor-pointer"
+                          className="inline-flex items-center gap-1.5 px-5 py-2 rounded-full bg-[#8AD7A8] hover:bg-[#77CA97] border-[1.5px] border-[#47785B] shadow-[0_2px_0_#47785B] text-[#18241C] text-xs sm:text-sm font-bold transition-colors cursor-pointer"
                         >
                           <CheckCircle2 className="w-4 h-4" />
                           {processingId === session.id ? 'Confirming...' : 'Accept Request'}
@@ -400,7 +400,7 @@ export default function SessionsPage() {
                             'Session cancelled and credit refunded to your wallet.'
                           )
                         }
-                        className="px-4 py-2 rounded-full bg-[#2B2824] hover:bg-[#37332E] border border-[#37332E] text-xs sm:text-sm font-semibold text-[#F07878] transition-colors cursor-pointer"
+                        className="px-4 py-2 rounded-full bg-[#E6E3DA] hover:bg-[#DCD8CD] border border-[#4A4E57] text-xs sm:text-sm font-semibold text-[#8F2618] transition-colors cursor-pointer"
                       >
                         {processingId === session.id ? 'Cancelling...' : 'Cancel & Refund'}
                       </button>
@@ -418,7 +418,7 @@ export default function SessionsPage() {
                               'Session cancelled safely and escrow settled.'
                             )
                           }
-                          className="px-4 py-2 rounded-full bg-[#2B2824] hover:bg-[#37332E] border border-[#37332E] text-xs sm:text-sm font-semibold text-[#F07878] transition-colors cursor-pointer"
+                          className="px-4 py-2 rounded-full bg-[#E6E3DA] hover:bg-[#DCD8CD] border border-[#4A4E57] text-xs sm:text-sm font-semibold text-[#8F2618] transition-colors cursor-pointer"
                         >
                           {processingId === session.id ? 'Cancelling...' : 'Cancel Session'}
                         </button>
@@ -426,7 +426,7 @@ export default function SessionsPage() {
                           <button
                             type="button"
                             onClick={() => setReviewingSession(session)}
-                            className="inline-flex items-center gap-1.5 px-5 py-2 rounded-full bg-[#FF9B45] hover:bg-[#F5B66B] text-[#171715] text-xs sm:text-sm font-bold transition-colors cursor-pointer"
+                            className="inline-flex items-center gap-1.5 px-5 py-2 rounded-full bg-[#3B5CA8] hover:bg-[#314E91] border-[1.5px] border-[#2A3F75] shadow-[0_2px_0_#2A3F75] text-[#FFFFFF] text-xs sm:text-sm font-bold transition-colors cursor-pointer"
                           >
                             <CheckCircle2 className="w-4 h-4" />
                             Complete & Review
@@ -441,11 +441,11 @@ export default function SessionsPage() {
           })}
         </div>
       ) : (
-        <div className="bg-[#22211F] border border-[#37332E] rounded-2xl p-12 text-center space-y-4">
-          <Calendar className="w-9 h-9 text-[#FF9B45] mx-auto" />
+        <div className="bg-[#F8F6F0] border-[1.5px] border-[#4A4E57] shadow-[3.5px_3.5px_0_#C5C0B4] rounded-2xl p-12 text-center space-y-4">
+          <Calendar className="w-9 h-9 text-[#2F4D96] mx-auto" />
           <div className="space-y-1.5">
-            <h2 className="text-xl font-bold text-[#F7F5F0]">No sessions in this view</h2>
-            <p className="text-sm text-[#AAA69F] max-w-md mx-auto">
+            <h2 className="text-xl font-bold text-[#1F2227]">No sessions in this view</h2>
+            <p className="text-sm text-[#464B55] max-w-md mx-auto">
               {activeTab === 'learning'
                 ? 'You have not booked any peer learning sessions matching this filter yet.'
                 : 'No teaching sessions match this filter yet.'}
@@ -453,7 +453,7 @@ export default function SessionsPage() {
           </div>
           <Link
             href={activeTab === 'learning' ? '/skills' : '/teach'}
-            className="inline-flex items-center gap-2 px-6 py-2.5 rounded-full bg-[#FF9B45] hover:bg-[#F5B66B] text-[#171715] text-sm font-bold"
+            className="inline-flex items-center gap-2 px-6 py-2.5 rounded-full bg-[#3B5CA8] hover:bg-[#314E91] border-[1.5px] border-[#2A3F75] shadow-[0_2px_0_#2A3F75] text-[#FFFFFF] text-sm font-bold"
           >
             {activeTab === 'learning' ? 'Explore Skills' : 'Offer a Skill'}
             <ArrowUpRight className="w-4 h-4" />

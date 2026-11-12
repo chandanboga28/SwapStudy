@@ -97,28 +97,28 @@ export default function NewConversationModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-xs">
-      <div className="w-full max-w-lg bg-[#22211F] border border-[#37332E] rounded-2xl shadow-2xl overflow-hidden max-h-[85vh] flex flex-col">
-        <div className="px-6 py-5 border-b border-[#37332E] bg-[#1B1A18] flex items-center justify-between shrink-0">
-          <h2 className="text-xl font-bold text-[#F7F5F0]">Start New Conversation</h2>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#1F2227]/45 backdrop-blur-xs">
+      <div className="w-full max-w-lg bg-[#F8F6F0] border-[1.5px] border-[#4A4E57] shadow-[3.5px_3.5px_0_#C5C0B4] rounded-2xl shadow-2xl overflow-hidden max-h-[85vh] flex flex-col">
+        <div className="px-6 py-5 border-b border-[#CEC9BC] bg-[#E6E3DA] flex items-center justify-between shrink-0">
+          <h2 className="text-xl font-bold text-[#1F2227]">Start New Conversation</h2>
           <button
             type="button"
             onClick={onClose}
-            className="p-2 rounded-xl text-[#AAA69F] hover:text-[#F7F5F0] hover:bg-[#2B2824] cursor-pointer"
+            className="p-2 rounded-xl text-[#464B55] hover:text-[#1F2227] hover:bg-[#E6E3DA] cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        <div className="p-5 border-b border-[#37332E] space-y-3 shrink-0">
+        <div className="p-5 border-b border-[#CEC9BC] space-y-3 shrink-0">
           <div className="relative">
-            <Search className="w-4 h-4 text-[#AAA69F] absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+            <Search className="w-4 h-4 text-[#464B55] absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
             <input
               type="text"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search peers by name, major, or skill..."
-              className="w-full pl-10 pr-4 py-2.5 rounded-full bg-[#171715] border border-[#37332E] focus:border-[#FF9B45] text-sm text-[#F7F5F0] focus:outline-none"
+              className="w-full pl-10 pr-4 py-2.5 rounded-full bg-[#FFFFFF] border-[1.5px] border-[#4A4E57] focus:border-[#3B5CA8] text-sm text-[#1F2227] focus:outline-none"
             />
           </div>
 
@@ -136,8 +136,8 @@ export default function NewConversationModal({
                 }
                 className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-colors cursor-pointer ${
                   filterMode === tab.key
-                    ? 'bg-[#FF9B45] text-[#171715]'
-                    : 'bg-[#171715] border border-[#37332E] text-[#AAA69F]'
+                    ? 'bg-[#3B5CA8] text-[#FFFFFF]'
+                    : 'bg-[#EFECE4] border border-[#4A4E57] text-[#464B55]'
                 }`}
               >
                 {tab.label}
@@ -146,7 +146,7 @@ export default function NewConversationModal({
           </div>
 
           {errorMsg && (
-            <div className="flex items-start gap-2 p-3 rounded-xl bg-[#F07878]/10 border border-[#F07878]/30 text-xs text-[#F07878]">
+            <div className="flex items-start gap-2 p-3 rounded-xl bg-[#FCE7E3] border border-[#B34B39] text-xs text-[#8F2618]">
               <AlertCircle className="w-4 h-4 shrink-0" />
               <span>{errorMsg}</span>
             </div>
@@ -155,7 +155,7 @@ export default function NewConversationModal({
 
         <div className="flex-1 overflow-y-auto p-4 space-y-2.5">
           {filteredStudents.length === 0 ? (
-            <p className="text-center text-sm text-[#AAA69F] py-8">
+            <p className="text-center text-sm text-[#464B55] py-8">
               No peers matched your search.
             </p>
           ) : (
@@ -167,19 +167,19 @@ export default function NewConversationModal({
               return (
                 <div
                   key={student.id}
-                  className="bg-[#2B2824] border border-[#37332E] rounded-xl p-3.5 flex items-center justify-between gap-3"
+                  className="bg-[#E6E3DA] border border-[#4A4E57] rounded-xl p-3.5 flex items-center justify-between gap-3"
                 >
                   <div className="flex items-center gap-3 min-w-0">
                     <img
                       src={student.avatar}
                       alt={student.name}
-                      className="w-10 h-10 rounded-full object-cover border border-[#37332E] bg-[#171715] shrink-0"
+                      className="w-10 h-10 rounded-full object-cover border border-[#4A4E57] bg-[#EFECE4] shrink-0"
                     />
                     <div className="min-w-0">
-                      <p className="text-sm font-bold text-[#F7F5F0] truncate">
+                      <p className="text-sm font-bold text-[#1F2227] truncate">
                         {student.name}
                       </p>
-                      <p className="text-xs text-[#AAA69F] truncate">
+                      <p className="text-xs text-[#464B55] truncate">
                         {student.major || student.university}
                       </p>
                     </div>
@@ -190,7 +190,7 @@ export default function NewConversationModal({
                       type="button"
                       disabled={busyId === `chat-${student.id}`}
                       onClick={() => handleStartChat(student.id)}
-                      className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#FF9B45] hover:bg-[#F5B66B] text-[#171715] text-xs font-bold shrink-0 cursor-pointer"
+                      className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#3B5CA8] hover:bg-[#314E91] border-[1.5px] border-[#2A3F75] shadow-[0_2px_0_#2A3F75] text-[#FFFFFF] text-xs font-bold shrink-0 cursor-pointer"
                     >
                       {busyId === `chat-${student.id}` ? (
                         <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -200,7 +200,7 @@ export default function NewConversationModal({
                       Message
                     </button>
                   ) : status === 'pending' && !isIncoming ? (
-                    <span className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full bg-[#171715] border border-[#37332E] text-xs font-semibold text-[#F5B66B] shrink-0">
+                    <span className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full bg-[#EFECE4] border border-[#4A4E57] text-xs font-semibold text-[#9E3922] shrink-0">
                       <Clock className="w-3.5 h-3.5" />
                       Pending
                     </span>
@@ -209,14 +209,14 @@ export default function NewConversationModal({
                       type="button"
                       disabled={busyId === `conn-${student.id}`}
                       onClick={() => handleConnect(student.id, isIncoming)}
-                      className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#171715] hover:bg-[#37332E] border border-[#37332E] text-xs font-bold text-[#F7F5F0] shrink-0 cursor-pointer"
+                      className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#EFECE4] hover:bg-[#DCD8CD] border border-[#4A4E57] text-xs font-bold text-[#1F2227] shrink-0 cursor-pointer"
                     >
                       {busyId === `conn-${student.id}` ? (
                         <Loader2 className="w-3.5 h-3.5 animate-spin" />
                       ) : isIncoming ? (
-                        <Check className="w-3.5 h-3.5 text-[#65C995]" />
+                        <Check className="w-3.5 h-3.5 text-[#195434]" />
                       ) : (
-                        <UserPlus className="w-3.5 h-3.5 text-[#FF9B45]" />
+                        <UserPlus className="w-3.5 h-3.5 text-[#2F4D96]" />
                       )}
                       {isIncoming ? 'Accept' : 'Connect'}
                     </button>

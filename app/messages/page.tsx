@@ -59,35 +59,35 @@ function MessagesContent() {
 
   if (authLoading || messagingLoading) {
     return (
-      <div className="flex-1 flex items-center justify-center p-6 bg-[#171715]">
-        <div className="w-full max-w-5xl h-[540px] rounded-2xl bg-[#22211F] border border-[#37332E] animate-pulse" />
+      <div className="flex-1 flex items-center justify-center p-6 bg-[#EFECE4]">
+        <div className="w-full max-w-5xl h-[540px] rounded-2xl bg-[#F8F6F0] border border-[#4A4E57] animate-pulse" />
       </div>
     );
   }
 
   if (!user) {
     return (
-      <div className="flex-1 flex items-center justify-center px-4 py-16 bg-[#171715]">
-        <div className="max-w-md w-full bg-[#22211F] border border-[#37332E] rounded-2xl p-8 text-center space-y-5">
-          <MessageSquare className="w-10 h-10 text-[#FF9B45] mx-auto" />
+      <div className="flex-1 flex items-center justify-center px-4 py-16 bg-[#EFECE4]">
+        <div className="max-w-md w-full bg-[#F8F6F0] border-[1.5px] border-[#4A4E57] shadow-[3.5px_3.5px_0_#C5C0B4] rounded-2xl p-8 text-center space-y-5">
+          <MessageSquare className="w-10 h-10 text-[#2F4D96] mx-auto" />
           <div className="space-y-2">
-            <h1 className="text-2xl font-extrabold text-[#F7F5F0]">
+            <h1 className="text-2xl font-extrabold text-[#1F2227]">
               Sign in to SwapStudy Direct
             </h1>
-            <p className="text-sm text-[#AAA69F]">
+            <p className="text-sm text-[#464B55]">
               Message connected peers, share study links, and propose mutual skill exchanges.
             </p>
           </div>
           <div className="flex items-center justify-center gap-3">
             <Link
               href="/login"
-              className="px-6 py-2.5 rounded-full bg-[#FF9B45] hover:bg-[#F5B66B] text-[#171715] text-sm font-bold"
+              className="px-6 py-2.5 rounded-full bg-[#3B5CA8] hover:bg-[#314E91] border-[1.5px] border-[#2A3F75] shadow-[0_2px_0_#2A3F75] text-[#FFFFFF] text-sm font-bold"
             >
               Log in
             </Link>
             <Link
               href="/signup"
-              className="px-6 py-2.5 rounded-full bg-[#2B2824] border border-[#37332E] text-[#F7F5F0] text-sm font-semibold"
+              className="px-6 py-2.5 rounded-full bg-[#E6E3DA] border border-[#4A4E57] text-[#1F2227] text-sm font-semibold"
             >
               Sign up
             </Link>
@@ -98,16 +98,16 @@ function MessagesContent() {
   }
 
   return (
-    <div className="flex-1 min-h-0 flex flex-col bg-[#171715]">
+    <div className="flex-1 min-h-0 flex flex-col bg-[#EFECE4]">
       {/* Messaging Toast Bar */}
       {toast && (
         <div
-          className={`px-4 py-2.5 border-b border-[#37332E] flex items-center justify-between gap-3 text-xs sm:text-sm font-medium shrink-0 ${
+          className={`px-4 py-2.5 border-b border-[#CEC9BC] flex items-center justify-between gap-3 text-xs sm:text-sm font-medium shrink-0 ${
             toast.type === 'warning'
-              ? 'bg-[#F5B66B]/15 text-[#F5B66B]'
+              ? 'bg-[#FBF0C9] text-[#5C4609]'
               : toast.type === 'success'
-              ? 'bg-[#65C995]/15 text-[#65C995]'
-              : 'bg-[#22211F] text-[#F7F5F0]'
+              ? 'bg-[#DCF2E4] text-[#195434]'
+              : 'bg-[#F8F6F0] text-[#1F2227]'
           }`}
         >
           <span className="flex items-center gap-2">
@@ -117,7 +117,7 @@ function MessagesContent() {
           <button
             type="button"
             onClick={clearToast}
-            className="p-1 rounded-lg hover:bg-black/20 cursor-pointer"
+            className="p-1 rounded-lg hover:bg-[#1F2227]/10 cursor-pointer"
           >
             <X className="w-4 h-4" />
           </button>
@@ -158,20 +158,20 @@ function MessagesContent() {
               onViewProfile={(student) => setViewingStudent(student)}
             />
           ) : (
-            <div className="flex-1 flex flex-col items-center justify-center p-8 text-center space-y-5 bg-[#171715]">
-              <div className="w-16 h-16 rounded-2xl bg-[#22211F] border border-[#37332E] text-[#FF9B45] flex items-center justify-center">
+            <div className="flex-1 flex flex-col items-center justify-center p-8 text-center space-y-5 bg-[#EFECE4]">
+              <div className="w-16 h-16 rounded-2xl bg-[#F8F6F0] border border-[#4A4E57] text-[#2F4D96] flex items-center justify-center">
                 <MessageSquare className="w-8 h-8" />
               </div>
               <div className="space-y-1.5 max-w-sm">
-                <h2 className="text-xl font-bold text-[#F7F5F0]">Select a conversation</h2>
-                <p className="text-sm text-[#AAA69F]">
+                <h2 className="text-xl font-bold text-[#1F2227]">Select a conversation</h2>
+                <p className="text-sm text-[#464B55]">
                   Choose a thread from the left or start a new conversation with a connected classmate.
                 </p>
               </div>
               <button
                 type="button"
                 onClick={() => setShowNewChatModal(true)}
-                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-[#FF9B45] hover:bg-[#F5B66B] text-[#171715] text-sm font-bold transition-colors cursor-pointer"
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-[#3B5CA8] hover:bg-[#314E91] border-[1.5px] border-[#2A3F75] shadow-[0_2px_0_#2A3F75] text-[#FFFFFF] text-sm font-bold transition-colors cursor-pointer"
               >
                 <Plus className="w-4 h-4" />
                 Start New Chat
@@ -261,8 +261,8 @@ export default function MessagesPage() {
   return (
     <Suspense
       fallback={
-        <div className="flex-1 flex items-center justify-center p-6 bg-[#171715]">
-          <div className="w-full max-w-5xl h-[540px] rounded-2xl bg-[#22211F] border border-[#37332E] animate-pulse" />
+        <div className="flex-1 flex items-center justify-center p-6 bg-[#EFECE4]">
+          <div className="w-full max-w-5xl h-[540px] rounded-2xl bg-[#F8F6F0] border border-[#4A4E57] animate-pulse" />
         </div>
       }
     >

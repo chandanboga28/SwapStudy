@@ -1,6 +1,6 @@
 import React, { Suspense } from 'react';
 import type { Metadata } from 'next';
-import { Manrope } from 'next/font/google';
+import { Manrope, JetBrains_Mono } from 'next/font/google';
 import './globals.css';
 import { AuthProvider } from '@/context/AuthContext';
 import { AppProvider } from '@/context/AppContext';
@@ -16,6 +16,13 @@ const manrope = Manrope({
   display: 'swap',
 });
 
+const jetbrainsMono = JetBrains_Mono({
+  subsets: ['latin'],
+  weight: ['500', '600', '700', '800'],
+  variable: '--font-jetbrains-mono',
+  display: 'swap',
+});
+
 export const metadata: Metadata = {
   title: 'SwapStudy — Student-to-Student Skill Exchange',
   description: 'Learn a skill. Teach a skill. Grow together. A credit-based student skill exchange platform where every student can be both a teacher and a learner.',
@@ -28,14 +35,14 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={`${manrope.variable} h-full antialiased dark`}>
-      <body className="min-h-full flex flex-col bg-[#171715] text-[#F7F5F0] font-sans selection:bg-[#FF9B45]/25 selection:text-[#F7F5F0]">
+    <html lang="en" className={`${manrope.variable} ${jetbrainsMono.variable} h-full antialiased`}>
+      <body className="min-h-full flex flex-col bg-[#EFECE4] text-[#1F2227] font-sans selection:bg-[#DCEB8E] selection:text-[#1F2227]">
         <AuthProvider>
           <AppProvider>
             <CommunityProvider>
               <MessagingProvider>
                 <DemoBanner />
-                <Suspense fallback={<div className="min-h-screen bg-[#171715]" />}>
+                <Suspense fallback={<div className="min-h-screen bg-[#EFECE4]" />}>
                   <AppShell>{children}</AppShell>
                 </Suspense>
               </MessagingProvider>
