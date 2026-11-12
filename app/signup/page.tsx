@@ -1,96 +1,67 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import {
-  ArrowRightLeft,
+  Repeat,
+  User as UserIcon,
   Mail,
   Lock,
-  User as UserIcon,
   GraduationCap,
+  BookOpen,
+  Plus,
+  X,
   ArrowRight,
   AlertCircle,
   CheckCircle2,
-  Coins,
-  Plus,
-  X,
+  Loader2,
 } from 'lucide-react';
 
 export default function SignupPage() {
+  const { user, signup, isLoading } = useAuth();
   const router = useRouter();
-  const { user, isLoading: authLoading, signup } = useAuth();
 
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [university, setUniversity] = useState('Ajeenkya DY Patil University');
+  const [university, setUniversity] = useState('Ajeenkya DY Patil University (ADYPU)');
   const [major, setMajor] = useState('');
+  const [graduationYear, setGraduationYear] = useState('2027');
 
-  // Skill tags
   const [teachInput, setTeachInput] = useState('');
   const [skillsToTeach, setSkillsToTeach] = useState<string[]>([]);
   const [learnInput, setLearnInput] = useState('');
   const [skillsToLearn, setSkillsToLearn] = useState<string[]>([]);
 
-  const [error, setError] = useState<string | null>(null);
-  const [confirmationMessage, setConfirmationMessage] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [needsEmailConfirmation, setNeedsEmailConfirmation] = useState(false);
 
   useEffect(() => {
-    if (!authLoading && user) {
+    if (!isLoading && user) {
       router.replace('/dashboard');
     }
-  }, [authLoading, user, router]);
+  }, [user, isLoading, router]);
 
-  const handleAddTeachSkill = () => {
-    const trimmed = teachInput.trim();
-    if (trimmed && !skillsToTeach.includes(trimmed)) {
-      setSkillsToTeach([...skillsToTeach, trimmed]);
-      setTeachInput('');
+  const addTag = (
+    value: string,
+    setter: React.Dispatch<React.SetStateAction<string>>,
+    list: string[],
+    setList: React.Dispatch<React.SetStateAction<string[]>>
+  ) => {
+    const trimmed = value.trim();
+    if (!trimmed) return;
+    if (!list.some((item) => item.toLowerCase() === trimmed.toLowerCase())) {
+      setList([...list, trimmed]);
     }
-  };
-
-  const handleRemoveTeachSkill = (skill: string) => {
-    setSkillsToTeach(skillsToTeach.filter((s) => s !== skill));
-  };
-
-  const handleAddLearnSkill = () => {
-    const trimmed = learnInput.trim();
-    if (trimmed && !skillsToLearn.includes(trimmed)) {
-      setSkillsToLearn([...skillsToLearn, trimmed]);
-      setLearnInput('');
-    }
-  };
-
-  const handleRemoveLearnSkill = (skill: string) => {
-    setSkillsToLearn(skillsToLearn.filter((s) => s !== skill));
+    setter('');
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError(null);
-
-    if (!name.trim()) {
-      setError('Please enter your full name.');
-      return;
-    }
-
-    if (!email.trim()) {
-      setError('Please enter your campus email address.');
-      return;
-    }
-
-    if (!university.trim()) {
-      setError('Please enter your university or college name.');
-      return;
-    }
-
-    if (!password || password.length < 6) {
-      setError('Password must be at least 6 characters.');
-      return;
-    }
+    if (submitting) return;
 
     const finalTeach =
       teachInput.trim() && !skillsToTeach.includes(teachInput.trim())
@@ -102,212 +73,208 @@ export default function SignupPage() {
         ? [...skillsToLearn, learnInput.trim()]
         : skillsToLearn;
 
-    if (finalTeach.length === 0) {
-      setError('Please add at least one skill you can share or teach.');
+    if (!name.trim() || !email.trim() || !password || !major.trim()) {
+      setErrorMsg('Please fill out your name, email, password, and major.');
       return;
     }
 
-    if (finalLearn.length === 0) {
-      setError('Please add at least one skill you want to learn.');
+    if (password.length < 6) {
+      setErrorMsg('Password must be at least 6 characters long.');
       return;
     }
 
-    setSkillsToTeach(finalTeach);
-    setSkillsToLearn(finalLearn);
-    setTeachInput('');
-    setLearnInput('');
-    setIsLoading(true);
+    setErrorMsg('');
+    setSubmitting(true);
 
     try {
       const res = await signup({
         name: name.trim(),
         email: email.trim(),
         password,
-        university: university.trim(),
-        major: major.trim() || 'General Studies',
+        university: university.trim() || 'Ajeenkya DY Patil University (ADYPU)',
+        major: major.trim(),
+        graduationYear,
         skillsToTeach: finalTeach,
         skillsToLearn: finalLearn,
       });
 
-      if (res.success) {
-        if (res.needsEmailConfirmation) {
-          setConfirmationMessage(
-            `Account created for ${email.trim()}. Please check your inbox and verify your email address before signing in.`
-          );
-        } else {
-          router.push('/dashboard');
-        }
-      } else {
-        setError(res.error || 'Failed to create account.');
+      if (!res.success) {
+        setErrorMsg(res.error || 'Could not create account.');
+        return;
       }
-    } catch (err: unknown) {
-      setError((err as Error).message || 'Signup failed.');
+
+      if (res.needsEmailConfirmation) {
+        setNeedsEmailConfirmation(true);
+        return;
+      }
+
+      router.push('/dashboard');
     } finally {
-      setIsLoading(false);
+      setSubmitting(false);
     }
   };
 
-  return (
-    <div className="min-h-[calc(100vh-140px)] flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 bg-[#F8FAFC]">
-      <div className="max-w-xl w-full space-y-5">
-        {/* Brand */}
-        <div className="text-center space-y-1.5">
-          <Link href="/" className="inline-flex items-center gap-2 mb-1 group">
-            <div className="w-8 h-8 rounded-lg bg-emerald-600 flex items-center justify-center text-white shadow-xs">
-              <ArrowRightLeft className="w-4 h-4" />
-            </div>
-            <span className="text-base font-bold text-slate-900">
-              Swap<span className="text-emerald-600">Study</span>
-            </span>
+  if (needsEmailConfirmation) {
+    return (
+      <div className="flex-1 flex items-center justify-center px-4 py-12 bg-[#171715]">
+        <div className="w-full max-w-md bg-[#22211F] border border-[#37332E] rounded-2xl p-8 text-center space-y-6 shadow-2xl">
+          <div className="w-14 h-14 rounded-2xl bg-[#65C995]/15 border border-[#65C995]/30 text-[#65C995] flex items-center justify-center mx-auto">
+            <CheckCircle2 className="w-7 h-7" />
+          </div>
+          <div className="space-y-2">
+            <h1 className="text-2xl font-extrabold text-[#F7F5F0]">Check your inbox</h1>
+            <p className="text-sm text-[#AAA69F] leading-relaxed">
+              We sent a confirmation link to <strong className="text-[#F7F5F0]">{email}</strong>. Verify your email address, then log in to start swapping skills.
+            </p>
+          </div>
+          <Link
+            href="/login"
+            className="inline-flex items-center justify-center gap-2 w-full py-3 rounded-full bg-[#FF9B45] hover:bg-[#F5B66B] text-[#171715] text-sm font-bold transition-colors"
+          >
+            Go to Login
+            <ArrowRight className="w-4 h-4" />
           </Link>
-          <h1 className="text-xl font-bold tracking-tight text-slate-900">
-            Create Your Student Profile
-          </h1>
-          <p className="text-xs text-slate-500">
-            Every student has something valuable to teach and something exciting to learn.
-          </p>
         </div>
+      </div>
+    );
+  }
 
-        {/* Bonus Callout */}
-        <div className="p-3 bg-emerald-50/70 border border-emerald-200/80 rounded-xl flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
-            <Coins className="w-4 h-4" />
+  return (
+    <div className="flex-1 flex items-center justify-center px-4 sm:px-6 py-12 bg-[#171715]">
+      <div className="w-full max-w-2xl bg-[#22211F] border border-[#37332E] rounded-2xl p-7 sm:p-10 shadow-2xl space-y-8">
+        {/* Header */}
+        <div className="space-y-3">
+          <div className="w-11 h-11 rounded-xl bg-[#FF9B45] text-[#171715] flex items-center justify-center">
+            <Repeat className="w-5 h-5 stroke-[2.4]" />
           </div>
           <div>
-            <p className="text-[10px] font-bold text-emerald-900 uppercase tracking-wider">
-              3 Starter Platform Credits
-            </p>
-            <p className="text-[11px] text-emerald-800">
-              New student members receive <strong>3 non-monetary platform credits</strong> to book peer learning sessions right away.
+            <h1 className="text-2xl sm:text-3xl font-extrabold text-[#F7F5F0] tracking-tight">
+              Create your student account
+            </h1>
+            <p className="text-sm sm:text-base text-[#AAA69F] mt-1">
+              Get matched with classmates who want to learn what you know and teach what you need.
             </p>
           </div>
         </div>
 
-        {/* Form Card */}
-        <div className="card-subtle rounded-xl p-6 sm:p-7 space-y-4">
-          {confirmationMessage ? (
-            <div className="p-5 bg-emerald-50 border border-emerald-200 rounded-xl text-center space-y-3">
-              <div className="w-10 h-10 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center mx-auto">
-                <CheckCircle2 className="w-5 h-5" />
-              </div>
-              <h2 className="text-sm font-bold text-slate-900">Confirm your campus email</h2>
-              <p className="text-xs text-slate-600 leading-relaxed">{confirmationMessage}</p>
-              <Link
-                href="/login"
-                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold"
-              >
-                Go to Sign In
-                <ArrowRight className="w-3.5 h-3.5" />
-              </Link>
-            </div>
-          ) : (
-            <>
-          {error && (
-            <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 rounded-lg text-xs flex items-start gap-2">
-              <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
-              <span>{error}</span>
-            </div>
-          )}
-
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {/* Name & Email */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Full Name
-                </label>
-                <div className="relative">
-                  <UserIcon className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                  <input
-                    type="text"
-                    required
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    placeholder="Your full name"
-                    className="w-full text-xs pl-9 pr-3 py-2 rounded-lg border border-slate-300 focus:outline-hidden focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Campus Email
-                </label>
-                <div className="relative">
-                  <Mail className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                  <input
-                    type="email"
-                    required
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="student@adypu.edu.in"
-                    className="w-full text-xs pl-9 pr-3 py-2 rounded-lg border border-slate-300 focus:outline-hidden focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600"
-                  />
-                </div>
+        <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Basic Account Fields */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-[#AAA69F] mb-2">
+                Full Name
+              </label>
+              <div className="relative">
+                <UserIcon className="w-4 h-4 text-[#AAA69F] absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <input
+                  type="text"
+                  required
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="Aarav Sharma"
+                  className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-[#171715] border border-[#37332E] focus:border-[#FF9B45] text-[15px] text-[#F7F5F0] placeholder-[#AAA69F]/60 focus:outline-none"
+                />
               </div>
             </div>
 
-            {/* University & Major */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  University / College
-                </label>
-                <div className="relative">
-                  <GraduationCap className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                  <input
-                    type="text"
-                    required
-                    value={university}
-                    onChange={(e) => setUniversity(e.target.value)}
-                    placeholder="Ajeenkya DY Patil University (ADYPU)"
-                    className="w-full text-xs pl-9 pr-3 py-2 rounded-lg border border-slate-300 focus:outline-hidden focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600"
-                  />
-                </div>
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-[#AAA69F] mb-2">
+                Campus Email
+              </label>
+              <div className="relative">
+                <Mail className="w-4 h-4 text-[#AAA69F] absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <input
+                  type="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="you@adypu.edu.in"
+                  className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-[#171715] border border-[#37332E] focus:border-[#FF9B45] text-[15px] text-[#F7F5F0] placeholder-[#AAA69F]/60 focus:outline-none"
+                />
               </div>
+            </div>
+          </div>
 
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Major / Field of Study
-                </label>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-[#AAA69F] mb-2">
+                Password
+              </label>
+              <div className="relative">
+                <Lock className="w-4 h-4 text-[#AAA69F] absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <input
+                  type="password"
+                  required
+                  minLength={6}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Min. 6 characters"
+                  className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-[#171715] border border-[#37332E] focus:border-[#FF9B45] text-[15px] text-[#F7F5F0] placeholder-[#AAA69F]/60 focus:outline-none"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-[#AAA69F] mb-2">
+                Major / Program
+              </label>
+              <div className="relative">
+                <BookOpen className="w-4 h-4 text-[#AAA69F] absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                 <input
                   type="text"
                   required
                   value={major}
                   onChange={(e) => setMajor(e.target.value)}
-                  placeholder="Computer Science & Engineering"
-                  className="w-full text-xs px-3 py-2 rounded-lg border border-slate-300 focus:outline-hidden focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600"
+                  placeholder="B.Tech Computer Science"
+                  className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-[#171715] border border-[#37332E] focus:border-[#FF9B45] text-[15px] text-[#F7F5F0] placeholder-[#AAA69F]/60 focus:outline-none"
                 />
               </div>
             </div>
+          </div>
 
-            {/* Password */}
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Password
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="sm:col-span-2">
+              <label className="block text-xs font-bold uppercase tracking-wider text-[#AAA69F] mb-2">
+                University
               </label>
               <div className="relative">
-                <Lock className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                <GraduationCap className="w-4 h-4 text-[#AAA69F] absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                 <input
-                  type="password"
+                  type="text"
                   required
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="At least 6 characters"
-                  className="w-full text-xs pl-9 pr-3 py-2 rounded-lg border border-slate-300 focus:outline-hidden focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600"
+                  value={university}
+                  onChange={(e) => setUniversity(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-[#171715] border border-[#37332E] focus:border-[#FF9B45] text-[15px] text-[#F7F5F0] focus:outline-none"
                 />
               </div>
             </div>
 
-            {/* Skills I Can Teach */}
-            <div className="pt-2 border-t border-slate-100">
-              <label className="block text-xs font-semibold text-slate-900 mb-0.5">
-                Skills you can teach or share <span className="text-emerald-600">*</span>
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-[#AAA69F] mb-2">
+                Grad Year
               </label>
-              <p className="text-[11px] text-slate-400 mb-2">
-                What can you help peers with? (e.g. Python, Calculus, Video Editing)
-              </p>
-              <div className="flex gap-2 mb-2">
+              <select
+                value={graduationYear}
+                onChange={(e) => setGraduationYear(e.target.value)}
+                className="w-full px-3.5 py-2.5 rounded-xl bg-[#171715] border border-[#37332E] focus:border-[#FF9B45] text-[15px] text-[#F7F5F0] focus:outline-none"
+              >
+                {['2025', '2026', '2027', '2028', '2029', '2030'].map((yr) => (
+                  <option key={yr} value={yr} className="bg-[#22211F]">
+                    {yr}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* Skills Tag Builders */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 pt-2">
+            {/* Can Teach */}
+            <div className="bg-[#2B2824] border border-[#37332E] rounded-xl p-4 space-y-3">
+              <label className="block text-xs font-bold uppercase tracking-wider text-[#FF9B45]">
+                Skills You Can Teach
+              </label>
+              <div className="flex gap-2">
                 <input
                   type="text"
                   value={teachInput}
@@ -315,49 +282,50 @@ export default function SignupPage() {
                   onKeyDown={(e) => {
                     if (e.key === 'Enter') {
                       e.preventDefault();
-                      handleAddTeachSkill();
+                      addTag(teachInput, setTeachInput, skillsToTeach, setSkillsToTeach);
                     }
                   }}
-                  placeholder="Type a skill and hit Add"
-                  className="flex-1 text-xs px-3 py-2 rounded-lg border border-slate-300 focus:outline-hidden focus:ring-2 focus:ring-emerald-500/20"
+                  placeholder="e.g. Python, Figma"
+                  className="flex-1 min-w-0 px-3 py-2 rounded-xl bg-[#171715] border border-[#37332E] focus:border-[#FF9B45] text-sm text-[#F7F5F0] placeholder-[#AAA69F]/60 focus:outline-none"
                 />
                 <button
                   type="button"
-                  onClick={handleAddTeachSkill}
-                  className="px-3 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold flex items-center gap-1"
+                  onClick={() => addTag(teachInput, setTeachInput, skillsToTeach, setSkillsToTeach)}
+                  className="px-3 py-2 rounded-xl bg-[#FF9B45] hover:bg-[#F5B66B] text-[#171715] font-bold transition-colors shrink-0 cursor-pointer"
+                  aria-label="Add skill to teach"
                 >
-                  <Plus className="w-3.5 h-3.5" />
-                  Add
+                  <Plus className="w-4 h-4" />
                 </button>
               </div>
-              <div className="flex flex-wrap gap-1.5">
-                {skillsToTeach.map((skill) => (
-                  <span
-                    key={skill}
-                    className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md bg-emerald-50 text-emerald-800 border border-emerald-200/60 text-xs font-medium"
-                  >
-                    {skill}
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveTeachSkill(skill)}
-                      className="text-emerald-600 hover:text-emerald-900"
+              {skillsToTeach.length > 0 && (
+                <div className="flex flex-wrap gap-1.5">
+                  {skillsToTeach.map((tag) => (
+                    <span
+                      key={tag}
+                      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#171715] border border-[#37332E] text-xs font-semibold text-[#F7F5F0]"
                     >
-                      <X className="w-3 h-3" />
-                    </button>
-                  </span>
-                ))}
-              </div>
+                      {tag}
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setSkillsToTeach(skillsToTeach.filter((t) => t !== tag))
+                        }
+                        className="text-[#AAA69F] hover:text-[#F07878]"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              )}
             </div>
 
-            {/* Skills I Want to Learn */}
-            <div className="pt-2 border-t border-slate-100">
-              <label className="block text-xs font-semibold text-slate-900 mb-0.5">
-                Skills you want to learn <span className="text-emerald-600">*</span>
+            {/* Want to Learn */}
+            <div className="bg-[#2B2824] border border-[#37332E] rounded-xl p-4 space-y-3">
+              <label className="block text-xs font-bold uppercase tracking-wider text-[#65C995]">
+                Skills You Want to Learn
               </label>
-              <p className="text-[11px] text-slate-400 mb-2">
-                What are you hoping to study? (e.g. Figma, Next.js, Spanish)
-              </p>
-              <div className="flex gap-2 mb-2">
+              <div className="flex gap-2">
                 <input
                   type="text"
                   value={learnInput}
@@ -365,66 +333,75 @@ export default function SignupPage() {
                   onKeyDown={(e) => {
                     if (e.key === 'Enter') {
                       e.preventDefault();
-                      handleAddLearnSkill();
+                      addTag(learnInput, setLearnInput, skillsToLearn, setSkillsToLearn);
                     }
                   }}
-                  placeholder="Type a skill and hit Add"
-                  className="flex-1 text-xs px-3 py-2 rounded-lg border border-slate-300 focus:outline-hidden focus:ring-2 focus:ring-emerald-500/20"
+                  placeholder="e.g. React, UI Design"
+                  className="flex-1 min-w-0 px-3 py-2 rounded-xl bg-[#171715] border border-[#37332E] focus:border-[#FF9B45] text-sm text-[#F7F5F0] placeholder-[#AAA69F]/60 focus:outline-none"
                 />
                 <button
                   type="button"
-                  onClick={handleAddLearnSkill}
-                  className="px-3 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold flex items-center gap-1"
+                  onClick={() => addTag(learnInput, setLearnInput, skillsToLearn, setSkillsToLearn)}
+                  className="px-3 py-2 rounded-xl bg-[#65C995] hover:bg-[#53b984] text-[#171715] font-bold transition-colors shrink-0 cursor-pointer"
+                  aria-label="Add skill to learn"
                 >
-                  <Plus className="w-3.5 h-3.5" />
-                  Add
+                  <Plus className="w-4 h-4" />
                 </button>
               </div>
-              <div className="flex flex-wrap gap-1.5">
-                {skillsToLearn.map((skill) => (
-                  <span
-                    key={skill}
-                    className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md bg-slate-100 text-slate-700 text-xs font-medium"
-                  >
-                    {skill}
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveLearnSkill(skill)}
-                      className="text-slate-500 hover:text-slate-900"
+              {skillsToLearn.length > 0 && (
+                <div className="flex flex-wrap gap-1.5">
+                  {skillsToLearn.map((tag) => (
+                    <span
+                      key={tag}
+                      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#171715] border border-[#37332E] text-xs font-semibold text-[#F7F5F0]"
                     >
-                      <X className="w-3 h-3" />
-                    </button>
-                  </span>
-                ))}
-              </div>
-            </div>
-
-            <button
-              type="submit"
-              disabled={isLoading}
-              className="w-full py-2.5 px-4 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs shadow-2xs transition-all flex items-center justify-center gap-1.5 mt-3"
-            >
-              {isLoading ? (
-                <span className="flex items-center gap-1.5">
-                  <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  Setting up student profile...
-                </span>
-              ) : (
-                <>
-                  Create Account & Claim 3 Credits
-                  <ArrowRight className="w-3.5 h-3.5" />
-                </>
+                      {tag}
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setSkillsToLearn(skillsToLearn.filter((t) => t !== tag))
+                        }
+                        className="text-[#AAA69F] hover:text-[#F07878]"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </span>
+                  ))}
+                </div>
               )}
-            </button>
-          </form>
-            </>
-          )}
-        </div>
+            </div>
+          </div>
 
-        <p className="text-center text-xs text-slate-500">
-          Already registered?{' '}
-          <Link href="/login" className="font-semibold text-emerald-600 hover:text-emerald-700 underline">
-            Sign In here
+          {errorMsg && (
+            <div className="flex items-start gap-2.5 p-3.5 rounded-xl bg-[#F07878]/10 border border-[#F07878]/30 text-sm text-[#F07878]">
+              <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+              <span>{errorMsg}</span>
+            </div>
+          )}
+
+          <button
+            type="submit"
+            disabled={submitting}
+            className="w-full inline-flex items-center justify-center gap-2 py-3.5 rounded-full bg-[#FF9B45] hover:bg-[#F5B66B] disabled:opacity-50 text-[#171715] text-base font-bold transition-colors cursor-pointer"
+          >
+            {submitting ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Creating Account...
+              </>
+            ) : (
+              <>
+                Create Student Account
+                <ArrowRight className="w-4 h-4" />
+              </>
+            )}
+          </button>
+        </form>
+
+        <p className="text-center text-sm text-[#AAA69F]">
+          Already have an account?{' '}
+          <Link href="/login" className="font-bold text-[#FF9B45] hover:text-[#F5B66B]">
+            Log in
           </Link>
         </p>
       </div>

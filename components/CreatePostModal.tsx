@@ -1,124 +1,107 @@
 'use client';
 
 import React, { useState } from 'react';
-import { PostCategory, Skill } from '@/types';
+import { PostCategory } from '@/types';
+import { useApp } from '@/context/AppContext';
 import { useCommunity } from '@/context/CommunityContext';
-import { X, Sparkles, Plus, AlertCircle, Link as LinkIcon, BookOpen, Tag } from 'lucide-react';
+import { X, Plus, AlertCircle, MessageSquarePlus } from 'lucide-react';
 
 interface CreatePostModalProps {
   onClose: () => void;
-  onSuccess?: () => void;
-  availableSkills?: Skill[];
+  onCreated?: () => void;
 }
 
 const CATEGORIES: PostCategory[] = ['Discussions', 'Questions', 'Resources', 'Achievements'];
 
-export default function CreatePostModal({
-  onClose,
-  onSuccess,
-  availableSkills = [],
-}: CreatePostModalProps) {
-  const { createPost, currentCollege } = useCommunity();
+export default function CreatePostModal({ onClose, onCreated }: CreatePostModalProps) {
+  const { skills } = useApp();
+  const { createPost } = useCommunity();
 
   const [category, setCategory] = useState<PostCategory>('Discussions');
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [tagInput, setTagInput] = useState('');
-  const [tags, setTags] = useState<string[]>(['study-group']);
-  const [selectedSkillId, setSelectedSkillId] = useState<string>('');
+  const [tags, setTags] = useState<string[]>([]);
+  const [relatedSkillId, setRelatedSkillId] = useState('');
   const [resourceUrl, setResourceUrl] = useState('');
-  const [error, setError] = useState<string | null>(null);
+  const [errorMsg, setErrorMsg] = useState('');
 
-  const handleAddTag = () => {
-    const clean = tagInput.trim().toLowerCase().replace(/[^a-z0-9-]/g, '');
-    if (clean && !tags.includes(clean)) {
+  const addTag = () => {
+    const clean = tagInput.trim().replace(/^#/, '');
+    if (!clean) return;
+    if (!tags.some((t) => t.toLowerCase() === clean.toLowerCase())) {
       setTags([...tags, clean]);
-      setTagInput('');
     }
-  };
-
-  const handleRemoveTag = (tagToRemove: string) => {
-    setTags(tags.filter((t) => t !== tagToRemove));
+    setTagInput('');
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    setError(null);
-
-    if (!title.trim()) {
-      setError('Please provide a descriptive title for your post.');
+    if (!title.trim() || !content.trim()) {
+      setErrorMsg('Please enter both a headline and post body.');
       return;
     }
 
-    if (!content.trim()) {
-      setError('Post content cannot be empty.');
-      return;
-    }
+    const finalTags =
+      tagInput.trim() && !tags.includes(tagInput.trim().replace(/^#/, ''))
+        ? [...tags, tagInput.trim().replace(/^#/, '')]
+        : tags;
 
-    const matchedSkill = availableSkills.find((s) => s.id === selectedSkillId);
+    const matchedSkill = skills.find((s) => s.id === relatedSkillId);
 
     const res = createPost({
-      title,
-      content,
+      title: title.trim(),
+      content: content.trim(),
       category,
-      tags,
-      relatedSkillId: selectedSkillId || undefined,
+      tags: finalTags,
+      relatedSkillId: matchedSkill?.id,
       relatedSkillTitle: matchedSkill?.title,
       resourceUrl: resourceUrl.trim() || undefined,
     });
 
-    if (res.success) {
-      if (onSuccess) onSuccess();
-      onClose();
-    } else {
-      setError(res.error || 'Failed to publish post.');
+    if (!res.success) {
+      setErrorMsg(res.error || 'Could not publish community post.');
+      return;
     }
+
+    onCreated?.();
+    onClose();
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/50 backdrop-blur-xs animate-in fade-in duration-150">
-      <div className="bg-white rounded-2xl max-w-xl w-full shadow-2xl border border-slate-200 overflow-hidden max-h-[90vh] flex flex-col">
-        {/* Header */}
-        <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/70 shrink-0">
-          <div>
-            <div className="flex items-center gap-1.5 text-[11px] font-bold text-emerald-700 uppercase tracking-wider">
-              <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
-              <span>{currentCollege.shortName} Campus Community</span>
-            </div>
-            <h2 className="text-base font-bold text-slate-900 mt-0.5">Create a Community Post</h2>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-xs">
+      <div className="w-full max-w-xl bg-[#22211F] border border-[#37332E] rounded-2xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col animate-in fade-in zoom-in-95 duration-200">
+        <div className="px-6 py-5 border-b border-[#37332E] bg-[#1B1A18] flex items-center justify-between shrink-0">
+          <div className="flex items-center gap-2.5">
+            <MessageSquarePlus className="w-5 h-5 text-[#FF9B45]" />
+            <h2 className="text-xl font-bold text-[#F7F5F0]">New Community Post</h2>
           </div>
           <button
+            type="button"
             onClick={onClose}
-            className="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 transition-colors"
+            className="p-2 rounded-xl text-[#AAA69F] hover:text-[#F7F5F0] hover:bg-[#2B2824] transition-colors cursor-pointer"
+            aria-label="Close modal"
           >
-            <X className="w-4 h-4" />
+            <X className="w-5 h-5" />
           </button>
         </div>
 
-        {/* Modal Form */}
-        <form onSubmit={handleSubmit} className="p-6 space-y-4 overflow-y-auto flex-1">
-          {error && (
-            <div className="p-3 rounded-xl bg-rose-50 border border-rose-200/80 text-rose-700 text-xs flex items-center gap-2">
-              <AlertCircle className="w-4 h-4 shrink-0" />
-              <span>{error}</span>
-            </div>
-          )}
-
-          {/* Category Selector */}
-          <div className="space-y-1.5">
-            <label className="text-xs font-bold uppercase tracking-wider text-slate-500">
-              Post Category
+        <form onSubmit={handleSubmit} className="p-6 overflow-y-auto space-y-5">
+          {/* Category Pills */}
+          <div>
+            <label className="block text-xs font-bold uppercase tracking-wider text-[#AAA69F] mb-2">
+              Category
             </label>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            <div className="flex flex-wrap gap-2">
               {CATEGORIES.map((cat) => (
                 <button
-                  type="button"
                   key={cat}
+                  type="button"
                   onClick={() => setCategory(cat)}
-                  className={`py-2 px-3 rounded-xl text-xs font-semibold border transition-all text-center ${
+                  className={`px-3.5 py-1.5 rounded-full text-xs font-bold border transition-colors cursor-pointer ${
                     category === cat
-                      ? 'bg-emerald-600 text-white border-emerald-600 shadow-2xs'
-                      : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+                      ? 'bg-[#FF9B45] text-[#171715] border-[#FF9B45]'
+                      : 'bg-[#171715] text-[#AAA69F] border-[#37332E] hover:text-[#F7F5F0]'
                   }`}
                 >
                   {cat}
@@ -127,39 +110,38 @@ export default function CreatePostModal({
             </div>
           </div>
 
-          {/* Title Input */}
-          <div className="space-y-1.5">
-            <label className="text-xs font-bold uppercase tracking-wider text-slate-500">
-              Post Title <span className="text-rose-500">*</span>
+          <div>
+            <label className="block text-xs font-bold uppercase tracking-wider text-[#AAA69F] mb-2">
+              Headline
             </label>
             <input
               type="text"
+              required
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="e.g. Study group for CSE 373 or Figma component advice..."
-              className="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-hidden focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 text-slate-900 bg-white"
+              placeholder="e.g. Looking for a React peer partner before Friday sprint"
+              className="w-full px-4 py-2.5 rounded-xl bg-[#171715] border border-[#37332E] focus:border-[#FF9B45] text-[15px] text-[#F7F5F0] placeholder-[#AAA69F]/60 focus:outline-none"
             />
           </div>
 
-          {/* Content Textarea */}
-          <div className="space-y-1.5">
-            <label className="text-xs font-bold uppercase tracking-wider text-slate-500">
-              Content <span className="text-rose-500">*</span>
+          <div>
+            <label className="block text-xs font-bold uppercase tracking-wider text-[#AAA69F] mb-2">
+              Content
             </label>
             <textarea
               rows={4}
+              required
               value={content}
               onChange={(e) => setContent(e.target.value)}
-              placeholder="Share context, ask questions, explain your idea, or offer notes to fellow students..."
-              className="w-full text-xs p-3.5 rounded-xl border border-slate-200 focus:outline-hidden focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 text-slate-900 bg-white resize-y leading-relaxed"
+              placeholder="Share details, questions, study tips, or helpful guides..."
+              className="w-full px-4 py-3 rounded-xl bg-[#171715] border border-[#37332E] focus:border-[#FF9B45] text-sm text-[#F7F5F0] placeholder-[#AAA69F]/60 focus:outline-none resize-none"
             />
           </div>
 
           {/* Tags */}
-          <div className="space-y-1.5">
-            <label className="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1">
-              <Tag className="w-3.5 h-3.5 text-slate-400" />
-              Tags
+          <div className="space-y-2">
+            <label className="block text-xs font-bold uppercase tracking-wider text-[#AAA69F]">
+              Topics / Tags
             </label>
             <div className="flex gap-2">
               <input
@@ -169,34 +151,35 @@ export default function CreatePostModal({
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') {
                     e.preventDefault();
-                    handleAddTag();
+                    addTag();
                   }
                 }}
-                placeholder="Add tag (e.g. python, hackathon, figma)..."
-                className="flex-1 text-xs px-3.5 py-2 rounded-xl border border-slate-200 focus:outline-hidden focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 text-slate-900"
+                placeholder="e.g. react, exam-prep"
+                className="flex-1 px-4 py-2 rounded-xl bg-[#171715] border border-[#37332E] focus:border-[#FF9B45] text-sm text-[#F7F5F0] focus:outline-none"
               />
               <button
                 type="button"
-                onClick={handleAddTag}
-                className="px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold transition-colors"
+                onClick={addTag}
+                className="px-3.5 py-2 rounded-xl bg-[#2B2824] border border-[#37332E] text-[#FF9B45] hover:bg-[#37332E] cursor-pointer"
+                aria-label="Add tag"
               >
-                <Plus className="w-3.5 h-3.5" />
+                <Plus className="w-4 h-4" />
               </button>
             </div>
             {tags.length > 0 && (
-              <div className="flex flex-wrap gap-1.5 pt-1">
+              <div className="flex flex-wrap gap-1.5">
                 {tags.map((tag) => (
                   <span
                     key={tag}
-                    className="inline-flex items-center gap-1 text-[11px] font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200/60 px-2.5 py-0.5 rounded-md"
+                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-[#2B2824] border border-[#37332E] text-xs font-semibold text-[#F7F5F0]"
                   >
                     #{tag}
                     <button
                       type="button"
-                      onClick={() => handleRemoveTag(tag)}
-                      className="text-emerald-600 hover:text-emerald-900"
+                      onClick={() => setTags(tags.filter((t) => t !== tag))}
+                      className="text-[#AAA69F] hover:text-[#F07878]"
                     >
-                      ×
+                      <X className="w-3 h-3" />
                     </button>
                   </span>
                 ))}
@@ -204,53 +187,57 @@ export default function CreatePostModal({
             )}
           </div>
 
-          {/* Optional: Link Related Skill */}
-          <div className="space-y-1.5">
-            <label className="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1">
-              <BookOpen className="w-3.5 h-3.5 text-slate-400" />
-              Link an Active Marketplace Skill (Optional)
-            </label>
-            <select
-              value={selectedSkillId}
-              onChange={(e) => setSelectedSkillId(e.target.value)}
-              className="w-full text-xs px-3 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-900 focus:outline-hidden focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600"
-            >
-              <option value="">None — General Discussion</option>
-              {availableSkills.map((sk) => (
-                <option key={sk.id} value={sk.id}>
-                  {sk.title} ({sk.teacherName} • {sk.hourlyCredits} Cr)
-                </option>
-              ))}
-            </select>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-[#AAA69F] mb-2">
+                Link Skill Listing (Optional)
+              </label>
+              <select
+                value={relatedSkillId}
+                onChange={(e) => setRelatedSkillId(e.target.value)}
+                className="w-full px-3.5 py-2.5 rounded-xl bg-[#171715] border border-[#37332E] focus:border-[#FF9B45] text-sm text-[#F7F5F0] focus:outline-none"
+              >
+                <option value="" className="bg-[#22211F]">None</option>
+                {skills.map((s) => (
+                  <option key={s.id} value={s.id} className="bg-[#22211F]">
+                    {s.title}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-[#AAA69F] mb-2">
+                Resource URL (Optional)
+              </label>
+              <input
+                type="url"
+                value={resourceUrl}
+                onChange={(e) => setResourceUrl(e.target.value)}
+                placeholder="https://..."
+                className="w-full px-3.5 py-2.5 rounded-xl bg-[#171715] border border-[#37332E] focus:border-[#FF9B45] text-sm text-[#F7F5F0] placeholder-[#AAA69F]/60 focus:outline-none"
+              />
+            </div>
           </div>
 
-          {/* Optional: Resource URL */}
-          <div className="space-y-1.5">
-            <label className="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1">
-              <LinkIcon className="w-3.5 h-3.5 text-slate-400" />
-              Resource URL (Optional)
-            </label>
-            <input
-              type="url"
-              value={resourceUrl}
-              onChange={(e) => setResourceUrl(e.target.value)}
-              placeholder="https://github.com/..., https://figma.com/..., or doc link"
-              className="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-hidden focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 text-slate-900 bg-white"
-            />
-          </div>
+          {errorMsg && (
+            <div className="flex items-start gap-2 p-3 rounded-xl bg-[#F07878]/10 border border-[#F07878]/30 text-sm text-[#F07878]">
+              <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+              <span>{errorMsg}</span>
+            </div>
+          )}
 
-          {/* Modal Actions */}
-          <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-2 shrink-0">
+          <div className="flex items-center justify-end gap-3 pt-2">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50 text-xs font-semibold transition-colors"
+              className="px-5 py-2.5 rounded-full bg-[#2B2824] hover:bg-[#37332E] border border-[#37332E] text-sm font-semibold text-[#F7F5F0] transition-colors cursor-pointer"
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold transition-all shadow-xs"
+              className="px-6 py-2.5 rounded-full bg-[#FF9B45] hover:bg-[#F5B66B] text-[#171715] text-sm font-bold transition-colors cursor-pointer"
             >
               Publish Post
             </button>

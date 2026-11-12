@@ -3,21 +3,22 @@
 import React, { useState, useRef } from 'react';
 import { SkillSwapInvitation } from '@/types';
 import { useApp } from '@/context/AppContext';
+import { getISTDateString, isISTDateTimeInFuture, parseISTTimestamp } from '@/lib/timezone';
 import {
   X,
+  Repeat,
   Calendar,
   Clock,
-  ArrowRightLeft,
-  CheckCircle2,
   AlertCircle,
-  ShieldCheck,
+  CheckCircle2,
+  Loader2,
+  Coins,
 } from 'lucide-react';
-import { getISTDateString, parseISTTimestamp } from '@/lib/timezone';
 
 interface AcceptSwapModalProps {
   invitation: SkillSwapInvitation;
   onClose: () => void;
-  onSuccess: () => void;
+  onSuccess?: () => void;
 }
 
 export default function AcceptSwapModal({
@@ -27,77 +28,51 @@ export default function AcceptSwapModal({
 }: AcceptSwapModalProps) {
   const { acceptSwapProposal } = useApp();
 
-  const [todayStr] = useState<string>(() => getISTDateString(0));
-  const [session1Date, setSession1Date] = useState<string>(() => getISTDateString(1));
-  const [session1Time, setSession1Time] = useState<string>('14:00');
-
-  const [session2Date, setSession2Date] = useState<string>(() => getISTDateString(2));
-  const [session2Time, setSession2Time] = useState<string>('16:00');
-
+  const [session1Date, setSession1Date] = useState(getISTDateString(1));
+  const [session1Time, setSession1Time] = useState('16:00');
+  const [session2Date, setSession2Date] = useState(getISTDateString(2));
+  const [session2Time, setSession2Time] = useState('17:00');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [errorMsg, setErrorMsg] = useState('');
+  const [isAccepted, setIsAccepted] = useState(false);
   const isSubmittingRef = useRef(false);
 
-  const timeOptions = [
-    '09:00', '10:00', '11:00', '12:00', '13:00',
-    '14:00', '15:00', '16:00', '17:00', '18:00',
-    '19:00', '20:00',
-  ];
+  const minDate = getISTDateString(0);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (isSubmittingRef.current || isSubmitting) return;
-    setError(null);
 
-    // Validate dates
-    if (!session1Date || !session2Date) {
-      setError('Please select dates for both reciprocal sessions.');
+    if (!session1Date || !session1Time || !session2Date || !session2Time) {
+      setErrorMsg('Please select valid dates and start times for both reciprocal sessions.');
       return;
     }
 
-    if (session1Date < todayStr || session2Date < todayStr) {
-      setError('Session dates cannot be in the past.');
+    if (!isISTDateTimeInFuture(session1Date, session1Time)) {
+      setErrorMsg('Session 1 must be scheduled in the future (IST).');
       return;
     }
 
-    if (!session1Time || !session2Time) {
-      setError('Please select times for both sessions.');
+    if (!isISTDateTimeInFuture(session2Date, session2Time)) {
+      setErrorMsg('Session 2 must be scheduled in the future (IST).');
       return;
     }
 
-    // Check that both session start times are strictly in the future in IST (including when date is today)
-    const now = Date.now();
-    const s1Start = parseISTTimestamp(session1Date, session1Time);
-    const s1End = s1Start + 60 * 60 * 1000;
-    const s2Start = parseISTTimestamp(session2Date, session2Time);
-    const s2End = s2Start + 60 * 60 * 1000;
-
-    if (s1Start <= now) {
-      setError(
-        'Session 1 scheduled start time has already passed in IST. Please select a future time slot.'
+    const ts1 = parseISTTimestamp(session1Date, session1Time);
+    const ts2 = parseISTTimestamp(session2Date, session2Time);
+    if (Math.abs(ts1 - ts2) < 60 * 60 * 1000) {
+      setErrorMsg(
+        'Both sessions are 60 minutes long and cannot overlap. Please schedule them at least 60 minutes apart.'
       );
       return;
     }
 
-    if (s2Start <= now) {
-      setError(
-        'Session 2 scheduled start time has already passed in IST. Please select a future time slot.'
-      );
-      return;
-    }
-
-    // Check 60-minute interval overlap across reciprocal sessions
-    if (s1Start < s2End && s2Start < s1End) {
-      setError(
-        'The two reciprocal sessions overlap in schedule. Each session lasts 60 minutes; please allow at least 60 minutes between session start times.'
-      );
-      return;
-    }
-
+    setErrorMsg('');
     isSubmittingRef.current = true;
     setIsSubmitting(true);
+
     try {
-      const res = await acceptSwapProposal(
+      const result = await acceptSwapProposal(
         invitation.id,
         session1Date,
         session1Time,
@@ -105,13 +80,13 @@ export default function AcceptSwapModal({
         session2Time
       );
 
-      if (res.success) {
-        onSuccess();
-      } else {
-        setError(res.error || 'Failed to confirm mutual skill swap.');
+      if (!result.success) {
+        setErrorMsg(result.error || 'Could not accept mutual swap proposal.');
+        return;
       }
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'An unexpected error occurred.');
+
+      setIsAccepted(true);
+      onSuccess?.();
     } finally {
       isSubmittingRef.current = false;
       setIsSubmitting(false);
@@ -119,233 +94,201 @@ export default function AcceptSwapModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs animate-in fade-in duration-150 overflow-y-auto">
-      <div className="bg-white rounded-2xl max-w-xl w-full shadow-2xl border border-slate-200 overflow-hidden my-8">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-xs">
+      <div className="w-full max-w-xl bg-[#22211F] border border-[#37332E] rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200 max-h-[90vh] flex flex-col">
         {/* Header */}
-        <div className="bg-gradient-to-r from-emerald-800 via-emerald-700 to-teal-800 p-5 text-white flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-white/20 backdrop-blur-xs flex items-center justify-center text-white ring-1 ring-white/30 shadow-xs">
-              <ArrowRightLeft className="w-5 h-5" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-500/30 text-emerald-100 border border-emerald-400/40">
-                  Reciprocal Scheduling
-                </span>
-                <span className="text-xs font-semibold text-emerald-200">
-                  {invitation.credits} Cr Exchange
-                </span>
-              </div>
-              <h2 className="text-base font-bold text-white tracking-tight mt-0.5">
-                Schedule & Accept Mutual Swap
-              </h2>
-            </div>
+        <div className="px-6 py-5 border-b border-[#37332E] flex items-start justify-between gap-4 bg-[#1B1A18] shrink-0">
+          <div>
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold bg-[#65C995]/15 border border-[#65C995]/30 text-[#65C995] mb-2">
+              <Repeat className="w-3.5 h-3.5" />
+              Schedule Both Swap Sessions
+            </span>
+            <h2 className="text-xl font-bold text-[#F7F5F0]">
+              {isAccepted
+                ? 'Mutual Swap Confirmed'
+                : `Accept Swap with ${invitation.senderName || 'Peer'}`}
+            </h2>
           </div>
           <button
+            type="button"
             onClick={onClose}
-            className="p-1.5 rounded-lg text-white/70 hover:text-white hover:bg-white/10 transition-colors"
-            aria-label="Close"
+            className="p-2 rounded-xl text-[#AAA69F] hover:text-[#F7F5F0] hover:bg-[#2B2824] transition-colors cursor-pointer"
+            aria-label="Close modal"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-5 sm:p-6 space-y-5">
-          {error && (
-            <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 rounded-xl text-xs flex items-center gap-2">
-              <AlertCircle className="w-4 h-4 shrink-0 text-rose-500" />
-              <span>{error}</span>
-            </div>
-          )}
-
-          {/* Proposal Summary Card */}
-          <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200/80 flex items-center justify-between gap-3 text-xs">
-            <div className="flex items-center gap-2.5 min-w-0">
-              <img
-                src={invitation.senderAvatar}
-                alt={invitation.senderName}
-                className="w-9 h-9 rounded-full object-cover ring-1 ring-emerald-200 shrink-0"
-              />
-              <div className="min-w-0">
-                <span className="text-xs font-bold text-slate-900 block truncate">
-                  Partner: {invitation.senderName}
-                </span>
-                <span className="text-[11px] text-slate-500 block truncate">
-                  {invitation.senderUniversity || 'Student Peer'} • {invitation.senderMajor || 'Student'}
-                </span>
+        <div className="p-6 overflow-y-auto">
+          {isAccepted ? (
+            <div className="py-4 text-center space-y-6">
+              <div className="w-14 h-14 rounded-2xl bg-[#65C995]/15 border border-[#65C995]/30 text-[#65C995] flex items-center justify-center mx-auto">
+                <CheckCircle2 className="w-7 h-7" />
               </div>
+              <div className="space-y-2">
+                <h3 className="text-lg font-bold text-[#F7F5F0]">Both Sessions Created</h3>
+                <p className="text-sm text-[#AAA69F] leading-relaxed">
+                  Both reciprocal sessions are now active in My Sessions. You can add Google Meet links for the session you teach.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-6 py-2.5 rounded-full bg-[#FF9B45] hover:bg-[#F5B66B] text-[#171715] text-sm font-bold transition-colors cursor-pointer"
+              >
+                Done
+              </button>
             </div>
-            <span className="text-[10px] font-bold text-emerald-800 bg-emerald-100/80 px-2.5 py-1 rounded-full border border-emerald-200/70 shrink-0">
-              0 Net Cost
-            </span>
-          </div>
-
-          {/* Scheduling Section: Two Independent Sessions */}
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-                Coordinate Session Dates & Times
-              </span>
-              <span className="text-[10px] text-slate-400 font-medium">
-                Independent schedules
-              </span>
-            </div>
-
-            {/* Session 1: You Learn */}
-            <div className="p-4 rounded-xl bg-emerald-50/50 border border-emerald-200/80 space-y-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="w-5 h-5 rounded-md bg-emerald-600 text-white text-[11px] font-bold flex items-center justify-center">
-                    1
-                  </span>
+          ) : (
+            <form onSubmit={handleSubmit} className="space-y-5">
+              {/* Session 1 Scheduling */}
+              <div className="bg-[#2B2824] border border-[#37332E] rounded-xl p-4 space-y-3">
+                <div className="flex items-center justify-between gap-2">
                   <div>
-                    <span className="text-xs font-bold text-slate-900 block">
-                      Session 1: You Learn
-                    </span>
-                    <span className="text-[11px] text-emerald-800 font-semibold">
+                    <p className="text-xs font-bold uppercase tracking-wider text-[#FF9B45]">
+                      Session 1 · You Learn
+                    </p>
+                    <p className="text-sm font-bold text-[#F7F5F0] mt-0.5">
                       {invitation.offeredSkillTitle}
-                    </span>
+                    </p>
+                    <p className="text-xs text-[#AAA69F]">
+                      Taught by {invitation.senderName || 'Sender'} (60 min)
+                    </p>
                   </div>
-                </div>
-                <span className="text-[10px] text-slate-500 bg-white px-2 py-0.5 rounded border border-slate-200">
-                  Taught by {invitation.senderName?.split(' ')[0]}
-                </span>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3 pt-1">
-                <div>
-                  <label className="text-[10px] font-semibold text-slate-600 flex items-center gap-1 mb-1">
-                    <Calendar className="w-3 h-3 text-emerald-600" />
-                    Date
-                  </label>
-                  <input
-                    type="date"
-                    min={todayStr}
-                    value={session1Date}
-                    onChange={(e) => setSession1Date(e.target.value)}
-                    required
-                    className="w-full text-xs px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-emerald-500/20"
-                  />
-                </div>
-                <div>
-                  <label className="text-[10px] font-semibold text-slate-600 flex items-center gap-1 mb-1">
-                    <Clock className="w-3 h-3 text-emerald-600" />
-                    Time (IST)
-                  </label>
-                  <select
-                    value={session1Time}
-                    onChange={(e) => setSession1Time(e.target.value)}
-                    className="w-full text-xs px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-emerald-500/20"
-                  >
-                    {timeOptions.map((t) => (
-                      <option key={t} value={t}>
-                        {t}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-            </div>
-
-            {/* Session 2: You Teach */}
-            <div className="p-4 rounded-xl bg-blue-50/50 border border-blue-200/80 space-y-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="w-5 h-5 rounded-md bg-blue-600 text-white text-[11px] font-bold flex items-center justify-center">
-                    2
+                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-[#171715] border border-[#37332E] text-xs font-bold text-[#FF9B45]">
+                    <Coins className="w-3.5 h-3.5" />
+                    {invitation.credits} Cr
                   </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
                   <div>
-                    <span className="text-xs font-bold text-slate-900 block">
-                      Session 2: You Teach
-                    </span>
-                    <span className="text-[11px] text-blue-800 font-semibold">
-                      {invitation.requestedSkillTitle}
-                    </span>
+                    <label className="block text-xs font-semibold text-[#AAA69F] mb-1.5">
+                      Date (IST)
+                    </label>
+                    <div className="relative">
+                      <Calendar className="w-4 h-4 text-[#AAA69F] absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                      <input
+                        type="date"
+                        min={minDate}
+                        value={session1Date}
+                        onChange={(e) => setSession1Date(e.target.value)}
+                        required
+                        className="w-full pl-9 pr-3 py-2 rounded-xl bg-[#171715] border border-[#37332E] focus:border-[#FF9B45] text-sm text-[#F7F5F0] focus:outline-none"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-[#AAA69F] mb-1.5">
+                      Start Time (IST)
+                    </label>
+                    <div className="relative">
+                      <Clock className="w-4 h-4 text-[#AAA69F] absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                      <input
+                        type="time"
+                        value={session1Time}
+                        onChange={(e) => setSession1Time(e.target.value)}
+                        required
+                        className="w-full pl-9 pr-3 py-2 rounded-xl bg-[#171715] border border-[#37332E] focus:border-[#FF9B45] text-sm text-[#F7F5F0] focus:outline-none"
+                      />
+                    </div>
                   </div>
                 </div>
-                <span className="text-[10px] text-slate-500 bg-white px-2 py-0.5 rounded border border-slate-200">
-                  Student: {invitation.senderName?.split(' ')[0]}
-                </span>
               </div>
 
-              <div className="grid grid-cols-2 gap-3 pt-1">
-                <div>
-                  <label className="text-[10px] font-semibold text-slate-600 flex items-center gap-1 mb-1">
-                    <Calendar className="w-3 h-3 text-blue-600" />
-                    Date
-                  </label>
-                  <input
-                    type="date"
-                    min={todayStr}
-                    value={session2Date}
-                    onChange={(e) => setSession2Date(e.target.value)}
-                    required
-                    className="w-full text-xs px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-blue-500/20"
-                  />
+              {/* Session 2 Scheduling */}
+              <div className="bg-[#2B2824] border border-[#37332E] rounded-xl p-4 space-y-3">
+                <div className="flex items-center justify-between gap-2">
+                  <div>
+                    <p className="text-xs font-bold uppercase tracking-wider text-[#65C995]">
+                      Session 2 · You Teach
+                    </p>
+                    <p className="text-sm font-bold text-[#F7F5F0] mt-0.5">
+                      {invitation.requestedSkillTitle}
+                    </p>
+                    <p className="text-xs text-[#AAA69F]">
+                      You mentor {invitation.senderName || 'Sender'} (60 min)
+                    </p>
+                  </div>
+                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-[#171715] border border-[#37332E] text-xs font-bold text-[#65C995]">
+                    <Coins className="w-3.5 h-3.5" />
+                    +{invitation.credits} Cr
+                  </span>
                 </div>
-                <div>
-                  <label className="text-[10px] font-semibold text-slate-600 flex items-center gap-1 mb-1">
-                    <Clock className="w-3 h-3 text-blue-600" />
-                    Time (IST)
-                  </label>
-                  <select
-                    value={session2Time}
-                    onChange={(e) => setSession2Time(e.target.value)}
-                    className="w-full text-xs px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-blue-500/20"
-                  >
-                    {timeOptions.map((t) => (
-                      <option key={t} value={t}>
-                        {t}
-                      </option>
-                    ))}
-                  </select>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                  <div>
+                    <label className="block text-xs font-semibold text-[#AAA69F] mb-1.5">
+                      Date (IST)
+                    </label>
+                    <div className="relative">
+                      <Calendar className="w-4 h-4 text-[#AAA69F] absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                      <input
+                        type="date"
+                        min={minDate}
+                        value={session2Date}
+                        onChange={(e) => setSession2Date(e.target.value)}
+                        required
+                        className="w-full pl-9 pr-3 py-2 rounded-xl bg-[#171715] border border-[#37332E] focus:border-[#FF9B45] text-sm text-[#F7F5F0] focus:outline-none"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-[#AAA69F] mb-1.5">
+                      Start Time (IST)
+                    </label>
+                    <div className="relative">
+                      <Clock className="w-4 h-4 text-[#AAA69F] absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                      <input
+                        type="time"
+                        value={session2Time}
+                        onChange={(e) => setSession2Time(e.target.value)}
+                        required
+                        className="w-full pl-9 pr-3 py-2 rounded-xl bg-[#171715] border border-[#37332E] focus:border-[#FF9B45] text-sm text-[#F7F5F0] focus:outline-none"
+                      />
+                    </div>
+                  </div>
                 </div>
               </div>
-            </div>
-          </div>
 
-          {/* Credit Assurance & Accounting Info */}
-          <div className="p-3 bg-slate-50 rounded-xl border border-slate-200/70 text-[11px] text-slate-600 space-y-1.5 leading-relaxed">
-            <div className="flex items-center gap-1.5 font-semibold text-slate-800">
-              <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-              <span>Credit Lifecycle Protection</span>
-            </div>
-            <p className="text-slate-500">
-              Accepting reserves {invitation.credits} credit in escrow for each student&apos;s learning session.
-              Upon completion of each session, credits transfer to the instructor. If an uncompleted session is cancelled,
-              escrowed credits are automatically refunded. Net balance change is 0 credits.
-            </p>
-          </div>
+              <p className="text-xs text-[#AAA69F]">
+                Note: Both sessions are 60 minutes long and must be scheduled at future IST times without overlapping.
+              </p>
 
-          {/* Buttons */}
-          <div className="pt-2 border-t border-slate-100 flex items-center justify-end gap-2.5">
-            <button
-              type="button"
-              onClick={onClose}
-              disabled={isSubmitting}
-              className="px-4 py-2 rounded-xl border border-slate-200 hover:border-slate-300 text-slate-700 hover:text-slate-900 text-xs font-semibold bg-white transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold transition-all shadow-xs hover:shadow flex items-center gap-1.5 disabled:opacity-60 disabled:cursor-not-allowed"
-            >
-              {isSubmitting ? (
-                <>
-                  <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  Confirming Swap...
-                </>
-              ) : (
-                <>
-                  <CheckCircle2 className="w-3.5 h-3.5" />
-                  Confirm & Schedule Both Sessions
-                </>
+              {errorMsg && (
+                <div className="flex items-start gap-2.5 p-3.5 rounded-xl bg-[#F07878]/10 border border-[#F07878]/30 text-sm text-[#F07878]">
+                  <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                  <span>{errorMsg}</span>
+                </div>
               )}
-            </button>
-          </div>
-        </form>
+
+              <div className="flex items-center justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={onClose}
+                  disabled={isSubmitting}
+                  className="px-5 py-2.5 rounded-full bg-[#2B2824] hover:bg-[#37332E] border border-[#37332E] text-sm font-semibold text-[#F7F5F0] transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-full bg-[#FF9B45] hover:bg-[#F5B66B] disabled:opacity-50 text-[#171715] text-sm font-bold transition-colors cursor-pointer"
+                >
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Confirming Swap...
+                    </>
+                  ) : (
+                    'Accept & Confirm Both Sessions'
+                  )}
+                </button>
+              </div>
+            </form>
+          )}
+        </div>
       </div>
     </div>
   );

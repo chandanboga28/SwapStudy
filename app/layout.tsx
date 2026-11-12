@@ -1,18 +1,18 @@
 import React, { Suspense } from 'react';
 import type { Metadata } from 'next';
-import { Inter } from 'next/font/google';
+import { Manrope } from 'next/font/google';
 import './globals.css';
 import { AuthProvider } from '@/context/AuthContext';
 import { AppProvider } from '@/context/AppContext';
 import { CommunityProvider } from '@/context/CommunityContext';
 import { MessagingProvider } from '@/context/MessagingContext';
 import DemoBanner from '@/components/DemoBanner';
-import Navbar from '@/components/Navbar';
-import Footer from '@/components/Footer';
+import AppShell from '@/components/AppShell';
 
-const inter = Inter({
+const manrope = Manrope({
   subsets: ['latin'],
-  variable: '--font-inter',
+  weight: ['400', '500', '600', '700', '800'],
+  variable: '--font-manrope',
   display: 'swap',
 });
 
@@ -28,18 +28,16 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={`${inter.variable} h-full antialiased`}>
-      <body className="min-h-full flex flex-col bg-[#fcfdfc] text-zinc-900 font-sans selection:bg-emerald-100 selection:text-emerald-900">
+    <html lang="en" className={`${manrope.variable} h-full antialiased dark`}>
+      <body className="min-h-full flex flex-col bg-[#171715] text-[#F7F5F0] font-sans selection:bg-[#FF9B45]/25 selection:text-[#F7F5F0]">
         <AuthProvider>
           <AppProvider>
             <CommunityProvider>
               <MessagingProvider>
                 <DemoBanner />
-                <Suspense fallback={<div className="h-16 border-b border-zinc-200 bg-white" />}>
-                  <Navbar />
+                <Suspense fallback={<div className="min-h-screen bg-[#171715]" />}>
+                  <AppShell>{children}</AppShell>
                 </Suspense>
-                <main className="flex-1 flex flex-col">{children}</main>
-                <Footer />
               </MessagingProvider>
             </CommunityProvider>
           </AppProvider>

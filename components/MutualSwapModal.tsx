@@ -1,19 +1,19 @@
 'use client';
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useMemo } from 'react';
+import Link from 'next/link';
 import { SmartMatch } from '@/types';
 import { useAuth } from '@/context/AuthContext';
 import { useApp } from '@/context/AppContext';
-import Link from 'next/link';
 import {
   X,
-  ArrowRightLeft,
-  Star,
+  Repeat,
   CheckCircle2,
   AlertCircle,
+  Loader2,
+  ArrowRight,
+  Coins,
   ShieldCheck,
-  Send,
-  Plus,
 } from 'lucide-react';
 
 interface MutualSwapModalProps {
@@ -22,112 +22,92 @@ interface MutualSwapModalProps {
   onSuccess?: () => void;
 }
 
-export default function MutualSwapModal({
-  match,
-  onClose,
-  onSuccess,
-}: MutualSwapModalProps) {
+export default function MutualSwapModal({ match, onClose, onSuccess }: MutualSwapModalProps) {
   const { user } = useAuth();
   const { skills, sendSwapProposal } = useApp();
 
-  const { candidate, skillTheyTeach, skillYouTeach, matchedListing, creditCost } = match;
-
-  // Real active skill listings the current user owns
-  const userListings = skills.filter((s) => s.teacherId === user?.id);
-
-  // Candidate listing
-  const candidateListing =
-    matchedListing ||
-    skills.find(
-      (s) =>
-        s.teacherId === candidate.id &&
-        s.title.toLowerCase() === (skillTheyTeach || '').toLowerCase()
-    ) ||
-    skills.find((s) => s.teacherId === candidate.id);
-
-  // Default selected listing: match.skillYouTeach or first active listing
-  const initialListing =
-    userListings.find(
-      (s) => s.title.toLowerCase() === (skillYouTeach || '').toLowerCase()
-    ) || userListings[0];
-
-  const [selectedListingId, setSelectedListingId] = useState<string>(
-    initialListing?.id || ''
+  const myListings = useMemo(
+    () => (user ? skills.filter((s) => s.teacherId === user.id) : []),
+    [skills, user]
   );
 
-  const selectedListing =
-    userListings.find((s) => s.id === selectedListingId) || initialListing;
-
-  const selectedOfferedSkill = selectedListing?.title || skillYouTeach || 'Your Skill';
-  const selectedRequestedSkill =
-    candidateListing?.title || skillTheyTeach || 'Skill Learning';
-
-  // Custom proposal note
-  const [note, setNote] = useState<string>(
-    `Hi ${candidate.name.split(' ')[0]}! I noticed you teach ${selectedRequestedSkill} and are interested in learning ${selectedOfferedSkill}. Would love to do a mutual skill swap! Let's connect and coordinate our schedules.`
+  const peerListings = useMemo(
+    () => skills.filter((s) => s.teacherId === match.candidate.id),
+    [skills, match.candidate.id]
   );
 
+  const defaultOfferedId = useMemo(() => {
+    if (match.skillYouTeach) {
+      const target = match.skillYouTeach.toLowerCase();
+      const matched = myListings.find(
+        (s) => s.title.toLowerCase().includes(target) || target.includes(s.title.toLowerCase())
+      );
+      if (matched) return matched.id;
+    }
+    return myListings[0]?.id || '';
+  }, [myListings, match.skillYouTeach]);
+
+  const defaultRequestedId = useMemo(() => {
+    if (match.matchedListing?.id) return match.matchedListing.id;
+    return peerListings[0]?.id || '';
+  }, [match.matchedListing, peerListings]);
+
+  const [offeredSkillId, setOfferedSkillId] = useState(defaultOfferedId);
+  const [requestedSkillId, setRequestedSkillId] = useState(defaultRequestedId);
+  const [note, setNote] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [errorMsg, setErrorMsg] = useState('');
   const [isSuccess, setIsSuccess] = useState(false);
   const isSubmittingRef = useRef(false);
 
-  // Update note when offered skill changes
-  const handleOfferedSkillChange = (newListingId: string) => {
-    setSelectedListingId(newListingId);
-    const chosen = userListings.find((s) => s.id === newListingId);
-    const title = chosen?.title || selectedOfferedSkill;
-    setNote(
-      `Hi ${candidate.name.split(' ')[0]}! I noticed you teach ${selectedRequestedSkill} and are interested in learning ${title}. Would love to do a mutual skill swap! Let's connect and coordinate our schedules.`
-    );
-  };
+  const offeredSkill = myListings.find((s) => s.id === offeredSkillId) || myListings[0];
+  const requestedSkill = peerListings.find((s) => s.id === requestedSkillId) || match.matchedListing;
+  const swapCredits = requestedSkill?.hourlyCredits || match.creditCost || 1;
+  const canSubmit = Boolean(user && offeredSkill && requestedSkill && user.credits >= swapCredits);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (isSubmittingRef.current || isSubmitting || isSuccess) return;
-    setError(null);
+    if (isSubmittingRef.current || isSubmitting) return;
 
     if (!user) {
-      setError('You must be signed in to send a skill swap proposal.');
+      setErrorMsg('Please log in to send a mutual swap proposal.');
+      return;
+    }
+    if (!offeredSkill) {
+      setErrorMsg('Publish a skill listing first so you can offer it in this exchange.');
+      return;
+    }
+    if (!requestedSkill) {
+      setErrorMsg('Selected peer skill listing is unavailable.');
+      return;
+    }
+    if (user.credits < swapCredits) {
+      setErrorMsg(`You need at least ${swapCredits} credit(s) in escrow balance to propose this swap.`);
       return;
     }
 
-    if (user.id === candidate.id) {
-      setError('You cannot propose a skill swap with yourself.');
-      return;
-    }
-
-    if (!selectedListing) {
-      setError('You must have at least one active skill listing to propose a mutual exchange.');
-      return;
-    }
-
-    if (!candidateListing) {
-      setError('The peer does not currently have an active listing available for exchange.');
-      return;
-    }
-
+    setErrorMsg('');
     isSubmittingRef.current = true;
     setIsSubmitting(true);
+
     try {
       const res = await sendSwapProposal({
-        recipientId: candidate.id,
-        offeredSkillId: selectedListing.id,
-        offeredSkillTitle: selectedListing.title,
-        requestedSkillId: candidateListing.id,
-        requestedSkillTitle: candidateListing.title,
-        credits: creditCost || candidateListing.hourlyCredits || 1,
-        note: note.trim(),
+        recipientId: match.candidate.id,
+        offeredSkillId: offeredSkill.id,
+        offeredSkillTitle: offeredSkill.title,
+        requestedSkillId: requestedSkill.id,
+        requestedSkillTitle: requestedSkill.title,
+        credits: swapCredits,
+        note: note.trim() || undefined,
       });
 
-      if (res.success) {
-        setIsSuccess(true);
-        if (onSuccess) onSuccess();
-      } else {
-        setError(res.error || 'Failed to submit mutual skill swap proposal.');
+      if (!res.success) {
+        setErrorMsg(res.error || 'Failed to submit mutual swap proposal.');
+        return;
       }
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'An unexpected error occurred.');
+
+      setIsSuccess(true);
+      onSuccess?.();
     } finally {
       isSubmittingRef.current = false;
       setIsSubmitting(false);
@@ -135,301 +115,192 @@ export default function MutualSwapModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs animate-in fade-in duration-150 overflow-y-auto">
-      <div className="bg-white rounded-2xl max-w-xl w-full shadow-2xl border border-slate-200 overflow-hidden my-8">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-xs">
+      <div className="w-full max-w-xl bg-[#22211F] border border-[#37332E] rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200 max-h-[90vh] flex flex-col">
         {/* Header */}
-        <div className="bg-gradient-to-r from-emerald-800 via-emerald-700 to-teal-800 p-5 text-white flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-white/20 backdrop-blur-xs flex items-center justify-center text-white ring-1 ring-white/30 shadow-xs">
-              <ArrowRightLeft className="w-5 h-5 animate-pulse" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-500/30 text-emerald-100 border border-emerald-400/40">
-                  Reciprocal Exchange
-                </span>
-                <span className="text-xs font-semibold text-emerald-200">
-                  {match.score}% Synergy
-                </span>
-              </div>
-              <h2 className="text-base font-bold text-white tracking-tight mt-0.5">
-                Propose Mutual Skill Swap
-              </h2>
-            </div>
+        <div className="px-6 py-5 border-b border-[#37332E] flex items-start justify-between gap-4 bg-[#1B1A18] shrink-0">
+          <div>
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold bg-[#65C995]/15 border border-[#65C995]/30 text-[#65C995] mb-2">
+              <Repeat className="w-3.5 h-3.5" />
+              Mutual Skill Exchange ({match.score}% Match)
+            </span>
+            <h2 className="text-xl font-bold text-[#F7F5F0]">
+              {isSuccess ? 'Mutual Swap Proposal Sent' : `Propose Exchange with ${match.candidate.name}`}
+            </h2>
           </div>
           <button
+            type="button"
             onClick={onClose}
-            className="p-1.5 rounded-lg text-white/70 hover:text-white hover:bg-white/10 transition-colors"
-            aria-label="Close"
+            className="p-2 rounded-xl text-[#AAA69F] hover:text-[#F7F5F0] hover:bg-[#2B2824] transition-colors cursor-pointer"
+            aria-label="Close modal"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        {/* Success View */}
-        {isSuccess ? (
-          <div className="p-8 text-center space-y-4">
-            <div className="w-14 h-14 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center mx-auto shadow-xs">
-              <CheckCircle2 className="w-8 h-8" />
-            </div>
-            <div className="space-y-1">
-              <h3 className="text-lg font-bold text-slate-900">
-                Swap Proposal Sent!
-              </h3>
-              <p className="text-xs text-slate-500 max-w-md mx-auto leading-relaxed">
-                Your mutual skill swap proposal has been delivered to{' '}
-                <span className="font-semibold text-slate-800">{candidate.name}</span>.
-                They will see it on their student dashboard and direct messages.
-              </p>
-            </div>
-
-            <div className="p-4 bg-emerald-50/70 border border-emerald-200/80 rounded-xl text-left text-xs text-slate-700 space-y-2">
-              <div className="flex items-center justify-between font-semibold text-emerald-900 pb-1.5 border-b border-emerald-200/60">
-                <span className="flex items-center gap-1.5">
-                  <ArrowRightLeft className="w-3.5 h-3.5 text-emerald-700" />
-                  Proposed Exchange Summary
-                </span>
-                <span className="text-[11px] bg-emerald-100 px-2 py-0.5 rounded text-emerald-800">
-                  Pending Partner Review
-                </span>
+        <div className="p-6 overflow-y-auto">
+          {isSuccess ? (
+            <div className="py-4 text-center space-y-6">
+              <div className="w-14 h-14 rounded-2xl bg-[#65C995]/15 border border-[#65C995]/30 text-[#65C995] flex items-center justify-center mx-auto">
+                <CheckCircle2 className="w-7 h-7" />
               </div>
-              <div className="grid grid-cols-2 gap-2 text-slate-600 pt-1">
-                <div>
-                  <span className="text-[10px] uppercase font-bold text-slate-400 block">
-                    You Teach
-                  </span>
-                  <span className="font-semibold text-slate-900">
-                    {selectedOfferedSkill}
-                  </span>
-                </div>
-                <div>
-                  <span className="text-[10px] uppercase font-bold text-slate-400 block">
-                    They Teach
-                  </span>
-                  <span className="font-semibold text-slate-900">
-                    {selectedRequestedSkill}
-                  </span>
-                </div>
+              <div className="space-y-2">
+                <h3 className="text-lg font-bold text-[#F7F5F0]">Proposal Delivered</h3>
+                <p className="text-sm text-[#AAA69F] max-w-md mx-auto leading-relaxed">
+                  {match.candidate.name} can now review both skills and schedule separate sessions for your reciprocal exchange.
+                </p>
               </div>
-            </div>
-
-            <div className="pt-2 flex justify-center">
-              <button
-                onClick={onClose}
-                className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs transition-colors shadow-xs"
-              >
-                Done & Return to Dashboard
-              </button>
-            </div>
-          </div>
-        ) : (
-          /* Form View */
-          <form onSubmit={handleSubmit} className="p-5 sm:p-6 space-y-5">
-            {error && (
-              <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 rounded-xl text-xs flex items-center gap-2">
-                <AlertCircle className="w-4 h-4 shrink-0 text-rose-500" />
-                <span>{error}</span>
-              </div>
-            )}
-
-            {/* Reciprocal Breakdown: Both Sides Clearly Displayed */}
-            <div className="space-y-2">
-              <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">
-                Two-Way Exchange Overview
-              </span>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 relative">
-                {/* Side A: You (Current User) */}
-                <div className="p-4 rounded-xl bg-slate-50 border border-slate-200/80 space-y-3">
-                  <div className="flex items-center gap-2.5 pb-2 border-b border-slate-200/60">
-                    <img
-                      src={user?.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=user`}
-                      alt={user?.name || 'You'}
-                      className="w-8 h-8 rounded-full object-cover border border-slate-200 shrink-0"
-                    />
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-xs font-bold text-slate-900 truncate">
-                          {user?.name} (You)
-                        </span>
-                      </div>
-                      <span className="text-[10px] text-slate-400 block truncate">
-                        {user?.university}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* What you offer */}
-                  <div className="space-y-1">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[10px] uppercase font-bold text-emerald-700 flex items-center gap-1">
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                        You Offer to Teach
-                      </span>
-                      <span className="text-[10px] text-slate-400">
-                        Active Listing
-                      </span>
-                    </div>
-                    {userListings.length > 1 ? (
-                      <select
-                        value={selectedListingId}
-                        onChange={(e) => handleOfferedSkillChange(e.target.value)}
-                        className="w-full text-xs font-semibold px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-emerald-500/20"
-                      >
-                        {userListings.map((listing) => (
-                          <option key={listing.id} value={listing.id}>
-                            {listing.title} ({listing.category})
-                          </option>
-                        ))}
-                      </select>
-                    ) : userListings.length === 1 ? (
-                      <div className="px-2.5 py-1.5 bg-white rounded-lg border border-slate-200 text-xs font-semibold text-slate-900">
-                        {userListings[0].title}
-                      </div>
-                    ) : (
-                      <div className="p-2.5 rounded-lg bg-amber-50 border border-amber-200/80 text-amber-900 space-y-1">
-                        <p className="text-[11px] font-medium leading-tight">
-                          No active teaching listing found.
-                        </p>
-                        <Link
-                          href="/teach"
-                          className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 hover:underline"
-                        >
-                          <Plus className="w-3 h-3" />
-                          Publish a Listing First
-                        </Link>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* What you want to learn */}
-                  <div className="space-y-1 pt-1 border-t border-slate-200/40">
-                    <span className="text-[10px] uppercase font-bold text-slate-500 block">
-                      You Want to Learn
-                    </span>
-                    <div className="px-2.5 py-1 bg-emerald-50/70 border border-emerald-200/60 rounded-md text-xs font-semibold text-emerald-800 truncate">
-                      {selectedRequestedSkill}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Side B: Partner (Candidate) */}
-                <div className="p-4 rounded-xl bg-slate-50 border border-slate-200/80 space-y-3">
-                  <div className="flex items-center gap-2.5 pb-2 border-b border-slate-200/60">
-                    <img
-                      src={candidate.avatar}
-                      alt={candidate.name}
-                      className="w-8 h-8 rounded-full object-cover border border-slate-200 shrink-0"
-                    />
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center justify-between gap-1">
-                        <span className="text-xs font-bold text-slate-900 truncate">
-                          {candidate.name}
-                        </span>
-                        <span className="flex items-center text-[10px] font-bold text-amber-600 bg-amber-50 px-1.5 py-0.2 rounded border border-amber-200/60 shrink-0">
-                          <Star className="w-2.5 h-2.5 fill-amber-500 text-amber-500 mr-0.5" />
-                          {candidate.repRating?.toFixed(1) || '5.0'}
-                        </span>
-                      </div>
-                      <span className="text-[10px] text-slate-400 block truncate">
-                        {candidate.university}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* What they offer */}
-                  <div className="space-y-1">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[10px] uppercase font-bold text-emerald-700 flex items-center gap-1">
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                        They Offer to Teach
-                      </span>
-                      <span className="text-[10px] text-slate-400">
-                        On your wishlist
-                      </span>
-                    </div>
-                    <div className="px-2.5 py-1.5 bg-white rounded-lg border border-slate-200 text-xs font-semibold text-slate-900 truncate">
-                      {selectedRequestedSkill}
-                    </div>
-                  </div>
-
-                  {/* What they want to learn */}
-                  <div className="space-y-1 pt-1 border-t border-slate-200/40">
-                    <span className="text-[10px] uppercase font-bold text-slate-500 block">
-                      They Want to Learn
-                    </span>
-                    <div className="px-2.5 py-1 bg-blue-50/70 border border-blue-200/60 rounded-md text-xs font-semibold text-blue-800 truncate">
-                      {selectedOfferedSkill}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Note & Custom Message */}
-            <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-slate-700 flex items-center justify-between">
-                <span>Personal Proposal Message</span>
-                <span className="text-[10px] text-slate-400 font-normal">
-                  Introduce yourself & coordinate availability
-                </span>
-              </label>
-              <textarea
-                rows={3}
-                value={note}
-                onChange={(e) => setNote(e.target.value)}
-                placeholder="Write a friendly proposal note..."
-                className="w-full text-xs p-3 rounded-xl border border-slate-200 focus:outline-hidden focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 bg-slate-50/50 text-slate-800 resize-none leading-relaxed"
-                maxLength={400}
-              />
-              <span className="text-[10px] text-slate-400 block text-right">
-                {note.length}/400 characters
-              </span>
-            </div>
-
-            {/* Terms and Assurance */}
-            <div className="p-3 bg-slate-50 rounded-xl border border-slate-200/70 text-[11px] text-slate-600 space-y-1 leading-relaxed">
-              <div className="flex items-center gap-1.5 font-semibold text-slate-800">
-                <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-                <span>How Mutual Swaps Work</span>
-              </div>
-              <p className="text-slate-500">
-                Submitting this proposal sends a direct invitation to{' '}
-                <span className="font-medium text-slate-700">{candidate.name}</span>.
-                No credits are deducted until both parties review and mutually agree on session details.
-              </p>
-            </div>
-
-            {/* Footer Buttons */}
-            <div className="pt-2 border-t border-slate-100 flex items-center justify-end gap-2.5">
               <button
                 type="button"
                 onClick={onClose}
-                disabled={isSubmitting}
-                className="px-4 py-2 rounded-xl border border-slate-200 hover:border-slate-300 text-slate-700 hover:text-slate-900 text-xs font-semibold bg-white transition-colors"
+                className="px-6 py-2.5 rounded-full bg-[#FF9B45] hover:bg-[#F5B66B] text-[#171715] text-sm font-bold transition-colors cursor-pointer"
               >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={isSubmitting || userListings.length === 0 || !candidateListing}
-                className="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold transition-all shadow-xs hover:shadow flex items-center gap-1.5 disabled:opacity-60 disabled:cursor-not-allowed"
-              >
-                {isSubmitting ? (
-                  <>
-                    <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    Sending Proposal...
-                  </>
-                ) : (
-                  <>
-                    <Send className="w-3.5 h-3.5" />
-                    Send Swap Proposal
-                  </>
-                )}
+                Back to Dashboard
               </button>
             </div>
-          </form>
-        )}
+          ) : (
+            <form onSubmit={handleSubmit} className="space-y-5">
+              {/* Two-sided Exchange Comparison */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {/* Side 1: You Teach */}
+                <div className="bg-[#2B2824] border border-[#37332E] rounded-xl p-4 space-y-2.5">
+                  <p className="text-xs font-bold uppercase tracking-wider text-[#FF9B45]">
+                    You Offer to Teach
+                  </p>
+                  {myListings.length > 0 ? (
+                    <>
+                      <select
+                        value={offeredSkill?.id || ''}
+                        onChange={(e) => setOfferedSkillId(e.target.value)}
+                        className="w-full px-3 py-2 rounded-xl bg-[#171715] border border-[#37332E] focus:border-[#FF9B45] text-sm font-semibold text-[#F7F5F0] focus:outline-none"
+                      >
+                        {myListings.map((skill) => (
+                          <option key={skill.id} value={skill.id} className="bg-[#22211F]">
+                            {skill.title}
+                          </option>
+                        ))}
+                      </select>
+                      <p className="text-xs text-[#AAA69F]">
+                        {match.candidate.name} wants to learn:{' '}
+                        <span className="text-[#F7F5F0] font-semibold">
+                          {match.skillYouTeach || offeredSkill?.title}
+                        </span>
+                      </p>
+                    </>
+                  ) : (
+                    <div className="space-y-2.5">
+                      <p className="text-xs text-[#F5B66B]">
+                        You have no active teaching listing yet. Publish one to propose a mutual swap.
+                      </p>
+                      <Link
+                        href="/teach"
+                        onClick={onClose}
+                        className="inline-flex items-center gap-1.5 text-xs font-bold text-[#FF9B45] hover:text-[#F5B66B]"
+                      >
+                        Publish a skill listing
+                        <ArrowRight className="w-3.5 h-3.5" />
+                      </Link>
+                    </div>
+                  )}
+                </div>
+
+                {/* Side 2: You Learn */}
+                <div className="bg-[#2B2824] border border-[#37332E] rounded-xl p-4 space-y-2.5">
+                  <p className="text-xs font-bold uppercase tracking-wider text-[#65C995]">
+                    {match.candidate.name} Teaches You
+                  </p>
+                  {peerListings.length > 0 ? (
+                    <select
+                      value={requestedSkill?.id || ''}
+                      onChange={(e) => setRequestedSkillId(e.target.value)}
+                      className="w-full px-3 py-2 rounded-xl bg-[#171715] border border-[#37332E] focus:border-[#FF9B45] text-sm font-semibold text-[#F7F5F0] focus:outline-none"
+                    >
+                      {peerListings.map((skill) => (
+                        <option key={skill.id} value={skill.id} className="bg-[#22211F]">
+                          {skill.title}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <p className="text-sm font-bold text-[#F7F5F0]">
+                      {requestedSkill?.title || match.skillTheyTeach}
+                    </p>
+                  )}
+                  <p className="text-xs text-[#AAA69F]">
+                    Matches your wishlist:{' '}
+                    <span className="text-[#F7F5F0] font-semibold">{match.skillTheyTeach}</span>
+                  </p>
+                </div>
+              </div>
+
+              {/* Note */}
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-[#AAA69F] mb-2">
+                  Proposal Message (Optional)
+                </label>
+                <textarea
+                  rows={3}
+                  value={note}
+                  onChange={(e) => setNote(e.target.value)}
+                  placeholder="Introduce yourself and suggest preferred days or topics for both sessions..."
+                  className="w-full px-4 py-3 rounded-xl bg-[#171715] border border-[#37332E] focus:border-[#FF9B45] text-sm text-[#F7F5F0] placeholder-[#AAA69F]/60 focus:outline-none resize-none"
+                />
+              </div>
+
+              {/* Balanced Escrow Summary */}
+              <div className="flex items-start gap-2.5 p-3.5 rounded-xl bg-[#171715] border border-[#37332E] text-xs text-[#AAA69F] leading-relaxed">
+                <ShieldCheck className="w-4 h-4 text-[#65C995] shrink-0 mt-0.5" />
+                <div>
+                  <span className="text-[#F7F5F0] font-bold inline-flex items-center gap-1">
+                    Balanced Credit Escrow ({swapCredits} <Coins className="w-3 h-3 text-[#FF9B45] inline" /> each way):
+                  </span>{' '}
+                  When {match.candidate.name} accepts, separate schedules are created for both sessions. Completing both sessions nets zero cost while protecting partial completions.
+                </div>
+              </div>
+
+              {user && user.credits < swapCredits && (
+                <div className="flex items-start gap-2 p-3.5 rounded-xl bg-[#F5B66B]/10 border border-[#F5B66B]/30 text-xs text-[#F5B66B]">
+                  <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                  <span>
+                    You need {swapCredits} credit(s) available for swap escrow protection (current balance: {user.credits}).
+                  </span>
+                </div>
+              )}
+
+              {errorMsg && (
+                <div className="flex items-start gap-2 p-3.5 rounded-xl bg-[#F07878]/10 border border-[#F07878]/30 text-sm text-[#F07878]">
+                  <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                  <span>{errorMsg}</span>
+                </div>
+              )}
+
+              <div className="flex items-center justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={onClose}
+                  disabled={isSubmitting}
+                  className="px-5 py-2.5 rounded-full bg-[#2B2824] hover:bg-[#37332E] border border-[#37332E] text-sm font-semibold text-[#F7F5F0] transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmitting || !canSubmit}
+                  className="inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-full bg-[#FF9B45] hover:bg-[#F5B66B] disabled:opacity-50 text-[#171715] text-sm font-bold transition-colors cursor-pointer"
+                >
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Sending Proposal...
+                    </>
+                  ) : (
+                    'Send Swap Proposal'
+                  )}
+                </button>
+              </div>
+            </form>
+          )}
+        </div>
       </div>
     </div>
   );

@@ -1,252 +1,188 @@
 'use client';
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useMemo } from 'react';
+import Link from 'next/link';
 import { User } from '@/types';
 import { useAuth } from '@/context/AuthContext';
 import { useApp } from '@/context/AppContext';
 import { useMessaging } from '@/context/MessagingContext';
-import { X, ArrowRightLeft, Sparkles, BookOpen, Clock, AlertCircle } from 'lucide-react';
+import { X, Repeat, AlertCircle, Loader2, ArrowRight } from 'lucide-react';
 
 interface SkillSwapInviteModalProps {
-  partner: User;
   conversationId: string;
+  partner: User;
   onClose: () => void;
 }
 
 export default function SkillSwapInviteModal({
-  partner,
   conversationId,
+  partner,
   onClose,
 }: SkillSwapInviteModalProps) {
   const { user } = useAuth();
   const { skills } = useApp();
   const { sendSkillSwapInvitation } = useMessaging();
 
-  // Skills taught by current user
-  const userTeachingSkills = skills.filter((s) => s.teacherId === user?.id);
-  const fallbackUserSkills = user?.skillsToTeach || [];
-
-  // Skills taught by partner
-  const partnerTeachingSkills = skills.filter((s) => s.teacherId === partner.id);
-  const fallbackPartnerSkills = partner.skillsToTeach || [];
-
-  const [selectedOfferedSkill, setSelectedOfferedSkill] = useState<string>(
-    userTeachingSkills[0]?.title || fallbackUserSkills[0] || ''
+  const myListings = useMemo(
+    () => (user ? skills.filter((s) => s.teacherId === user.id) : []),
+    [skills, user]
+  );
+  const partnerListings = useMemo(
+    () => skills.filter((s) => s.teacherId === partner.id),
+    [skills, partner.id]
   );
 
-  const [selectedRequestedSkill, setSelectedRequestedSkill] = useState<string>(
-    partnerTeachingSkills[0]?.title || fallbackPartnerSkills[0] || ''
-  );
+  const [offeredId, setOfferedId] = useState(myListings[0]?.id || '');
+  const [requestedId, setRequestedId] = useState(partnerListings[0]?.id || '');
+  const [note, setNote] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
 
-  const [note, setNote] = useState(
-    selectedOfferedSkill && selectedRequestedSkill
-      ? `Hey ${partner.name.split(' ')[0]}! Would love to swap a session of ${selectedOfferedSkill} for ${selectedRequestedSkill}. Let's coordinate our schedules!`
-      : `Hey ${partner.name.split(' ')[0]}! Would love to exchange skills with you. Let's coordinate our schedules!`
-  );
-  const [error, setError] = useState<string | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const isSubmittingRef = useRef(false);
-
-  // Update default note when skill selection changes
-  const handleOfferedChange = (val: string) => {
-    setSelectedOfferedSkill(val);
-    if (val && selectedRequestedSkill) {
-      setNote(`Hey ${partner.name.split(' ')[0]}! Would love to swap a session of ${val} for ${selectedRequestedSkill}. Let's coordinate our schedules!`);
-    }
-  };
-
-  const handleRequestedChange = (val: string) => {
-    setSelectedRequestedSkill(val);
-    if (selectedOfferedSkill && val) {
-      setNote(`Hey ${partner.name.split(' ')[0]}! Would love to swap a session of ${selectedOfferedSkill} for ${val}. Let's coordinate our schedules!`);
-    }
-  };
+  const offeredSkill = myListings.find((s) => s.id === offeredId) || myListings[0];
+  const requestedSkill = partnerListings.find((s) => s.id === requestedId) || partnerListings[0];
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (isSubmittingRef.current || isSubmitting) return;
-    setError(null);
+    if (submitting) return;
 
-    if (!user) {
-      setError('You must be signed in to send an invitation.');
+    if (!offeredSkill || !requestedSkill) {
+      setErrorMsg('Both participants need an active skill listing to send a swap invitation.');
       return;
     }
 
-    if (!selectedOfferedSkill || !selectedRequestedSkill) {
-      setError('Both students need at least one skill listed to propose a swap.');
-      return;
-    }
-
-    const offeredSkillObj = skills.find(
-      (s) => s.teacherId === user.id && s.title === selectedOfferedSkill
-    );
-    const requestedSkillObj = skills.find(
-      (s) => s.teacherId === partner.id && s.title === selectedRequestedSkill
-    );
-
-    const credits = requestedSkillObj?.hourlyCredits || offeredSkillObj?.hourlyCredits || 1;
-
-    isSubmittingRef.current = true;
-    setIsSubmitting(true);
+    setErrorMsg('');
+    setSubmitting(true);
     try {
       const res = await sendSkillSwapInvitation(conversationId, {
-        offeredSkillId: offeredSkillObj?.id || '',
-        offeredSkillTitle: selectedOfferedSkill,
-        requestedSkillId: requestedSkillObj?.id || '',
-        requestedSkillTitle: selectedRequestedSkill,
-        credits,
-        note: note.trim(),
+        offeredSkillId: offeredSkill.id,
+        offeredSkillTitle: offeredSkill.title,
+        requestedSkillId: requestedSkill.id,
+        requestedSkillTitle: requestedSkill.title,
+        credits: requestedSkill.hourlyCredits || 1,
+        note: note.trim() || undefined,
       });
 
-      if (res.success) {
-        onClose();
-      } else {
-        setError(res.error || 'Failed to send Skill Swap invitation.');
+      if (!res.success) {
+        setErrorMsg(res.error || 'Failed to send skill swap invitation.');
+        return;
       }
+
+      onClose();
     } finally {
-      isSubmittingRef.current = false;
-      setIsSubmitting(false);
+      setSubmitting(false);
     }
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/50 backdrop-blur-xs animate-in fade-in duration-150">
-      <div className="bg-white rounded-2xl max-w-lg w-full shadow-2xl border border-slate-200 overflow-hidden flex flex-col">
-        {/* Header */}
-        <div className="bg-gradient-to-r from-emerald-600 via-emerald-700 to-teal-800 p-5 text-white flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-white/20 flex items-center justify-center text-white backdrop-blur-xs">
-              <ArrowRightLeft className="w-5 h-5" />
-            </div>
-            <div>
-              <h2 className="text-base font-bold">Invite to Skill Swap</h2>
-              <p className="text-xs text-emerald-100">Exchange knowledge with {partner.name}</p>
-            </div>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-xs">
+      <div className="w-full max-w-lg bg-[#22211F] border border-[#37332E] rounded-2xl shadow-2xl overflow-hidden">
+        <div className="px-6 py-5 border-b border-[#37332E] bg-[#1B1A18] flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Repeat className="w-5 h-5 text-[#FF9B45]" />
+            <h2 className="text-lg font-bold text-[#F7F5F0]">
+              Invite {partner.name} to Swap Skills
+            </h2>
           </div>
           <button
+            type="button"
             onClick={onClose}
-            className="p-1.5 rounded-full bg-black/20 hover:bg-black/30 text-white/90 hover:text-white transition-colors"
+            className="p-2 rounded-xl text-[#AAA69F] hover:text-[#F7F5F0] hover:bg-[#2B2824] cursor-pointer"
           >
-            <X className="w-4 h-4" />
+            <X className="w-5 h-5" />
           </button>
         </div>
 
-        {/* Form Body */}
-        <form onSubmit={handleSubmit} className="p-5 space-y-4 text-xs">
-          {error && (
-            <div className="p-3 rounded-lg bg-rose-50 border border-rose-200 text-rose-700 flex items-center gap-2 text-xs">
+        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          {myListings.length === 0 || partnerListings.length === 0 ? (
+            <div className="bg-[#2B2824] border border-[#37332E] rounded-xl p-5 space-y-3 text-sm text-[#AAA69F]">
+              <p>
+                {myListings.length === 0
+                  ? 'Publish at least one skill listing first so you can offer it in this exchange.'
+                  : `${partner.name} has not published an active skill listing yet.`}
+              </p>
+              {myListings.length === 0 && (
+                <Link
+                  href="/teach"
+                  onClick={onClose}
+                  className="inline-flex items-center gap-1.5 text-xs font-bold text-[#FF9B45] hover:text-[#F5B66B]"
+                >
+                  Offer a Skill
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </Link>
+              )}
+            </div>
+          ) : (
+            <>
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-[#FF9B45] mb-2">
+                  You Teach
+                </label>
+                <select
+                  value={offeredSkill?.id || ''}
+                  onChange={(e) => setOfferedId(e.target.value)}
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-[#171715] border border-[#37332E] focus:border-[#FF9B45] text-sm text-[#F7F5F0] focus:outline-none"
+                >
+                  {myListings.map((s) => (
+                    <option key={s.id} value={s.id} className="bg-[#22211F]">
+                      {s.title}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-[#65C995] mb-2">
+                  You Want to Learn From {partner.name}
+                </label>
+                <select
+                  value={requestedSkill?.id || ''}
+                  onChange={(e) => setRequestedId(e.target.value)}
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-[#171715] border border-[#37332E] focus:border-[#FF9B45] text-sm text-[#F7F5F0] focus:outline-none"
+                >
+                  {partnerListings.map((s) => (
+                    <option key={s.id} value={s.id} className="bg-[#22211F]">
+                      {s.title} ({s.hourlyCredits} Cr)
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-[#AAA69F] mb-2">
+                  Message (Optional)
+                </label>
+                <textarea
+                  rows={3}
+                  value={note}
+                  onChange={(e) => setNote(e.target.value)}
+                  placeholder="Share suggested availability or what you hope to focus on..."
+                  className="w-full px-4 py-2.5 rounded-xl bg-[#171715] border border-[#37332E] focus:border-[#FF9B45] text-sm text-[#F7F5F0] focus:outline-none resize-none"
+                />
+              </div>
+            </>
+          )}
+
+          {errorMsg && (
+            <div className="flex items-start gap-2 p-3 rounded-xl bg-[#F07878]/10 border border-[#F07878]/30 text-xs text-[#F07878]">
               <AlertCircle className="w-4 h-4 shrink-0" />
-              <span>{error}</span>
+              <span>{errorMsg}</span>
             </div>
           )}
 
-          {/* Skill Pair Selection */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-            {/* You Teach */}
-            <div className="space-y-1.5 p-3 rounded-xl bg-emerald-50/70 border border-emerald-200/80">
-              <label className="text-[11px] font-bold text-emerald-900 uppercase tracking-wider block flex items-center gap-1">
-                <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
-                You Teach
-              </label>
-              <select
-                value={selectedOfferedSkill}
-                onChange={(e) => handleOfferedChange(e.target.value)}
-                className="w-full bg-white border border-emerald-300 rounded-lg p-2 text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-              >
-                {userTeachingSkills.map((s) => (
-                  <option key={s.id} value={s.title}>
-                    {s.title} ({s.hourlyCredits} Cr/hr)
-                  </option>
-                ))}
-                {userTeachingSkills.length === 0 &&
-                  fallbackUserSkills.map((title, idx) => (
-                    <option key={idx} value={title}>
-                      {title}
-                    </option>
-                  ))}
-                {userTeachingSkills.length === 0 && fallbackUserSkills.length === 0 && (
-                  <option value="">No teaching skills listed yet</option>
-                )}
-              </select>
-              <span className="text-[10px] text-emerald-700/80 block">
-                Offered from your verified teaching skills
-              </span>
-            </div>
-
-            {/* You Learn */}
-            <div className="space-y-1.5 p-3 rounded-xl bg-teal-50/70 border border-teal-200/80">
-              <label className="text-[11px] font-bold text-teal-900 uppercase tracking-wider block flex items-center gap-1">
-                <BookOpen className="w-3.5 h-3.5 text-teal-600" />
-                You Learn
-              </label>
-              <select
-                value={selectedRequestedSkill}
-                onChange={(e) => handleRequestedChange(e.target.value)}
-                className="w-full bg-white border border-teal-300 rounded-lg p-2 text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-teal-500"
-              >
-                {partnerTeachingSkills.map((s) => (
-                  <option key={s.id} value={s.title}>
-                    {s.title} ({s.hourlyCredits} Cr/hr)
-                  </option>
-                ))}
-                {partnerTeachingSkills.length === 0 &&
-                  fallbackPartnerSkills.map((title, idx) => (
-                    <option key={idx} value={title}>
-                      {title}
-                    </option>
-                  ))}
-                {partnerTeachingSkills.length === 0 && fallbackPartnerSkills.length === 0 && (
-                  <option value="">No partner skills listed yet</option>
-                )}
-              </select>
-              <span className="text-[10px] text-teal-700/80 block">
-                {partner.name.split(' ')[0]}&apos;s active skills
-              </span>
-            </div>
-          </div>
-
-          {/* Personal Note */}
-          <div className="space-y-1.5">
-            <label className="text-xs font-bold text-slate-700 block">
-              Personal Swap Note (Optional)
-            </label>
-            <textarea
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
-              rows={3}
-              placeholder="Suggest session goals, topics, or times that work for you..."
-              className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-colors"
-            />
-          </div>
-
-          {/* Educational Escrow Explainer */}
-          <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-[11px] text-slate-600 space-y-1">
-            <div className="font-semibold text-slate-800 flex items-center gap-1.5">
-              <Clock className="w-3.5 h-3.5 text-emerald-600" />
-              How Skill Swaps Work:
-            </div>
-            <p className="text-slate-500 leading-relaxed">
-              Invitations help students agree on learning topics. When accepted, either student can schedule the session.
-              Credits are only held in escrow when an actual session time is booked.
-            </p>
-          </div>
-
-          {/* Actions */}
-          <div className="pt-2 flex items-center justify-end gap-2.5">
+          <div className="flex justify-end gap-3 pt-2">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-100 font-semibold text-xs transition-colors"
+              className="px-4 py-2 rounded-full bg-[#2B2824] border border-[#37332E] text-sm font-semibold text-[#F7F5F0] cursor-pointer"
             >
               Cancel
             </button>
             <button
               type="submit"
-              disabled={!selectedOfferedSkill || !selectedRequestedSkill || isSubmitting}
-              className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-semibold text-xs shadow-xs transition-all flex items-center gap-1.5"
+              disabled={submitting || myListings.length === 0 || partnerListings.length === 0}
+              className="inline-flex items-center gap-1.5 px-5 py-2 rounded-full bg-[#FF9B45] hover:bg-[#F5B66B] disabled:opacity-50 text-[#171715] text-sm font-bold cursor-pointer"
             >
-              <ArrowRightLeft className="w-3.5 h-3.5" />
-              {isSubmitting ? 'Sending...' : 'Send Swap Invitation'}
+              {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Send Invite'}
             </button>
           </div>
         </form>

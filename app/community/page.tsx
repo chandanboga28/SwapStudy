@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useMemo, Suspense } from 'react';
+import { PostCategory, Skill, User } from '@/types';
 import { useAuth } from '@/context/AuthContext';
 import { useApp } from '@/context/AppContext';
 import { useCommunity } from '@/context/CommunityContext';
@@ -10,520 +11,343 @@ import LearningGroupsSection from '@/components/LearningGroupsSection';
 import CollegeStudentDiscovery from '@/components/CollegeStudentDiscovery';
 import StudentProfileModal from '@/components/StudentProfileModal';
 import BookingModal from '@/components/BookingModal';
-import { User, Skill, PostCategory } from '@/types';
 import {
   Users,
-  Sparkles,
-  ShieldCheck,
+  MessageSquare,
+  Bookmark,
   Search,
   Plus,
-  Bookmark,
-  MessageSquare,
+  Sparkles,
+  BookOpen,
+  Hash,
+  ArrowRight,
   GraduationCap,
-  TrendingUp,
-  Building,
-  CheckCircle2,
-  X,
 } from 'lucide-react';
 
-const CATEGORIES: ('All' | PostCategory)[] = [
-  'All',
-  'Discussions',
-  'Questions',
-  'Resources',
-  'Achievements',
-];
+type CommunityTab = 'feed' | 'groups' | 'peers' | 'saved';
 
 function CommunityContent() {
-  const { user, allUsers } = useAuth();
-  const { skills, sessions } = useApp();
+  const { user } = useAuth();
+  const { skills } = useApp();
   const {
     currentCollege,
     posts,
     groups,
     savedPostIds,
     sameCollegeStudents,
-    isLoading: communityLoading,
+    isLoading,
   } = useCommunity();
 
-  const trendingTags = useMemo(() => {
-    const counts: Record<string, number> = {};
-    posts.forEach((p) => {
-      (p.tags || []).forEach((tag) => {
-        const clean = tag.trim().toLowerCase();
-        if (clean) counts[clean] = (counts[clean] || 0) + 1;
-      });
+  const [activeTab, setActiveTab] = useState<CommunityTab>('feed');
+  const [selectedCategory, setSelectedCategory] = useState<'All' | PostCategory>('All');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [viewingStudent, setViewingStudent] = useState<User | null>(null);
+  const [bookingSkill, setBookingSkill] = useState<Skill | null>(null);
+
+  const visiblePosts = useMemo(() => {
+    const base =
+      activeTab === 'saved'
+        ? posts.filter(
+            (p) => savedPostIds.includes(p.id) || (user ? p.savedBy.includes(user.id) : false)
+          )
+        : posts;
+
+    return base.filter((post) => {
+      if (selectedCategory !== 'All' && post.category !== selectedCategory) return false;
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase();
+        const hay = [post.title, post.content, post.authorName, ...post.tags]
+          .join(' ')
+          .toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
+      return true;
     });
-    return Object.entries(counts)
+  }, [posts, activeTab, selectedCategory, searchQuery, savedPostIds, user]);
+
+  const trendingTags = useMemo(() => {
+    const counts = new Map<string, number>();
+    posts.forEach((p) => {
+      p.tags.forEach((t) => counts.set(t, (counts.get(t) || 0) + 1));
+    });
+    return Array.from(counts.entries())
       .sort((a, b) => b[1] - a[1])
-      .slice(0, 8)
+      .slice(0, 6)
       .map(([tag]) => tag);
   }, [posts]);
 
-  const visibleMemberCount = user
-    ? sameCollegeStudents.length + (user.collegeId === currentCollege.id ? 1 : 0)
-    : null;
-
-  // Active view tab: 'feed' | 'groups' | 'peers' | 'saved'
-  const [activeTab, setActiveTab] = useState<'feed' | 'groups' | 'peers' | 'saved'>('feed');
-  const [selectedCategory, setSelectedCategory] = useState<'All' | PostCategory>('All');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedTag, setSelectedTag] = useState<string | null>(null);
-
-  // Modals state
-  const [isCreatePostOpen, setIsCreatePostOpen] = useState(false);
-  const [inspectingUser, setInspectingUser] = useState<User | null>(null);
-  const [bookingSkill, setBookingSkill] = useState<Skill | null>(null);
-
-  // Filter posts based on category, tag, and search query
-  const filteredPosts = useMemo(() => {
-    return posts.filter((post) => {
-      // Saved tab filter
-      if (activeTab === 'saved') {
-        if (!savedPostIds.includes(post.id)) return false;
-      }
-
-      // Category filter
-      if (selectedCategory !== 'All' && post.category !== selectedCategory) {
-        return false;
-      }
-
-      // Tag filter
-      if (selectedTag && !post.tags.includes(selectedTag)) {
-        return false;
-      }
-
-      // Search query
-      const q = searchQuery.toLowerCase().trim();
-      if (!q) return true;
-
-      return (
-        post.title.toLowerCase().includes(q) ||
-        post.content.toLowerCase().includes(q) ||
-        post.authorName.toLowerCase().includes(q) ||
-        post.tags.some((t) => t.toLowerCase().includes(q))
-      );
-    });
-  }, [posts, activeTab, savedPostIds, selectedCategory, selectedTag, searchQuery]);
-
-  const handleOpenAuthorProfile = (authorId: string) => {
-    const found = allUsers.find((u) => u.id === authorId);
-    if (found) {
-      setInspectingUser(found);
-    }
-  };
-
-  const handleBookSkill = (skillId: string) => {
-    const found = skills.find((s) => s.id === skillId);
-    if (found) {
-      setBookingSkill(found);
-    }
-  };
+  const suggestedPeers = useMemo(() => {
+    return sameCollegeStudents.filter((s) => s.id !== user?.id).slice(0, 3);
+  }, [sameCollegeStudents, user]);
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] py-8">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
-        {/* College Community Hero Header */}
-        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-emerald-900 via-emerald-800 to-teal-900 text-white p-6 sm:p-8 shadow-xl border border-emerald-700/50">
-          <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
-            <div className="space-y-3 max-w-2xl">
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-xs font-bold tracking-wide uppercase text-emerald-200">
-                  <Building className="w-3.5 h-3.5 text-emerald-300" />
-                  College-First Community
-                </span>
-                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-500/20 text-xs font-semibold text-emerald-100">
-                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-                  {currentCollege.domain} Verified Network
-                </span>
+    <div className="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-8 sm:py-10 space-y-8">
+      {/* Bronze Campus Hub Header */}
+      <section className="hero-bronze rounded-3xl p-6 sm:p-8">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+          <div className="space-y-2 max-w-2xl">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#171715]/30 border border-[#F7F5F0]/20 text-xs font-bold text-[#FF9B45]">
+              <GraduationCap className="w-3.5 h-3.5" />
+              {currentCollege.shortName} Campus Hub
+            </div>
+            <h1 className="text-3xl sm:text-4xl font-extrabold text-[#F7F5F0] tracking-tight">
+              {currentCollege.name} Community
+            </h1>
+            <p className="text-sm sm:text-base text-[#F7F5F0]/85 leading-relaxed">
+              Ask study questions, share notes, form weekly study circles, and connect with campus peers for skill exchanges.
+            </p>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-3 shrink-0">
+            <div className="bg-[#171715]/35 border border-[#F7F5F0]/15 rounded-2xl px-4 py-2.5 text-center">
+              <p className="text-lg font-extrabold text-[#F7F5F0] tabular-nums">
+                {sameCollegeStudents.length}
+              </p>
+              <p className="text-xs text-[#F7F5F0]/75">Active Peers</p>
+            </div>
+            <div className="bg-[#171715]/35 border border-[#F7F5F0]/15 rounded-2xl px-4 py-2.5 text-center">
+              <p className="text-lg font-extrabold text-[#F7F5F0] tabular-nums">{groups.length}</p>
+              <p className="text-xs text-[#F7F5F0]/75">Study Circles</p>
+            </div>
+            {user && (
+              <button
+                type="button"
+                onClick={() => setShowCreateModal(true)}
+                className="inline-flex items-center gap-2 px-5 py-3 rounded-full bg-[#FF9B45] hover:bg-[#F5B66B] text-[#171715] text-sm font-bold transition-colors cursor-pointer"
+              >
+                <Plus className="w-4 h-4" />
+                Create Post
+              </button>
+            )}
+          </div>
+        </div>
+      </section>
+
+      {/* Navigation Tabs */}
+      <div className="flex flex-wrap items-center gap-2 border-b border-[#37332E] pb-4">
+        {[
+          { key: 'feed', label: 'Campus Feed', icon: MessageSquare, count: posts.length },
+          { key: 'groups', label: 'Study Circles', icon: BookOpen, count: groups.length },
+          { key: 'peers', label: 'Peer Directory', icon: Users, count: sameCollegeStudents.length },
+          { key: 'saved', label: 'Saved Posts', icon: Bookmark, count: savedPostIds.length },
+        ].map((tab) => {
+          const Icon = tab.icon;
+          const active = activeTab === tab.key;
+          return (
+            <button
+              key={tab.key}
+              type="button"
+              onClick={() => setActiveTab(tab.key as CommunityTab)}
+              className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-full text-sm font-bold transition-colors cursor-pointer ${
+                active
+                  ? 'bg-[#FF9B45] text-[#171715]'
+                  : 'bg-[#22211F] hover:bg-[#2B2824] border border-[#37332E] text-[#AAA69F] hover:text-[#F7F5F0]'
+              }`}
+            >
+              <Icon className="w-4 h-4" />
+              <span>{tab.label}</span>
+              <span
+                className={`px-2 py-0.5 rounded-full text-xs tabular-nums ${
+                  active ? 'bg-[#171715]/15 text-[#171715]' : 'bg-[#171715] text-[#AAA69F]'
+                }`}
+              >
+                {tab.count}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Tab Content */}
+      {(activeTab === 'feed' || activeTab === 'saved') && (
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-7 items-start">
+          {/* Feed Column (8 Cols) */}
+          <div className="lg:col-span-8 space-y-5">
+            {/* Search & Category Strip */}
+            <div className="bg-[#22211F] border border-[#37332E] rounded-2xl p-4 space-y-3.5">
+              <div className="relative">
+                <Search className="w-4 h-4 text-[#AAA69F] absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search posts, questions, tags, or peers..."
+                  className="w-full pl-10 pr-4 py-2.5 rounded-full bg-[#171715] border border-[#37332E] focus:border-[#FF9B45] text-sm text-[#F7F5F0] placeholder-[#AAA69F]/60 focus:outline-none"
+                />
               </div>
 
-              <div>
-                <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold tracking-tight text-white">
-                  {currentCollege.name} Hub
-                </h1>
-                <p className="text-xs sm:text-sm text-emerald-100/90 mt-1.5 leading-relaxed">
-                  {currentCollege.description} Connect with classmates, ask questions, join study circles, and share learning resources.
+              <div className="flex flex-wrap items-center gap-2">
+                {(['All', 'Discussions', 'Questions', 'Resources', 'Achievements'] as const).map(
+                  (cat) => (
+                    <button
+                      key={cat}
+                      type="button"
+                      onClick={() => setSelectedCategory(cat)}
+                      className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-colors cursor-pointer ${
+                        selectedCategory === cat
+                          ? 'bg-[#2B2824] border border-[#FF9B45] text-[#FF9B45]'
+                          : 'bg-[#171715] border border-[#37332E] text-[#AAA69F] hover:text-[#F7F5F0]'
+                      }`}
+                    >
+                      {cat}
+                    </button>
+                  )
+                )}
+              </div>
+            </div>
+
+            {isLoading ? (
+              <div className="space-y-4">
+                {[1, 2, 3].map((i) => (
+                  <div
+                    key={i}
+                    className="h-48 rounded-2xl bg-[#22211F] border border-[#37332E] animate-pulse"
+                  />
+                ))}
+              </div>
+            ) : visiblePosts.length > 0 ? (
+              <div className="space-y-5">
+                {visiblePosts.map((post) => (
+                  <CommunityPostCard
+                    key={post.id}
+                    post={post}
+                    onViewProfile={(student) => setViewingStudent(student)}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="bg-[#22211F] border border-[#37332E] rounded-2xl p-12 text-center space-y-3">
+                <Sparkles className="w-9 h-9 text-[#FF9B45] mx-auto" />
+                <h3 className="text-xl font-bold text-[#F7F5F0]">
+                  {activeTab === 'saved' ? 'No saved posts yet' : 'No matching posts found'}
+                </h3>
+                <p className="text-sm text-[#AAA69F] max-w-md mx-auto">
+                  {activeTab === 'saved'
+                    ? 'Bookmark helpful discussions and study resources to find them quickly here.'
+                    : 'Start a campus thread or adjust your category filter.'}
                 </p>
               </div>
-
-              {/* Campus Stats Bar */}
-              <div className="flex items-center gap-4 sm:gap-6 pt-1 text-xs text-emerald-100 font-medium">
-                <div>
-                  <span className="text-white font-bold text-sm block">
-                    {visibleMemberCount !== null ? visibleMemberCount.toLocaleString() : 'Verified'}
-                  </span>
-                  <span className="text-[11px] text-emerald-200/80">Campus Peers</span>
-                </div>
-                <div className="h-6 w-px bg-white/20" />
-                <div>
-                  <span className="text-white font-bold text-sm block">{groups.length}</span>
-                  <span className="text-[11px] text-emerald-200/80">Study Circles</span>
-                </div>
-                <div className="h-6 w-px bg-white/20" />
-                <div>
-                  <span className="text-white font-bold text-sm block">{posts.length}</span>
-                  <span className="text-[11px] text-emerald-200/80">Discussions</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Quick Action Button */}
-            <div className="flex flex-col sm:flex-row md:flex-col gap-2.5 shrink-0">
-              <button
-                onClick={() => setIsCreatePostOpen(true)}
-                className="px-5 py-3 rounded-2xl bg-white text-emerald-950 hover:bg-emerald-50 font-bold text-xs sm:text-sm transition-all shadow-lg hover:shadow-xl flex items-center justify-center gap-2 group"
-              >
-                <Plus className="w-4 h-4 text-emerald-700 group-hover:scale-110 transition-transform" />
-                Create Campus Post
-              </button>
-              <div className="text-[11px] text-emerald-200/80 text-center flex items-center justify-center gap-1">
-                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-                <span>Restricted to {currentCollege.shortName} students</span>
-              </div>
-            </div>
+            )}
           </div>
 
-          {/* Background Ambient Glow */}
-          <div className="absolute -right-10 -bottom-10 w-80 h-80 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
-        </div>
-
-        {/* View Navigation Tabs */}
-        <div className="flex items-center justify-between gap-3 border-b border-slate-200 pb-1 overflow-x-auto scrollbar-none">
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => {
-                setActiveTab('feed');
-                setSelectedTag(null);
-              }}
-              className={`px-4 py-2 rounded-xl text-xs sm:text-[13px] font-bold transition-all flex items-center gap-2 whitespace-nowrap ${
-                activeTab === 'feed'
-                  ? 'bg-slate-900 text-white shadow-xs'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-              }`}
-            >
-              <MessageSquare className="w-3.5 h-3.5" />
-              Community Feed ({posts.length})
-            </button>
-            <button
-              onClick={() => setActiveTab('groups')}
-              className={`px-4 py-2 rounded-xl text-xs sm:text-[13px] font-bold transition-all flex items-center gap-2 whitespace-nowrap ${
-                activeTab === 'groups'
-                  ? 'bg-slate-900 text-white shadow-xs'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-              }`}
-            >
-              <Users className="w-3.5 h-3.5" />
-              Learning Groups ({groups.length})
-            </button>
-            <button
-              onClick={() => setActiveTab('peers')}
-              className={`px-4 py-2 rounded-xl text-xs sm:text-[13px] font-bold transition-all flex items-center gap-2 whitespace-nowrap ${
-                activeTab === 'peers'
-                  ? 'bg-slate-900 text-white shadow-xs'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-              }`}
-            >
-              <GraduationCap className="w-3.5 h-3.5" />
-              Student Directory ({sameCollegeStudents.length})
-            </button>
-            <button
-              onClick={() => setActiveTab('saved')}
-              className={`px-4 py-2 rounded-xl text-xs sm:text-[13px] font-bold transition-all flex items-center gap-2 whitespace-nowrap ${
-                activeTab === 'saved'
-                  ? 'bg-slate-900 text-white shadow-xs'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-              }`}
-            >
-              <Bookmark className="w-3.5 h-3.5" />
-              Saved ({savedPostIds.length})
-            </button>
-          </div>
-        </div>
-
-        {/* Tab 1: Community Feed View */}
-        {activeTab === 'feed' || activeTab === 'saved' ? (
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-            {/* Left 8 Cols: Main Post Feed */}
-            <div className="lg:col-span-8 space-y-5">
-              {/* Filter & Search Bar */}
-              <div className="card-subtle rounded-2xl p-4 sm:p-5 space-y-3.5 bg-white border border-slate-200/80">
-                <div className="flex flex-col sm:flex-row items-center gap-3">
-                  <div className="relative flex-1 w-full">
-                    <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                    <input
-                      type="text"
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      placeholder="Search posts, topics, questions, or authors..."
-                      className="w-full text-xs pl-9 pr-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50/50 focus:outline-hidden focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 text-slate-900"
-                    />
-                    {searchQuery && (
-                      <button
-                        onClick={() => setSearchQuery('')}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-                      >
-                        <X className="w-3.5 h-3.5" />
-                      </button>
-                    )}
-                  </div>
-
-                  <button
-                    onClick={() => setIsCreatePostOpen(true)}
-                    className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs transition-colors shrink-0 flex items-center justify-center gap-1.5 shadow-2xs"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                    Create Post
-                  </button>
-                </div>
-
-                {/* Category Pills & Active Tag Indicator */}
-                <div className="flex items-center justify-between gap-2 flex-wrap pt-2 border-t border-slate-100">
-                  <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5">
-                    {CATEGORIES.map((cat) => (
-                      <button
-                        key={cat}
-                        onClick={() => setSelectedCategory(cat)}
-                        className={`px-3 py-1 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors ${
-                          selectedCategory === cat
-                            ? 'bg-emerald-600 text-white shadow-2xs'
-                            : 'bg-slate-100/80 text-slate-600 hover:bg-slate-200/80'
-                        }`}
-                      >
-                        {cat}
-                      </button>
-                    ))}
-                  </div>
-
-                  {selectedTag && (
-                    <div className="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-800 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200">
-                      <span>Tag: #{selectedTag}</span>
-                      <button
-                        onClick={() => setSelectedTag(null)}
-                        className="text-emerald-600 hover:text-emerald-900 ml-0.5"
-                      >
-                        ×
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Feed Post List */}
-              {communityLoading ? (
-                <div className="space-y-4">
-                  {[0, 1].map((s) => (
-                    <div key={s} className="bg-white rounded-2xl border border-slate-200 p-6 h-40 animate-pulse" />
-                  ))}
-                </div>
-              ) : filteredPosts.length > 0 ? (
-                <div className="space-y-4">
-                  {filteredPosts.map((post) => (
-                    <CommunityPostCard
-                      key={post.id}
-                      post={post}
-                      onViewAuthorProfile={handleOpenAuthorProfile}
-                      onBookRelatedSkill={handleBookSkill}
-                      availableSkills={skills}
-                    />
+          {/* Right Sidebar (4 Cols) */}
+          <div className="lg:col-span-4 space-y-5">
+            {/* Trending Tags */}
+            <div className="bg-[#22211F] border border-[#37332E] rounded-2xl p-5 space-y-4">
+              <h3 className="text-base font-bold text-[#F7F5F0] flex items-center gap-2">
+                <Hash className="w-4 h-4 text-[#FF9B45]" />
+                Trending Topics
+              </h3>
+              {trendingTags.length > 0 ? (
+                <div className="flex flex-wrap gap-2">
+                  {trendingTags.map((tag) => (
+                    <button
+                      key={tag}
+                      type="button"
+                      onClick={() => setSearchQuery(tag)}
+                      className="px-3 py-1.5 rounded-full bg-[#2B2824] hover:bg-[#37332E] border border-[#37332E] text-xs font-semibold text-[#F7F5F0] transition-colors cursor-pointer"
+                    >
+                      #{tag}
+                    </button>
                   ))}
                 </div>
               ) : (
-                <div className="p-12 text-center bg-white rounded-2xl border border-dashed border-slate-200 space-y-3">
-                  <div className="w-10 h-10 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center mx-auto">
-                    <MessageSquare className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-bold text-slate-900">
-                      {activeTab === 'saved'
-                        ? 'No Saved Posts Yet'
-                        : 'No Posts Found in this View'}
-                    </h3>
-                    <p className="text-xs text-slate-500 max-w-sm mx-auto mt-1">
-                      {activeTab === 'saved'
-                        ? 'Bookmark useful discussions or study resources to view them here anytime.'
-                        : 'Be the first student to start a discussion in this topic!'}
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => setIsCreatePostOpen(true)}
-                    className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold transition-colors inline-flex items-center gap-1.5 shadow-2xs"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                    Write New Post
-                  </button>
-                </div>
+                <p className="text-xs text-[#AAA69F]">Tags from new discussions will appear here.</p>
               )}
             </div>
 
-            {/* Right 4 Cols: Campus Trending & Sidebar Widgets */}
-            <aside className="lg:col-span-4 space-y-6">
-              {/* Trending Topics / Tags */}
-              <div className="card-subtle rounded-2xl p-5 space-y-3.5 bg-white border border-slate-200/80">
-                <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-900">
-                  <TrendingUp className="w-4 h-4 text-emerald-600" />
-                  <span>Trending on Campus</span>
-                </div>
-                {trendingTags.length > 0 ? (
-                  <div className="flex flex-wrap gap-1.5">
-                    {trendingTags.map((tag) => (
-                      <button
-                        key={tag}
-                        onClick={() => {
-                          setSelectedTag(selectedTag === tag ? null : tag);
-                          setActiveTab('feed');
-                        }}
-                        className={`text-xs px-2.5 py-1 rounded-lg font-semibold transition-all ${
-                          selectedTag === tag
-                            ? 'bg-emerald-600 text-white shadow-2xs'
-                            : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                        }`}
-                      >
-                        #{tag}
-                      </button>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-xs text-slate-400">
-                    Topic tags appear here as campus students publish discussions.
-                  </p>
-                )}
+            {/* Suggested Campus Peers */}
+            <div className="bg-[#22211F] border border-[#37332E] rounded-2xl p-5 space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-base font-bold text-[#F7F5F0]">Active Peers</h3>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('peers')}
+                  className="text-xs font-bold text-[#FF9B45] hover:text-[#F5B66B] inline-flex items-center gap-1 cursor-pointer"
+                >
+                  Directory
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </button>
               </div>
 
-              {/* Suggested Peers from Same College */}
-              <div className="card-subtle rounded-2xl p-5 space-y-3.5 bg-white border border-slate-200/80">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-900">
-                    <Sparkles className="w-4 h-4 text-emerald-600" />
-                    <span>Suggested Peers</span>
-                  </div>
-                  <button
-                    onClick={() => setActiveTab('peers')}
-                    className="text-[11px] font-semibold text-emerald-700 hover:underline"
-                  >
-                    View All →
-                  </button>
-                </div>
-
-                {sameCollegeStudents.length > 0 ? (
-                  <div className="space-y-3">
-                    {sameCollegeStudents.slice(0, 3).map((peer) => (
-                      <div
-                        key={peer.id}
-                        className="p-3 rounded-xl bg-slate-50 border border-slate-200/70 flex items-center justify-between gap-3 text-xs"
-                      >
-                        <div className="flex items-center gap-2.5 min-w-0">
-                          <img
-                            src={peer.avatar}
-                            alt={peer.name}
-                            className="w-8 h-8 rounded-full object-cover shrink-0 border border-slate-200"
-                          />
-                          <div className="min-w-0">
-                            <p className="font-bold text-slate-900 truncate">{peer.name}</p>
-                            <p className="text-[11px] text-slate-500 truncate">{peer.major}</p>
-                          </div>
-                        </div>
-
-                        <button
-                          onClick={() => setInspectingUser(peer)}
-                          className="px-2.5 py-1 rounded-lg border border-slate-200 hover:border-slate-300 text-slate-700 hover:text-slate-900 font-semibold text-[11px] bg-white transition-colors shrink-0"
-                        >
-                          Profile
-                        </button>
+              {suggestedPeers.length > 0 ? (
+                <div className="space-y-3">
+                  {suggestedPeers.map((peer) => (
+                    <button
+                      key={peer.id}
+                      type="button"
+                      onClick={() => setViewingStudent(peer)}
+                      className="w-full flex items-center gap-3 p-3 rounded-xl bg-[#2B2824] hover:bg-[#37332E] border border-[#37332E] text-left transition-colors cursor-pointer"
+                    >
+                      <img
+                        src={peer.avatar}
+                        alt={peer.name}
+                        className="w-9 h-9 rounded-full object-cover border border-[#37332E] bg-[#171715]"
+                      />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-bold text-[#F7F5F0] truncate">{peer.name}</p>
+                        <p className="text-xs text-[#AAA69F] truncate">
+                          {peer.skillsToTeach[0] || peer.major || 'Campus Peer'}
+                        </p>
                       </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-xs text-slate-400">
-                    {user
-                      ? 'No classmates listed yet in this campus hub.'
-                      : 'Sign in with your campus account to view classmates.'}
-                  </p>
-                )}
-              </div>
-
-              {/* Popular Study Circles Preview */}
-              <div className="card-subtle rounded-2xl p-5 space-y-3.5 bg-white border border-slate-200/80">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-900">
-                    <Users className="w-4 h-4 text-emerald-600" />
-                    <span>Active Study Circles</span>
-                  </div>
-                  <button
-                    onClick={() => setActiveTab('groups')}
-                    className="text-[11px] font-semibold text-emerald-700 hover:underline"
-                  >
-                    Browse ({groups.length}) →
-                  </button>
+                    </button>
+                  ))}
                 </div>
+              ) : (
+                <p className="text-xs text-[#AAA69F]">No classmates discovered yet.</p>
+              )}
+            </div>
 
-                {groups.length > 0 ? (
-                  <div className="space-y-2.5">
-                    {groups.slice(0, 2).map((grp) => (
-                      <div
-                        key={grp.id}
-                        className="p-3 rounded-xl bg-slate-50 border border-slate-200/70 space-y-1.5 text-xs"
-                      >
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="font-bold text-slate-900 truncate">{grp.name}</span>
-                          <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200/60 shrink-0">
-                            {grp.memberIds.length} members
-                          </span>
-                        </div>
-                        <p className="text-[11px] text-slate-500 line-clamp-2">{grp.description}</p>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-xs text-slate-400">
-                    No active study circles yet. Start the first circle in the Study Circles tab!
-                  </p>
-                )}
+            {/* Study Circles Preview */}
+            <div className="bg-[#22211F] border border-[#37332E] rounded-2xl p-5 space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-base font-bold text-[#F7F5F0]">Study Circles</h3>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('groups')}
+                  className="text-xs font-bold text-[#FF9B45] hover:text-[#F5B66B] cursor-pointer"
+                >
+                  View all
+                </button>
               </div>
-            </aside>
+
+              {groups.slice(0, 2).map((grp) => (
+                <div
+                  key={grp.id}
+                  className="bg-[#2B2824] border border-[#37332E] rounded-xl p-3.5 space-y-1"
+                >
+                  <p className="text-sm font-bold text-[#F7F5F0]">{grp.name}</p>
+                  <p className="text-xs text-[#AAA69F]">
+                    {grp.topic} · {grp.memberIds.length} members
+                  </p>
+                </div>
+              ))}
+            </div>
           </div>
-        ) : activeTab === 'groups' ? (
-          /* Tab 2: Learning Groups View */
-          <LearningGroupsSection
-            onViewMemberProfile={(id) => handleOpenAuthorProfile(id)}
-          />
-        ) : (
-          /* Tab 3: Same-College Student Discovery View */
-          <CollegeStudentDiscovery
-            onViewProfile={(student) => setInspectingUser(student)}
-            availableSkills={skills}
-            sessions={sessions}
-          />
-        )}
-      </div>
-
-      {/* Create Post Modal */}
-      {isCreatePostOpen && (
-        <CreatePostModal
-          onClose={() => setIsCreatePostOpen(false)}
-          availableSkills={skills}
-        />
+        </div>
       )}
 
-      {/* Student Profile Modal */}
-      {inspectingUser && (
+      {activeTab === 'groups' && <LearningGroupsSection />}
+
+      {activeTab === 'peers' && (
+        <CollegeStudentDiscovery onViewProfile={(student) => setViewingStudent(student)} />
+      )}
+
+      {/* Modals */}
+      {showCreateModal && <CreatePostModal onClose={() => setShowCreateModal(false)} />}
+
+      {viewingStudent && (
         <StudentProfileModal
-          student={inspectingUser}
-          onClose={() => setInspectingUser(null)}
-          onSelectSkill={(skill) => {
-            setInspectingUser(null);
-            setBookingSkill(skill);
-          }}
-          availableSkills={skills}
+          student={viewingStudent}
+          onClose={() => setViewingStudent(null)}
+          onSelectSkill={(skill) => setBookingSkill(skill)}
+          availableSkills={skills.filter((s) => s.teacherId === viewingStudent.id)}
         />
       )}
 
-      {/* Booking Modal for Skill Swap */}
       {bookingSkill && (
-        <BookingModal
-          skill={bookingSkill}
-          onClose={() => setBookingSkill(null)}
-        />
+        <BookingModal skill={bookingSkill} onClose={() => setBookingSkill(null)} />
       )}
     </div>
   );
@@ -531,7 +355,13 @@ function CommunityContent() {
 
 export default function CommunityPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-[#F8FAFC] flex items-center justify-center p-8">Loading Campus Community...</div>}>
+    <Suspense
+      fallback={
+        <div className="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-10">
+          <div className="h-96 rounded-2xl bg-[#22211F] border border-[#37332E] animate-pulse" />
+        </div>
+      }
+    >
       <CommunityContent />
     </Suspense>
   );

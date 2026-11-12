@@ -1,29 +1,30 @@
 'use client';
 
-import React, { useState, useRef } from 'react';
+import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { User, Skill } from '@/types';
 import { useAuth } from '@/context/AuthContext';
-import { useMessaging } from '@/context/MessagingContext';
+import { useApp } from '@/context/AppContext';
 import { useCommunity } from '@/context/CommunityContext';
+import { useMessaging } from '@/context/MessagingContext';
 import {
   X,
-  GraduationCap,
   Star,
-  BookOpen,
-  Clock,
-  Sparkles,
-  CheckCircle2,
-  ArrowRight,
+  GraduationCap,
   ShieldCheck,
-  MessageSquare,
+  Clock,
+  BookOpen,
+  Sparkles,
   UserPlus,
+  MessageSquare,
+  Check,
   Loader2,
+  ArrowUpRight,
   AlertCircle,
 } from 'lucide-react';
 
 interface StudentProfileModalProps {
-  student: User | null;
+  student: User;
   onClose: () => void;
   onSelectSkill?: (skill: Skill) => void;
   availableSkills?: Skill[];
@@ -33,207 +34,229 @@ export default function StudentProfileModal({
   student,
   onClose,
   onSelectSkill,
-  availableSkills = [],
+  availableSkills,
 }: StudentProfileModalProps) {
   const router = useRouter();
   const { user } = useAuth();
-  const { canMessageStudent, startConversationWith } = useMessaging();
-  const { sendConnectionRequest, acceptConnection, getConnectionRecord } = useCommunity();
-  const [isBusy, setIsBusy] = useState(false);
-  const [actionError, setActionError] = useState<string | null>(null);
-  const busyRef = useRef(false);
+  const { skills } = useApp();
+  const {
+    getConnectionStatus,
+    getConnectionRecord,
+    sendConnectionRequest,
+    acceptConnection,
+  } = useCommunity();
+  const { startConversationWith } = useMessaging();
 
-  if (!student) return null;
+  const [isConnecting, setIsConnecting] = useState(false);
+  const [isMessaging, setIsMessaging] = useState(false);
+  const [actionError, setActionError] = useState('');
 
-  const candidateSkills = availableSkills.filter((s) => s.teacherId === student.id);
+  const studentListings =
+    availableSkills ?? skills.filter((s) => s.teacherId === student.id);
+
   const isSelf = user?.id === student.id;
-  const messageCheck = !isSelf ? canMessageStudent(student.id) : null;
-  const connRecord = !isSelf ? getConnectionRecord(student.id) : null;
-  const isIncomingPending = connRecord?.status === 'pending' && connRecord.receiverId === user?.id;
-
-  const handleMessage = async () => {
-    if (!messageCheck?.allowed || busyRef.current) return;
-    busyRef.current = true;
-    setIsBusy(true);
-    setActionError(null);
-    try {
-      const res = await startConversationWith(student.id);
-      if (res.success && res.conversationId) {
-        onClose();
-        router.push(`/messages?conversationId=${res.conversationId}`);
-      } else {
-        setActionError(res.error || 'Could not open conversation.');
-      }
-    } finally {
-      busyRef.current = false;
-      setIsBusy(false);
-    }
-  };
+  const connStatus = getConnectionStatus(student.id);
+  const connRecord = getConnectionRecord(student.id);
+  const isIncomingPending =
+    connStatus === 'pending' && connRecord?.receiverId === user?.id;
 
   const handleConnect = async () => {
-    if (busyRef.current) return;
-    busyRef.current = true;
-    setIsBusy(true);
-    setActionError(null);
+    if (!user || isSelf || isConnecting) return;
+    setActionError('');
+    setIsConnecting(true);
     try {
-      const res = await sendConnectionRequest(
-        student.id,
-        'Hey! Would love to connect and chat about study skills.'
-      );
+      const res = isIncomingPending
+        ? await acceptConnection(student.id)
+        : await sendConnectionRequest(student.id);
       if (!res.success) {
-        setActionError(res.error || 'Failed to send connection request.');
+        setActionError(res.error || 'Could not update connection.');
       }
     } finally {
-      busyRef.current = false;
-      setIsBusy(false);
+      setIsConnecting(false);
     }
   };
 
-  const handleAcceptAndMessage = async () => {
-    if (busyRef.current) return;
-    busyRef.current = true;
-    setIsBusy(true);
-    setActionError(null);
+  const handleMessage = async () => {
+    if (!user || isSelf || isMessaging) return;
+    setActionError('');
+    setIsMessaging(true);
     try {
-      const acceptRes = await acceptConnection(student.id);
-      if (!acceptRes.success) {
-        setActionError(acceptRes.error || 'Failed to accept connection.');
+      const res = await startConversationWith(student.id);
+      if (!res.success || !res.conversationId) {
+        setActionError(res.error || 'Could not start conversation.');
         return;
       }
-      const convRes = await startConversationWith(student.id);
-      if (convRes.success && convRes.conversationId) {
-        onClose();
-        router.push(`/messages?conversationId=${convRes.conversationId}`);
-      } else if (convRes.error) {
-        setActionError(convRes.error);
-      }
+      onClose();
+      router.push(`/messages?conversationId=${encodeURIComponent(res.conversationId)}`);
     } finally {
-      busyRef.current = false;
-      setIsBusy(false);
+      setIsMessaging(false);
     }
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/50 backdrop-blur-xs animate-in fade-in duration-150">
-      <div className="bg-white rounded-2xl max-w-lg w-full shadow-2xl border border-slate-200 overflow-hidden max-h-[90vh] flex flex-col">
-        {/* Header Banner */}
-        <div className="relative bg-gradient-to-r from-emerald-600 via-emerald-700 to-teal-800 p-6 text-white shrink-0">
-          <button
-            onClick={onClose}
-            className="absolute top-4 right-4 p-1.5 rounded-full bg-black/20 hover:bg-black/30 text-white/80 hover:text-white transition-colors"
-            aria-label="Close"
-          >
-            <X className="w-4 h-4" />
-          </button>
-
-          <div className="flex items-center gap-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-xs">
+      <div className="w-full max-w-2xl bg-[#22211F] border border-[#37332E] rounded-2xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col animate-in fade-in zoom-in-95 duration-200">
+        {/* Header */}
+        <div className="px-6 py-5 border-b border-[#37332E] bg-[#1B1A18] flex items-start justify-between gap-4 shrink-0">
+          <div className="flex items-center gap-4 min-w-0">
             <img
               src={student.avatar}
               alt={student.name}
-              className="w-16 h-16 rounded-full border-2 border-white/60 object-cover shadow-md shrink-0"
+              className="w-14 h-14 rounded-full object-cover border border-[#37332E] bg-[#171715] shrink-0"
             />
             <div className="min-w-0">
-              <div className="flex items-center gap-2">
-                <h2 className="text-lg font-bold text-white truncate">{student.name}</h2>
-                <span className="px-2 py-0.5 rounded-full bg-white/20 text-[10px] font-semibold text-emerald-100">
-                  Class of {student.graduationYear || '2026'}
-                </span>
-                {student.isCollegeVerified ? (
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500/30 text-[10px] font-bold text-emerald-200 border border-emerald-400/30">
-                    <ShieldCheck className="w-3 h-3 text-emerald-300" />
-                    Verified
-                  </span>
-                ) : (
-                  <span className="px-2 py-0.5 rounded-full bg-slate-500/30 text-[10px] font-medium text-slate-300">
-                    Unverified
+              <div className="flex flex-wrap items-center gap-2">
+                <h2 className="text-xl font-bold text-[#F7F5F0] truncate">
+                  {student.name}
+                </h2>
+                {student.isCollegeVerified && (
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-[#65C995]/15 border border-[#65C995]/30 text-[#65C995]">
+                    <ShieldCheck className="w-3.5 h-3.5" />
+                    Verified Peer
                   </span>
                 )}
               </div>
-              <p className="text-xs text-emerald-100/90 truncate flex items-center gap-1.5 mt-0.5">
-                <GraduationCap className="w-3.5 h-3.5" />
-                {student.university} • {student.major}
-              </p>
-              <div className="flex items-center gap-3 mt-2 text-xs text-white/90 font-medium">
-                <span className="flex items-center gap-1">
-                  <Star className="w-3.5 h-3.5 fill-amber-300 text-amber-300" />
-                  {student.repRating?.toFixed(1) || '5.0'} Rep
+              <p className="text-xs sm:text-sm text-[#AAA69F] flex items-center gap-1.5 mt-1 truncate">
+                <GraduationCap className="w-4 h-4 text-[#FF9B45] shrink-0" />
+                <span className="truncate">
+                  {student.major || 'Student'}
+                  {student.graduationYear ? ` · Class of ${student.graduationYear}` : ''} ·{' '}
+                  {student.university}
                 </span>
-                <span>•</span>
-                <span>{student.totalHoursTaught || 0}h Taught</span>
-                <span>•</span>
-                <span>{student.totalHoursLearned || 0}h Learned</span>
-              </div>
+              </p>
             </div>
           </div>
+
+          <button
+            type="button"
+            onClick={onClose}
+            className="p-2 rounded-xl text-[#AAA69F] hover:text-[#F7F5F0] hover:bg-[#2B2824] transition-colors cursor-pointer shrink-0"
+            aria-label="Close modal"
+          >
+            <X className="w-5 h-5" />
+          </button>
         </div>
 
-        {/* Modal Body */}
-        <div className="p-6 space-y-6 overflow-y-auto">
+        {/* Scrollable Content */}
+        <div className="p-6 overflow-y-auto space-y-6">
+          {/* Metrics Strip */}
+          <div className="grid grid-cols-3 gap-3">
+            <div className="bg-[#2B2824] border border-[#37332E] rounded-xl p-3.5 text-center">
+              <div className="flex items-center justify-center gap-1 text-lg font-extrabold text-[#F7F5F0]">
+                <Star className="w-4 h-4 text-[#FF9B45] fill-[#FF9B45]" />
+                {student.repRating > 0 ? student.repRating.toFixed(1) : 'New'}
+              </div>
+              <p className="text-xs text-[#AAA69F] mt-0.5">Peer Rating</p>
+            </div>
+            <div className="bg-[#2B2824] border border-[#37332E] rounded-xl p-3.5 text-center">
+              <div className="text-lg font-extrabold text-[#F7F5F0] tabular-nums">
+                {student.totalHoursTaught}h
+              </div>
+              <p className="text-xs text-[#AAA69F] mt-0.5">Hours Taught</p>
+            </div>
+            <div className="bg-[#2B2824] border border-[#37332E] rounded-xl p-3.5 text-center">
+              <div className="text-lg font-extrabold text-[#F7F5F0] tabular-nums">
+                {student.totalHoursLearned}h
+              </div>
+              <p className="text-xs text-[#AAA69F] mt-0.5">Hours Learned</p>
+            </div>
+          </div>
+
           {/* Bio */}
           {student.bio && (
             <div className="space-y-1.5">
-              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500">About</h3>
-              <p className="text-xs leading-relaxed text-slate-700 bg-slate-50 p-3 rounded-xl border border-slate-200/60">
-                {student.bio}
-              </p>
+              <h3 className="text-xs font-bold uppercase tracking-wider text-[#AAA69F]">
+                About
+              </h3>
+              <p className="text-sm text-[#F7F5F0] leading-relaxed">{student.bio}</p>
             </div>
           )}
 
-          {/* Skills They Teach */}
-          <div className="space-y-2">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
-              <BookOpen className="w-3.5 h-3.5 text-emerald-600" />
-              Skills They Teach
-            </h3>
-            <div className="flex flex-wrap gap-1.5">
-              {student.skillsToTeach && student.skillsToTeach.length > 0 ? (
-                student.skillsToTeach.map((skill, idx) => (
-                  <span
-                    key={idx}
-                    className="px-2.5 py-1 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-200/60 text-xs font-semibold"
-                  >
-                    {skill}
-                  </span>
-                ))
+          {/* Skills Grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="bg-[#171715] border border-[#37332E] rounded-xl p-4 space-y-2.5">
+              <p className="text-xs font-bold uppercase tracking-wider text-[#FF9B45] flex items-center gap-1.5">
+                <BookOpen className="w-3.5 h-3.5" />
+                Can Teach
+              </p>
+              {student.skillsToTeach.length > 0 ? (
+                <div className="flex flex-wrap gap-1.5">
+                  {student.skillsToTeach.map((item, idx) => (
+                    <span
+                      key={idx}
+                      className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-[#22211F] border border-[#37332E] text-[#F7F5F0]"
+                    >
+                      {item}
+                    </span>
+                  ))}
+                </div>
               ) : (
-                <span className="text-xs text-slate-400">No skills listed yet</span>
+                <p className="text-xs text-[#AAA69F]">No teaching tags listed yet.</p>
+              )}
+            </div>
+
+            <div className="bg-[#171715] border border-[#37332E] rounded-xl p-4 space-y-2.5">
+              <p className="text-xs font-bold uppercase tracking-wider text-[#65C995] flex items-center gap-1.5">
+                <Sparkles className="w-3.5 h-3.5" />
+                Wants to Learn
+              </p>
+              {student.skillsToLearn.length > 0 ? (
+                <div className="flex flex-wrap gap-1.5">
+                  {student.skillsToLearn.map((item, idx) => (
+                    <span
+                      key={idx}
+                      className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-[#22211F] border border-[#37332E] text-[#F7F5F0]"
+                    >
+                      {item}
+                    </span>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-xs text-[#AAA69F]">No wishlist tags added yet.</p>
               )}
             </div>
           </div>
 
-          {/* Published Courses & Listings */}
-          {candidateSkills.length > 0 && (
-            <div className="space-y-2.5">
-              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
-                <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
-                Active Skill Offerings ({candidateSkills.length})
+          {/* Active Listings */}
+          {studentListings.length > 0 && (
+            <div className="space-y-3">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-[#AAA69F]">
+                Active Session Listings ({studentListings.length})
               </h3>
-              <div className="space-y-2">
-                {candidateSkills.map((sk) => (
+              <div className="space-y-2.5">
+                {studentListings.map((skill) => (
                   <div
-                    key={sk.id}
-                    className="p-3 rounded-xl bg-white border border-slate-200 hover:border-emerald-300 hover:shadow-xs transition-all flex items-center justify-between gap-3"
+                    key={skill.id}
+                    className="bg-[#2B2824] border border-[#37332E] rounded-xl p-4 flex items-center justify-between gap-4"
                   >
                     <div className="min-w-0">
-                      <p className="text-xs font-bold text-slate-900 truncate">{sk.title}</p>
-                      <p className="text-[11px] text-slate-500 mt-0.5 flex items-center gap-2">
-                        <span>{sk.hourlyCredits} Credits</span>
-                        <span>•</span>
-                        <span>{sk.sessionDurationMinutes} mins</span>
-                        <span>•</span>
-                        <span>{sk.level}</span>
+                      <p className="text-sm font-bold text-[#F7F5F0] truncate">
+                        {skill.title}
+                      </p>
+                      <p className="text-xs text-[#AAA69F] flex items-center gap-2 mt-0.5">
+                        <span>{skill.category}</span>
+                        <span>·</span>
+                        <span className="inline-flex items-center gap-1">
+                          <Clock className="w-3 h-3" />
+                          {skill.sessionDurationMinutes} min
+                        </span>
+                        <span>·</span>
+                        <span className="text-[#FF9B45] font-bold">
+                          {skill.hourlyCredits} {skill.hourlyCredits === 1 ? 'Credit' : 'Credits'}
+                        </span>
                       </p>
                     </div>
-                    {onSelectSkill && (
+                    {onSelectSkill && !isSelf && (
                       <button
+                        type="button"
                         onClick={() => {
                           onClose();
-                          onSelectSkill(sk);
+                          onSelectSkill(skill);
                         }}
-                        className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold shrink-0 transition-colors flex items-center gap-1"
+                        className="inline-flex items-center gap-1 px-4 py-2 rounded-full bg-[#FF9B45] hover:bg-[#F5B66B] text-[#171715] text-xs font-bold transition-colors shrink-0 cursor-pointer"
                       >
-                        Request Swap
-                        <ArrowRight className="w-3 h-3" />
+                        Book
+                        <ArrowUpRight className="w-3.5 h-3.5" />
                       </button>
                     )}
                   </div>
@@ -242,111 +265,58 @@ export default function StudentProfileModal({
             </div>
           )}
 
-          {/* Learning Wishlist */}
-          <div className="space-y-2">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
-              <Clock className="w-3.5 h-3.5 text-blue-600" />
-              What They Want to Learn
-            </h3>
-            <div className="flex flex-wrap gap-1.5">
-              {student.skillsToLearn && student.skillsToLearn.length > 0 ? (
-                student.skillsToLearn.map((skill, idx) => (
-                  <span
-                    key={idx}
-                    className="px-2.5 py-1 rounded-md bg-slate-100 text-slate-700 border border-slate-200/80 text-xs font-medium"
-                  >
-                    {skill}
-                  </span>
-                ))
-              ) : (
-                <span className="text-xs text-slate-400">Wishlist empty</span>
-              )}
+          {actionError && (
+            <div className="flex items-start gap-2 p-3.5 rounded-xl bg-[#F07878]/10 border border-[#F07878]/30 text-sm text-[#F07878]">
+              <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+              <span>{actionError}</span>
             </div>
-          </div>
+          )}
         </div>
 
-        {actionError && (
-          <div className="px-6 py-2 bg-rose-50 border-t border-rose-200 text-rose-700 text-xs flex items-center gap-1.5 shrink-0">
-            <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-            <span>{actionError}</span>
-          </div>
-        )}
-
-        {/* Footer */}
-        <div className="px-6 py-3.5 bg-slate-50 border-t border-slate-100 flex items-center justify-between shrink-0">
-          <span className="text-[11px] text-slate-500 flex items-center gap-1.5">
-            {student.isCollegeVerified ? (
-              <>
-                <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-                <span>Verified {student.university} Student</span>
-              </>
+        {/* Footer Action Bar */}
+        {!isSelf && user && (
+          <div className="px-6 py-4 border-t border-[#37332E] bg-[#1B1A18] flex flex-wrap items-center justify-end gap-3 shrink-0">
+            {connStatus === 'accepted' ? (
+              <span className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#65C995]/15 border border-[#65C995]/30 text-xs font-bold text-[#65C995]">
+                <Check className="w-3.5 h-3.5" />
+                Connected
+              </span>
+            ) : connStatus === 'pending' && !isIncomingPending ? (
+              <span className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#2B2824] border border-[#37332E] text-xs font-semibold text-[#AAA69F]">
+                <Clock className="w-3.5 h-3.5 text-[#F5B66B]" />
+                Request Sent
+              </span>
             ) : (
-              <>
-                <CheckCircle2 className="w-3.5 h-3.5 text-slate-400" />
-                <span>SwapStudy Student (College Verification Pending)</span>
-              </>
+              <button
+                type="button"
+                onClick={handleConnect}
+                disabled={isConnecting}
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#2B2824] hover:bg-[#37332E] border border-[#37332E] text-sm font-semibold text-[#F7F5F0] transition-colors cursor-pointer"
+              >
+                {isConnecting ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <UserPlus className="w-4 h-4 text-[#FF9B45]" />
+                )}
+                {isIncomingPending ? 'Accept Connection' : 'Connect'}
+              </button>
             )}
-          </span>
-          <div className="flex items-center gap-2">
-            {!isSelf && (
-              <>
-                {messageCheck?.allowed ? (
-                  <button
-                    disabled={isBusy}
-                    onClick={handleMessage}
-                    className="px-3.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 disabled:bg-emerald-400 text-white text-xs font-semibold shadow-xs transition-colors flex items-center gap-1.5"
-                  >
-                    {isBusy ? (
-                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    ) : (
-                      <MessageSquare className="w-3.5 h-3.5" />
-                    )}
-                    {isBusy ? 'Opening...' : 'Message Student'}
-                  </button>
-                ) : messageCheck?.connectionStatus === 'pending' ? (
-                  isIncomingPending ? (
-                    <button
-                      disabled={isBusy}
-                      onClick={handleAcceptAndMessage}
-                      className="px-3.5 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 disabled:bg-slate-400 text-white text-xs font-semibold shadow-xs transition-colors flex items-center gap-1.5"
-                    >
-                      {isBusy ? (
-                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                      ) : (
-                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-                      )}
-                      {isBusy ? 'Opening...' : 'Accept & Message'}
-                    </button>
-                  ) : (
-                    <span className="px-3 py-1.5 rounded-lg bg-amber-50 text-amber-800 border border-amber-200 text-xs font-medium flex items-center gap-1">
-                      <Clock className="w-3.5 h-3.5 text-amber-600" />
-                      Connection Pending
-                    </span>
-                  )
-                ) : messageCheck?.connectionStatus === 'none' ? (
-                  <button
-                    disabled={isBusy}
-                    onClick={handleConnect}
-                    className="px-3.5 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 disabled:bg-slate-400 text-white text-xs font-semibold shadow-xs transition-colors flex items-center gap-1.5"
-                  >
-                    {isBusy ? (
-                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    ) : (
-                      <UserPlus className="w-3.5 h-3.5" />
-                    )}
-                    {isBusy ? 'Sending...' : 'Connect to Message'}
-                  </button>
-                ) : null}
-              </>
-            )}
+
             <button
-              onClick={onClose}
-              className="px-4 py-1.5 rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-100 text-xs font-semibold transition-colors"
+              type="button"
+              onClick={handleMessage}
+              disabled={isMessaging}
+              className="inline-flex items-center gap-1.5 px-5 py-2 rounded-full bg-[#FF9B45] hover:bg-[#F5B66B] disabled:opacity-50 text-[#171715] text-sm font-bold transition-colors cursor-pointer"
             >
-              Close
+              {isMessaging ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <MessageSquare className="w-4 h-4" />
+              )}
+              Message Peer
             </button>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );

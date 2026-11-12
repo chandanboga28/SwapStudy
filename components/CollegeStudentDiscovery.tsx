@@ -1,331 +1,297 @@
 'use client';
 
 import React, { useState, useMemo } from 'react';
-import { User, Skill, Session } from '@/types';
+import { useRouter } from 'next/navigation';
+import { User } from '@/types';
 import { useAuth } from '@/context/AuthContext';
 import { useCommunity } from '@/context/CommunityContext';
-import { calculateSmartMatches } from '@/lib/matching';
+import { useMessaging } from '@/context/MessagingContext';
 import {
-  Users,
   Search,
-  Star,
+  GraduationCap,
   ShieldCheck,
+  Star,
   UserPlus,
+  MessageSquare,
   Check,
   Clock,
-  ArrowRightLeft,
-  Sparkles,
-  User as UserIcon,
+  Users,
+  Repeat,
+  Loader2,
 } from 'lucide-react';
 
 interface CollegeStudentDiscoveryProps {
   onViewProfile: (student: User) => void;
-  availableSkills?: Skill[];
-  sessions?: Session[];
 }
 
-export default function CollegeStudentDiscovery({
-  onViewProfile,
-  availableSkills = [],
-  sessions = [],
-}: CollegeStudentDiscoveryProps) {
+export default function CollegeStudentDiscovery({ onViewProfile }: CollegeStudentDiscoveryProps) {
+  const router = useRouter();
   const { user } = useAuth();
-  const { sameCollegeStudents, currentCollege, sendConnectionRequest, getConnectionStatus } = useCommunity();
+  const {
+    sameCollegeStudents,
+    getConnectionStatus,
+    getConnectionRecord,
+    sendConnectionRequest,
+    acceptConnection,
+  } = useCommunity();
+  const { startConversationWith } = useMessaging();
 
-  const [searchQuery, setSearchQuery] = useState('');
+  const [query, setQuery] = useState('');
   const [filterMode, setFilterMode] = useState<'all' | 'matches' | 'connected'>('all');
-  const [requestFeedback, setRequestFeedback] = useState<string | null>(null);
+  const [busyId, setBusyId] = useState<string | null>(null);
 
-  // Calculate smart matches for peers
-  const smartMatches = useMemo(() => {
-    return calculateSmartMatches(user, sameCollegeStudents, availableSkills, sessions);
-  }, [user, sameCollegeStudents, availableSkills, sessions]);
+  const peers = useMemo(() => {
+    const others = sameCollegeStudents.filter((s) => s.id !== user?.id);
 
-  // Map candidate ID to smart match
-  const matchesMap = useMemo(() => {
-    const map = new Map<string, (typeof smartMatches)[0]>();
-    for (const m of smartMatches) {
-      map.set(m.candidate.id, m);
-    }
-    return map;
-  }, [smartMatches]);
-
-  const filteredStudents = useMemo(() => {
-    return sameCollegeStudents.filter((student) => {
-      const q = searchQuery.toLowerCase().trim();
-      const matchesSearch =
-        !q ||
-        student.name.toLowerCase().includes(q) ||
-        student.major.toLowerCase().includes(q) ||
-        student.skillsToTeach.some((s) => s.toLowerCase().includes(q)) ||
-        student.skillsToLearn.some((s) => s.toLowerCase().includes(q));
-
-      const status = getConnectionStatus(student.id);
-
-      if (filterMode === 'connected') {
-        return matchesSearch && status === 'accepted';
+    return others.filter((student) => {
+      if (filterMode === 'connected' && getConnectionStatus(student.id) !== 'accepted') {
+        return false;
       }
-      if (filterMode === 'matches') {
-        const hasMatch = matchesMap.has(student.id);
-        return matchesSearch && hasMatch;
+
+      if (filterMode === 'matches' && user) {
+        const myLearn = user.skillsToLearn.map((s) => s.toLowerCase());
+        const myTeach = user.skillsToTeach.map((s) => s.toLowerCase());
+        const canHelpMe = student.skillsToTeach.some((s) =>
+          myLearn.some((w) => s.toLowerCase().includes(w) || w.includes(s.toLowerCase()))
+        );
+        const wantsMyHelp = student.skillsToLearn.some((s) =>
+          myTeach.some((t) => s.toLowerCase().includes(t) || t.includes(s.toLowerCase()))
+        );
+        if (!canHelpMe && !wantsMyHelp) return false;
       }
-      return matchesSearch;
+
+      if (query.trim()) {
+        const q = query.toLowerCase();
+        const hay = [
+          student.name,
+          student.major,
+          ...student.skillsToTeach,
+          ...student.skillsToLearn,
+        ]
+          .join(' ')
+          .toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
+
+      return true;
     });
-  }, [sameCollegeStudents, searchQuery, filterMode, getConnectionStatus, matchesMap]);
+  }, [sameCollegeStudents, user, filterMode, query, getConnectionStatus]);
 
-  const handleConnect = async (studentId: string, studentName: string) => {
-    const res = await sendConnectionRequest(
-      studentId,
-      `Hi ${studentName}, would love to connect on SwapStudy!`
-    );
-    if (res.success) {
-      setRequestFeedback(`Connection request sent to ${studentName}!`);
-      setTimeout(() => setRequestFeedback(null), 3000);
-    } else {
-      setRequestFeedback(res.error || 'Failed to send request.');
-      setTimeout(() => setRequestFeedback(null), 3000);
+  const handleConnect = async (studentId: string, isIncoming: boolean) => {
+    if (busyId) return;
+    setBusyId(studentId);
+    try {
+      if (isIncoming) {
+        await acceptConnection(studentId);
+      } else {
+        await sendConnectionRequest(studentId);
+      }
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const handleMessage = async (studentId: string) => {
+    if (busyId) return;
+    setBusyId(`msg-${studentId}`);
+    try {
+      const res = await startConversationWith(studentId);
+      if (res.success && res.conversationId) {
+        router.push(`/messages?conversationId=${encodeURIComponent(res.conversationId)}`);
+      }
+    } finally {
+      setBusyId(null);
     }
   };
 
   return (
     <div className="space-y-6">
-      {/* Toast feedback */}
-      {requestFeedback && (
-        <div className="p-3 bg-slate-900 text-white rounded-xl text-xs font-medium shadow-md flex items-center gap-2 animate-in fade-in">
-          <Check className="w-4 h-4 text-emerald-400" />
-          <span>{requestFeedback}</span>
-        </div>
-      )}
-
-      {/* Header card */}
-      <div className="card-subtle rounded-2xl p-5 space-y-4 bg-white border border-slate-200/80">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div>
-            <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-50 border border-emerald-200/60 text-[11px] font-semibold text-emerald-800 mb-1">
-              <Users className="w-3.5 h-3.5 text-emerald-600" />
-              <span>Campus Peer Directory</span>
-            </div>
-            <h2 className="text-lg font-bold text-slate-900 tracking-tight">
-              Discover {currentCollege.shortName} Students
-            </h2>
-            <p className="text-xs text-slate-500 mt-0.5">
-              Connect with fellow students from your campus. Filter by shared interests, mutual skill swaps, or active connections.
-            </p>
-          </div>
-
-          <div className="flex items-center gap-1.5 bg-slate-100/80 p-1 rounded-xl text-xs self-start sm:self-auto border border-slate-200/60">
-            <button
-              onClick={() => setFilterMode('all')}
-              className={`px-3 py-1.5 rounded-lg font-semibold transition-all ${
-                filterMode === 'all'
-                  ? 'bg-white text-slate-900 shadow-2xs'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              All ({sameCollegeStudents.length})
-            </button>
-            <button
-              onClick={() => setFilterMode('matches')}
-              className={`px-3 py-1.5 rounded-lg font-semibold transition-all flex items-center gap-1 ${
-                filterMode === 'matches'
-                  ? 'bg-emerald-600 text-white shadow-2xs'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              <ArrowRightLeft className="w-3 h-3" />
-              Skill Swaps ({smartMatches.length})
-            </button>
-            <button
-              onClick={() => setFilterMode('connected')}
-              className={`px-3 py-1.5 rounded-lg font-semibold transition-all ${
-                filterMode === 'connected'
-                  ? 'bg-white text-slate-900 shadow-2xs'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              Connected
-            </button>
-          </div>
+      {/* Search & Filter Strip */}
+      <div className="bg-[#22211F] border border-[#37332E] rounded-2xl p-4 sm:p-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="relative flex-1 max-w-md">
+          <Search className="w-4 h-4 text-[#AAA69F] absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+          <input
+            type="text"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search classmates by name, major, or skill..."
+            className="w-full pl-10 pr-4 py-2.5 rounded-full bg-[#171715] border border-[#37332E] focus:border-[#FF9B45] text-sm text-[#F7F5F0] placeholder-[#AAA69F]/60 focus:outline-none"
+          />
         </div>
 
-        {/* Search */}
-        <div className="pt-2 border-t border-slate-100">
-          <div className="relative w-full">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search peers by name, major, or skills (e.g. Python, Figma, LeetCode)..."
-              className="w-full text-xs pl-9 pr-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50/50 focus:outline-hidden focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 text-slate-900"
-            />
-          </div>
+        <div className="inline-flex p-1 rounded-full bg-[#171715] border border-[#37332E] self-start">
+          {[
+            { key: 'all', label: 'All Peers' },
+            { key: 'matches', label: 'Skill Overlap' },
+            { key: 'connected', label: 'Connected' },
+          ].map((tab) => (
+            <button
+              key={tab.key}
+              type="button"
+              onClick={() => setFilterMode(tab.key as 'all' | 'matches' | 'connected')}
+              className={`px-4 py-1.5 rounded-full text-xs font-bold transition-colors cursor-pointer ${
+                filterMode === tab.key
+                  ? 'bg-[#FF9B45] text-[#171715]'
+                  : 'text-[#AAA69F] hover:text-[#F7F5F0]'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
         </div>
       </div>
 
-      {/* Students Directory Grid */}
-      {filteredStudents.length > 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filteredStudents.map((student) => {
-            const match = matchesMap.get(student.id);
-            const isMutual = match?.matchType === 'mutual';
+      {/* Directory Grid */}
+      {peers.length > 0 ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+          {peers.map((student) => {
             const connStatus = getConnectionStatus(student.id);
+            const connRec = getConnectionRecord(student.id);
+            const isIncoming = connStatus === 'pending' && connRec?.receiverId === user?.id;
 
             return (
               <div
                 key={student.id}
-                className={`card-subtle rounded-2xl p-5 space-y-4 bg-white border transition-all flex flex-col justify-between ${
-                  isMutual
-                    ? 'border-emerald-300 ring-1 ring-emerald-500/10'
-                    : 'border-slate-200/80 hover:border-slate-300'
-                }`}
+                className="bg-[#22211F] border border-[#37332E] hover:border-[#4F4942] rounded-2xl p-6 flex flex-col justify-between space-y-5 transition-colors"
               >
-                <div className="space-y-3">
-                  {/* Top Row: Avatar & Name */}
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex items-center gap-3 min-w-0">
+                <div className="space-y-4">
+                  <div className="flex items-start gap-3.5">
+                    <button
+                      type="button"
+                      onClick={() => onViewProfile(student)}
+                      className="shrink-0 cursor-pointer"
+                    >
                       <img
                         src={student.avatar}
                         alt={student.name}
-                        className="w-12 h-12 rounded-full object-cover border border-slate-200 shadow-2xs shrink-0"
+                        className="w-12 h-12 rounded-full object-cover border border-[#37332E] bg-[#171715]"
                       />
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          <h3 className="text-sm font-bold text-slate-900 truncate">
-                            {student.name}
-                          </h3>
-                          {student.isCollegeVerified ? (
-                            <span title="Verified College Student">
-                              <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                            </span>
-                          ) : (
-                            <span className="text-[10px] text-slate-400 font-medium">
-                              (Unverified)
-                            </span>
-                          )}
-                        </div>
-                        <p className="text-[11px] text-slate-500 truncate mt-0.5">
-                          {student.major}
-                        </p>
-                        <div className="flex items-center gap-1 text-[11px] font-semibold text-amber-600 mt-0.5">
-                          <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
-                          <span>{student.repRating?.toFixed(1) || '5.0'}</span>
-                          <span className="text-slate-300">•</span>
-                          <span className="text-slate-400 font-normal">
-                            Class of {student.graduationYear || '2026'}
-                          </span>
-                        </div>
+                    </button>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => onViewProfile(student)}
+                          className="text-base font-bold text-[#F7F5F0] hover:text-[#FF9B45] truncate cursor-pointer text-left"
+                        >
+                          {student.name}
+                        </button>
+                        {student.isCollegeVerified && (
+                          <ShieldCheck className="w-4 h-4 text-[#65C995] shrink-0" />
+                        )}
+                      </div>
+                      <p className="text-xs text-[#AAA69F] flex items-center gap-1 mt-0.5 truncate">
+                        <GraduationCap className="w-3.5 h-3.5 shrink-0" />
+                        {student.major || student.university}
+                      </p>
+                      <div className="flex items-center gap-2 mt-1 text-xs text-[#AAA69F]">
+                        <span className="inline-flex items-center gap-1 font-bold text-[#F7F5F0]">
+                          <Star className="w-3.5 h-3.5 text-[#FF9B45] fill-[#FF9B45]" />
+                          {student.repRating > 0 ? student.repRating.toFixed(1) : 'New'}
+                        </span>
+                        <span>· {student.totalHoursTaught}h taught</span>
                       </div>
                     </div>
-
-                    {/* Match Badge if exists */}
-                    {isMutual ? (
-                      <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-bold border border-emerald-300/60 shrink-0 flex items-center gap-1">
-                        <ArrowRightLeft className="w-2.5 h-2.5 text-emerald-600" />
-                        Mutual Swap
-                      </span>
-                    ) : match ? (
-                      <span className="px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 text-[10px] font-bold border border-blue-200/60 shrink-0 flex items-center gap-1">
-                        <Sparkles className="w-2.5 h-2.5 text-blue-600" />
-                        Wishlist
-                      </span>
-                    ) : null}
                   </div>
 
-                  {/* Skills Teaches */}
-                  <div className="space-y-1">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                      Can Teach
-                    </span>
-                    <div className="flex flex-wrap gap-1">
-                      {student.skillsToTeach.slice(0, 2).map((s, idx) => (
+                  <div className="bg-[#2B2824] border border-[#37332E] rounded-xl p-3.5 space-y-2">
+                    <p className="text-[11px] font-bold uppercase tracking-wider text-[#FF9B45]">
+                      Teaches
+                    </p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {student.skillsToTeach.slice(0, 3).map((tag, i) => (
                         <span
-                          key={idx}
-                          className="px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-200/60 text-[11px] font-medium truncate max-w-full"
+                          key={i}
+                          className="px-2 py-0.5 rounded-md bg-[#171715] border border-[#37332E] text-xs font-medium text-[#F7F5F0]"
                         >
-                          {s}
+                          {tag}
                         </span>
                       ))}
-                      {student.skillsToTeach.length > 2 && (
-                        <span className="text-[10px] text-slate-400 self-center">
-                          +{student.skillsToTeach.length - 2}
-                        </span>
+                      {student.skillsToTeach.length === 0 && (
+                        <span className="text-xs text-[#AAA69F]">Not listed yet</span>
                       )}
                     </div>
-                  </div>
 
-                  {/* Skills Wants to Learn */}
-                  <div className="space-y-1">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                      Wants to Learn
-                    </span>
-                    <div className="flex flex-wrap gap-1">
-                      {student.skillsToLearn.slice(0, 2).map((s, idx) => (
+                    <p className="text-[11px] font-bold uppercase tracking-wider text-[#65C995] pt-1">
+                      Learning
+                    </p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {student.skillsToLearn.slice(0, 3).map((tag, i) => (
                         <span
-                          key={idx}
-                          className="px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 border border-slate-200 text-[11px] font-medium truncate max-w-full"
+                          key={i}
+                          className="px-2 py-0.5 rounded-md bg-[#171715] border border-[#37332E] text-xs font-medium text-[#AAA69F]"
                         >
-                          {s}
+                          {tag}
                         </span>
                       ))}
-                      {student.skillsToLearn.length > 2 && (
-                        <span className="text-[10px] text-slate-400 self-center">
-                          +{student.skillsToLearn.length - 2}
-                        </span>
+                      {student.skillsToLearn.length === 0 && (
+                        <span className="text-xs text-[#AAA69F]">Open to explore</span>
                       )}
                     </div>
                   </div>
                 </div>
 
-                {/* Footer Buttons */}
-                <div className="pt-3 border-t border-slate-100 flex items-center justify-between gap-2">
-                  <button
-                    onClick={() => onViewProfile(student)}
-                    className="flex-1 py-1.5 px-3 rounded-xl border border-slate-200 hover:border-slate-300 text-slate-700 hover:text-slate-900 text-xs font-semibold bg-white transition-colors flex items-center justify-center gap-1.5"
-                  >
-                    <UserIcon className="w-3.5 h-3.5 text-slate-400" />
-                    Profile
-                  </button>
-
-                  {/* Connect / Pending / Connected Button */}
+                <div className="flex items-center gap-2.5 pt-2 border-t border-[#37332E]">
                   {connStatus === 'accepted' ? (
-                    <span className="py-1.5 px-3 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200/70 text-xs font-semibold flex items-center gap-1 shrink-0">
-                      <Check className="w-3 h-3 text-emerald-600" />
-                      Connected
-                    </span>
-                  ) : connStatus === 'pending' ? (
-                    <span
-                      className="py-1.5 px-3 rounded-xl bg-slate-100 text-slate-500 border border-slate-200 text-xs font-medium flex items-center gap-1 shrink-0"
-                      title="Connection request pending"
+                    <button
+                      type="button"
+                      disabled={busyId === `msg-${student.id}`}
+                      onClick={() => handleMessage(student.id)}
+                      className="flex-1 inline-flex items-center justify-center gap-1.5 py-2.5 rounded-full bg-[#FF9B45] hover:bg-[#F5B66B] text-[#171715] text-xs font-bold transition-colors cursor-pointer"
                     >
-                      <Clock className="w-3 h-3 text-slate-400" />
+                      {busyId === `msg-${student.id}` ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      ) : (
+                        <MessageSquare className="w-3.5 h-3.5" />
+                      )}
+                      Message Peer
+                    </button>
+                  ) : connStatus === 'pending' && !isIncoming ? (
+                    <span className="flex-1 inline-flex items-center justify-center gap-1.5 py-2.5 rounded-full bg-[#2B2824] border border-[#37332E] text-xs font-semibold text-[#F5B66B]">
+                      <Clock className="w-3.5 h-3.5" />
                       Pending
                     </span>
                   ) : (
                     <button
-                      onClick={() => handleConnect(student.id, student.name)}
-                      className="py-1.5 px-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold transition-all shadow-2xs flex items-center gap-1 shrink-0"
+                      type="button"
+                      disabled={busyId === student.id}
+                      onClick={() => handleConnect(student.id, isIncoming)}
+                      className="flex-1 inline-flex items-center justify-center gap-1.5 py-2.5 rounded-full bg-[#FF9B45] hover:bg-[#F5B66B] text-[#171715] text-xs font-bold transition-colors cursor-pointer"
                     >
-                      <UserPlus className="w-3 h-3" />
-                      Connect
+                      {busyId === student.id ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      ) : isIncoming ? (
+                        <Check className="w-3.5 h-3.5" />
+                      ) : (
+                        <UserPlus className="w-3.5 h-3.5" />
+                      )}
+                      {isIncoming ? 'Accept Invite' : 'Connect'}
                     </button>
                   )}
+
+                  <button
+                    type="button"
+                    onClick={() => onViewProfile(student)}
+                    className="px-4 py-2.5 rounded-full bg-[#2B2824] hover:bg-[#37332E] border border-[#37332E] text-xs font-semibold text-[#F7F5F0] transition-colors cursor-pointer"
+                  >
+                    Profile
+                  </button>
                 </div>
               </div>
             );
           })}
         </div>
       ) : (
-        <div className="p-12 text-center bg-white rounded-2xl border border-dashed border-slate-200 space-y-3">
-          <div className="w-10 h-10 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center mx-auto">
-            <Users className="w-5 h-5" />
-          </div>
-          <div>
-            <h3 className="text-sm font-bold text-slate-900">No Students Found</h3>
-            <p className="text-xs text-slate-500 max-w-sm mx-auto mt-1">
-              Try adjusting your search query or switching the filter tab.
-            </p>
-          </div>
+        <div className="bg-[#22211F] border border-[#37332E] rounded-2xl p-12 text-center space-y-3">
+          {filterMode === 'matches' ? (
+            <Repeat className="w-9 h-9 text-[#FF9B45] mx-auto" />
+          ) : (
+            <Users className="w-9 h-9 text-[#FF9B45] mx-auto" />
+          )}
+          <h3 className="text-xl font-bold text-[#F7F5F0]">No classmates matched this filter</h3>
+          <p className="text-sm text-[#AAA69F] max-w-md mx-auto">
+            Try switching to &ldquo;All Peers&rdquo; or updating your teaching and learning skill tags in your profile.
+          </p>
         </div>
       )}
     </div>

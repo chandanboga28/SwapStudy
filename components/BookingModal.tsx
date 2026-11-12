@@ -1,100 +1,88 @@
 'use client';
 
 import React, { useState, useRef } from 'react';
+import Link from 'next/link';
 import { Skill } from '@/types';
 import { useAuth } from '@/context/AuthContext';
 import { useApp } from '@/context/AppContext';
 import { getISTDateString, isISTDateTimeInFuture } from '@/lib/timezone';
-import { X, Calendar, Clock, Coins, AlertCircle, CheckCircle2, ArrowRight } from 'lucide-react';
-import Link from 'next/link';
+import {
+  X,
+  Calendar,
+  Clock,
+  Coins,
+  CheckCircle2,
+  AlertCircle,
+  ShieldCheck,
+  Loader2,
+  ArrowRight,
+} from 'lucide-react';
 
 interface BookingModalProps {
-  skill: Skill | null;
+  skill: Skill;
   onClose: () => void;
   onSuccess?: () => void;
 }
 
 export default function BookingModal({ skill, onClose, onSuccess }: BookingModalProps) {
   const { user } = useAuth();
-  const { bookSession, sessions } = useApp();
+  const { bookSession } = useApp();
 
-  const [todayStr] = useState<string>(() => getISTDateString(0));
-  const [date, setDate] = useState<string>(() => getISTDateString(1));
+  const [date, setDate] = useState(getISTDateString(1));
   const [time, setTime] = useState('16:00');
   const [notes, setNotes] = useState('');
-  const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
   const [isSuccess, setIsSuccess] = useState(false);
   const isSubmittingRef = useRef(false);
 
-  if (!skill) return null;
-
-  const cost = skill.hourlyCredits;
-  const hasEnoughCredits = (user?.credits ?? 0) >= cost;
+  const minDate = getISTDateString(0);
   const isOwnSkill = user?.id === skill.teacherId;
-  const hasPendingBooking = Boolean(
-    user &&
-      sessions.some(
-        (s) =>
-          s.skillId === skill.id &&
-          s.learnerId === user.id &&
-          (s.status === 'pending' || s.status === 'confirmed')
-      )
-  );
+  const hasEnoughCredits = user ? user.credits >= skill.hourlyCredits : false;
 
-  const handleBooking = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (isSubmittingRef.current || isSubmitting || isSuccess) return;
-    setError(null);
+    if (isSubmittingRef.current || isSubmitting) return;
 
     if (!user) {
-      setError('Please sign in first to book a session.');
+      setErrorMsg('Please log in to request a session.');
       return;
     }
 
     if (isOwnSkill) {
-      setError('You cannot book a session with yourself.');
-      return;
-    }
-
-    if (hasPendingBooking) {
-      setError('You already have a pending or confirmed session for this skill.');
+      setErrorMsg('You cannot book your own skill listing.');
       return;
     }
 
     if (!hasEnoughCredits) {
-      setError(`You need ${cost} credits, but you have ${user.credits} credits. Offer a skill to earn more credits!`);
+      setErrorMsg(`You need at least ${skill.hourlyCredits} credits to book this session.`);
       return;
     }
 
-    if (!date || !time) {
-      setError('Please select a valid date and time.');
+    if (!date || !time || !isISTDateTimeInFuture(date, time)) {
+      setErrorMsg('Please choose a future date and time (IST).');
       return;
     }
 
-    if (!isISTDateTimeInFuture(date, time)) {
-      setError('Selected date and time have already passed in IST. Please choose a future time slot.');
-      return;
-    }
-
+    setErrorMsg('');
     isSubmittingRef.current = true;
     setIsSubmitting(true);
+
     try {
-      const res = await bookSession({
+      const result = await bookSession({
         skillId: skill.id,
         date,
         time,
-        notes,
+        notes: notes.trim() || undefined,
       });
 
-      if (res.success) {
-        setIsSuccess(true);
-        if (onSuccess) onSuccess();
-      } else {
-        setError(res.error || 'Failed to book session. Please try again.');
+      if (!result.success) {
+        setErrorMsg(result.error || 'Could not submit booking request.');
+        return;
       }
-    } catch (err: unknown) {
-      setError((err as Error).message || 'Failed to book session.');
+
+      setIsSuccess(true);
+      onSuccess?.();
     } finally {
       isSubmittingRef.current = false;
       setIsSubmitting(false);
@@ -102,210 +90,227 @@ export default function BookingModal({ skill, onClose, onSuccess }: BookingModal
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/50 backdrop-blur-xs animate-in fade-in duration-150">
-      <div className="bg-white rounded-xl max-w-md w-full shadow-xl border border-slate-200 overflow-hidden">
-        {/* Header */}
-        <div className="px-5 py-3.5 border-b border-slate-100 flex items-center justify-between bg-slate-50/60">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-xs">
+      <div className="w-full max-w-lg bg-[#22211F] border border-[#37332E] rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+        {/* Modal Header */}
+        <div className="px-6 py-5 border-b border-[#37332E] flex items-start justify-between gap-4 bg-[#1B1A18]">
           <div>
-            <span className="text-[10px] font-bold text-emerald-700 uppercase tracking-wider">
-              Request Skill Swap
+            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-[#2B2824] border border-[#37332E] text-[#FF9B45] mb-2">
+              {skill.category}
             </span>
-            <h2 className="text-sm font-bold text-slate-900 line-clamp-1">{skill.title}</h2>
+            <h2 className="text-xl font-bold text-[#F7F5F0] leading-snug">
+              {isSuccess ? 'Session Request Sent' : 'Request Learning Session'}
+            </h2>
           </div>
           <button
+            type="button"
             onClick={onClose}
-            className="p-1 text-slate-400 hover:text-slate-600 rounded-md hover:bg-slate-100 transition-colors"
+            className="p-2 rounded-xl text-[#AAA69F] hover:text-[#F7F5F0] hover:bg-[#2B2824] transition-colors cursor-pointer"
+            aria-label="Close modal"
           >
-            <X className="w-4 h-4" />
+            <X className="w-5 h-5" />
           </button>
         </div>
 
         {isSuccess ? (
-          <div className="p-6 text-center space-y-3.5">
-            <div className="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto">
-              <CheckCircle2 className="w-6 h-6" />
+          <div className="p-6 sm:p-7 space-y-6 text-center">
+            <div className="w-14 h-14 rounded-2xl bg-[#65C995]/15 border border-[#65C995]/30 text-[#65C995] flex items-center justify-center mx-auto">
+              <CheckCircle2 className="w-7 h-7" />
             </div>
-            <div>
-              <h3 className="text-base font-bold text-slate-900">Session Request Sent!</h3>
-              <p className="text-xs text-slate-500 mt-0.5">
-                Sent to <span className="font-semibold text-slate-800">{skill.teacherName}</span>.
-                Your credits are placed in safe escrow until the session is confirmed.
+
+            <div className="space-y-2">
+              <h3 className="text-lg font-bold text-[#F7F5F0]">{skill.title}</h3>
+              <p className="text-sm text-[#AAA69F] leading-relaxed">
+                Your booking request with <span className="text-[#F7F5F0] font-semibold">{skill.teacherName}</span> for{' '}
+                <span className="text-[#F7F5F0] font-semibold">{date} at {time} IST</span> has been submitted.
+                {' '}{skill.hourlyCredits} {skill.hourlyCredits === 1 ? 'credit is' : 'credits are'} safely held in escrow until completion.
               </p>
             </div>
 
-            <div className="p-3 bg-emerald-50/70 rounded-lg border border-emerald-100 text-left text-xs text-emerald-800 space-y-1">
-              <div className="flex justify-between font-medium">
-                <span>Reserved in Escrow:</span>
-                <span className="font-bold">{cost} Credits</span>
-              </div>
-              <div className="flex justify-between text-[11px]">
-                <span>Proposed Time:</span>
-                <span>{date} at {time}</span>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2 pt-2">
-              <button
-                onClick={onClose}
-                className="flex-1 py-2 px-3 rounded-lg border border-slate-200 text-slate-700 text-xs font-semibold hover:bg-slate-50"
-              >
-                Close
-              </button>
+            <div className="flex flex-col sm:flex-row gap-3 pt-2">
               <Link
                 href="/sessions"
                 onClick={onClose}
-                className="flex-1 py-2 px-3 rounded-lg bg-emerald-600 text-white text-xs font-semibold hover:bg-emerald-500 shadow-2xs flex items-center justify-center gap-1"
+                className="flex-1 inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-full bg-[#FF9B45] hover:bg-[#F5B66B] text-[#171715] text-sm font-bold transition-colors"
               >
-                View Sessions
-                <ArrowRight className="w-3.5 h-3.5" />
+                View My Sessions
+                <ArrowRight className="w-4 h-4" />
               </Link>
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-5 py-2.5 rounded-full bg-[#2B2824] hover:bg-[#37332E] border border-[#37332E] text-sm font-semibold text-[#F7F5F0] transition-colors cursor-pointer"
+              >
+                Done
+              </button>
             </div>
           </div>
         ) : (
-          <form onSubmit={handleBooking} className="p-5 space-y-4">
-            {/* Teacher summary */}
-            <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-lg border border-slate-200/70">
-              <img
-                src={skill.teacherAvatar}
-                alt={skill.teacherName}
-                className="w-10 h-10 rounded-full object-cover ring-1 ring-slate-200"
-              />
-              <div className="min-w-0 flex-1">
-                <p className="text-xs font-bold text-slate-900">{skill.teacherName}</p>
-                <p className="text-[11px] text-slate-500">{skill.teacherMajor} • {skill.teacherUniversity.split(' ')[0]}</p>
-                <p className="text-[10px] text-amber-700 font-medium mt-0.5">
-                  ★ {skill.teacherRating} ({skill.reviewsCount} reviews)
+          <form onSubmit={handleSubmit} className="p-6 space-y-5">
+            {/* Skill Summary Card */}
+            <div className="bg-[#2B2824] border border-[#37332E] rounded-xl p-4 flex items-center justify-between gap-4">
+              <div className="flex items-center gap-3 min-w-0">
+                <img
+                  src={skill.teacherAvatar}
+                  alt={skill.teacherName}
+                  className="w-11 h-11 rounded-full object-cover border border-[#37332E] bg-[#171715] shrink-0"
+                />
+                <div className="min-w-0">
+                  <p className="text-sm font-bold text-[#F7F5F0] truncate">{skill.title}</p>
+                  <p className="text-xs text-[#AAA69F] truncate">
+                    Mentor: {skill.teacherName} · {skill.sessionDurationMinutes} min
+                  </p>
+                </div>
+              </div>
+
+              <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#171715] border border-[#37332E] text-sm font-bold text-[#FF9B45] shrink-0">
+                <Coins className="w-4 h-4" />
+                {skill.hourlyCredits}
+              </div>
+            </div>
+
+            {!user ? (
+              <div className="bg-[#2B2824] border border-[#37332E] rounded-xl p-5 text-center space-y-4">
+                <p className="text-sm text-[#AAA69F]">
+                  Sign in to book peer sessions and manage time-credit escrow safely.
                 </p>
-              </div>
-              <div className="text-right">
-                <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800 font-bold text-xs">
-                  <Coins className="w-3 h-3 text-emerald-600" />
-                  {cost} Cr
+                <div className="flex items-center justify-center gap-3">
+                  <Link
+                    href="/login"
+                    onClick={onClose}
+                    className="px-5 py-2 rounded-full bg-[#FF9B45] hover:bg-[#F5B66B] text-[#171715] text-sm font-bold"
+                  >
+                    Log in
+                  </Link>
+                  <Link
+                    href="/signup"
+                    onClick={onClose}
+                    className="px-5 py-2 rounded-full bg-[#22211F] border border-[#37332E] text-[#F7F5F0] text-sm font-semibold"
+                  >
+                    Sign up
+                  </Link>
                 </div>
-                <p className="text-[10px] text-slate-400 mt-0.5">{skill.sessionDurationMinutes || 60} mins</p>
               </div>
-            </div>
+            ) : (
+              <>
+                {isOwnSkill && (
+                  <div className="flex items-start gap-2.5 p-3.5 rounded-xl bg-[#F07878]/10 border border-[#F07878]/30 text-sm text-[#F07878]">
+                    <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                    <span>This is your own skill listing. Choose another mentor&apos;s skill to learn.</span>
+                  </div>
+                )}
 
-            {/* Credit balance check */}
-            {user && (
-              <div
-                className={`p-2.5 rounded-lg border text-xs flex items-center justify-between ${
-                  hasEnoughCredits
-                    ? 'bg-emerald-50/70 border-emerald-200/80 text-emerald-900'
-                    : 'bg-rose-50 border-rose-200 text-rose-900'
-                }`}
-              >
-                <span className="text-[11px]">
-                  Your balance: <strong>{user.credits} credits</strong>
-                </span>
-                <span className="text-[11px] font-semibold">
-                  {hasEnoughCredits ? `Balance after: ${user.credits - cost} Cr` : `Need ${cost - user.credits} more`}
-                </span>
-              </div>
+                {!isOwnSkill && !hasEnoughCredits && (
+                  <div className="flex items-start justify-between gap-3 p-3.5 rounded-xl bg-[#F5B66B]/10 border border-[#F5B66B]/30 text-sm text-[#F5B66B]">
+                    <div className="flex items-start gap-2.5">
+                      <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                      <span>
+                        You have <strong>{user.credits}</strong> credits, but this session requires{' '}
+                        <strong>{skill.hourlyCredits}</strong>.
+                      </span>
+                    </div>
+                    <Link
+                      href="/teach"
+                      onClick={onClose}
+                      className="text-xs font-bold underline shrink-0"
+                    >
+                      Teach to earn
+                    </Link>
+                  </div>
+                )}
+
+                {/* Date & Time Row */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold uppercase tracking-wider text-[#AAA69F] mb-2">
+                      Preferred Date (IST)
+                    </label>
+                    <div className="relative">
+                      <Calendar className="w-4 h-4 text-[#AAA69F] absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                      <input
+                        type="date"
+                        min={minDate}
+                        value={date}
+                        onChange={(e) => setDate(e.target.value)}
+                        required
+                        className="w-full pl-10 pr-3.5 py-2.5 rounded-xl bg-[#171715] border border-[#37332E] focus:border-[#FF9B45] text-sm text-[#F7F5F0] focus:outline-none"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold uppercase tracking-wider text-[#AAA69F] mb-2">
+                      Start Time (IST)
+                    </label>
+                    <div className="relative">
+                      <Clock className="w-4 h-4 text-[#AAA69F] absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                      <input
+                        type="time"
+                        value={time}
+                        onChange={(e) => setTime(e.target.value)}
+                        required
+                        className="w-full pl-10 pr-3.5 py-2.5 rounded-xl bg-[#171715] border border-[#37332E] focus:border-[#FF9B45] text-sm text-[#F7F5F0] focus:outline-none"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Notes */}
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-[#AAA69F] mb-2">
+                    Learning Goals (Optional)
+                  </label>
+                  <textarea
+                    rows={3}
+                    value={notes}
+                    onChange={(e) => setNotes(e.target.value)}
+                    placeholder="Share what specific concepts or questions you want to cover..."
+                    className="w-full px-4 py-3 rounded-xl bg-[#171715] border border-[#37332E] focus:border-[#FF9B45] text-sm text-[#F7F5F0] placeholder-[#AAA69F]/60 focus:outline-none resize-none"
+                  />
+                </div>
+
+                {/* Escrow Notice */}
+                <div className="flex items-start gap-2.5 p-3.5 rounded-xl bg-[#171715] border border-[#37332E] text-xs text-[#AAA69F] leading-relaxed">
+                  <ShieldCheck className="w-4 h-4 text-[#65C995] shrink-0 mt-0.5" />
+                  <span>
+                    <strong className="text-[#F7F5F0]">Escrow Protection:</strong>{' '}
+                    {skill.hourlyCredits} {skill.hourlyCredits === 1 ? 'credit' : 'credits'} will be reserved when you send this request and released to {skill.teacherName} only after completion. Full refund if declined or cancelled.
+                  </span>
+                </div>
+
+                {errorMsg && (
+                  <div className="flex items-start gap-2.5 p-3.5 rounded-xl bg-[#F07878]/10 border border-[#F07878]/30 text-sm text-[#F07878]">
+                    <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                    <span>{errorMsg}</span>
+                  </div>
+                )}
+
+                <div className="flex items-center justify-end gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={onClose}
+                    disabled={isSubmitting}
+                    className="px-5 py-2.5 rounded-full bg-[#2B2824] hover:bg-[#37332E] border border-[#37332E] text-sm font-semibold text-[#F7F5F0] transition-colors cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isSubmitting || isOwnSkill || !hasEnoughCredits}
+                    className="inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-full bg-[#FF9B45] hover:bg-[#F5B66B] disabled:opacity-50 text-[#171715] text-sm font-bold transition-colors cursor-pointer"
+                  >
+                    {isSubmitting ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Reserving Credit...
+                      </>
+                    ) : (
+                      `Send Request (${skill.hourlyCredits} Cr)`
+                    )}
+                  </button>
+                </div>
+              </>
             )}
-
-            {error && (
-              <div className="p-2.5 bg-rose-50 border border-rose-200 text-rose-700 rounded-lg text-xs flex items-start gap-2">
-                <AlertCircle className="w-3.5 h-3.5 text-rose-600 shrink-0 mt-0.5" />
-                <span className="text-[11px]">{error}</span>
-              </div>
-            )}
-
-            {/* Date & Time selection */}
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1 flex items-center gap-1">
-                  <Calendar className="w-3 h-3 text-slate-400" />
-                  Preferred Date
-                </label>
-                <input
-                  type="date"
-                  required
-                  disabled={isSubmitting}
-                  value={date}
-                  onChange={(e) => setDate(e.target.value)}
-                  min={todayStr}
-                  className="w-full text-xs px-2.5 py-1.5 rounded-lg border border-slate-300 focus:outline-hidden focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 disabled:bg-slate-50"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1 flex items-center gap-1">
-                  <Clock className="w-3 h-3 text-slate-400" />
-                  Preferred Time
-                </label>
-                <input
-                  type="time"
-                  required
-                  disabled={isSubmitting}
-                  value={time}
-                  onChange={(e) => setTime(e.target.value)}
-                  className="w-full text-xs px-2.5 py-1.5 rounded-lg border border-slate-300 focus:outline-hidden focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 disabled:bg-slate-50"
-                />
-              </div>
-            </div>
-
-            {/* Notes */}
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
-                What would you like to focus on? (Optional)
-              </label>
-              <textarea
-                rows={2}
-                disabled={isSubmitting}
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                placeholder="e.g. Debugging algorithmic runtime, review my portfolio wireframes..."
-                className="w-full text-xs px-3 py-2 rounded-lg border border-slate-300 focus:outline-hidden focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 disabled:bg-slate-50"
-              />
-            </div>
-
-            {/* Submit CTA */}
-            <div className="pt-1">
-              {!user ? (
-                <Link
-                  href="/login"
-                  className="w-full py-2.5 px-3 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs shadow-2xs transition-all flex items-center justify-center gap-1.5"
-                >
-                  Sign In to Book Session
-                  <ArrowRight className="w-3.5 h-3.5" />
-                </Link>
-              ) : isOwnSkill ? (
-                <div className="p-2.5 text-center bg-slate-100 rounded-lg text-xs text-slate-500">
-                  This is your own skill listing.
-                </div>
-              ) : hasPendingBooking ? (
-                <div className="p-2.5 text-center bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-800">
-                  You already have an active session request for this skill.
-                </div>
-              ) : !hasEnoughCredits ? (
-                <button
-                  type="button"
-                  disabled
-                  className="w-full py-2 px-3 rounded-lg bg-slate-200 text-slate-400 font-semibold text-xs cursor-not-allowed"
-                >
-                  Insufficient Credits ({user?.credits || 0}/{cost})
-                </button>
-              ) : (
-                <button
-                  type="submit"
-                  disabled={isSubmitting}
-                  className="w-full py-2.5 px-3 rounded-lg bg-emerald-600 hover:bg-emerald-500 disabled:bg-emerald-400 text-white font-semibold text-xs shadow-2xs transition-all flex items-center justify-center gap-1.5"
-                >
-                  {isSubmitting ? (
-                    <>
-                      <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                      Confirming Escrow...
-                    </>
-                  ) : (
-                    <>
-                      <Coins className="w-3.5 h-3.5" />
-                      Confirm Swap &amp; Spend {cost} Credits
-                    </>
-                  )}
-                </button>
-              )}
-            </div>
           </form>
         )}
       </div>

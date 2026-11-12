@@ -1,601 +1,451 @@
 'use client';
 
-import React, { useMemo, useState } from 'react';
+import React, { useState } from 'react';
 import Link from 'next/link';
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
+import { Skill } from '@/types';
 import SkillCard from '@/components/SkillCard';
 import BookingModal from '@/components/BookingModal';
-import { Skill } from '@/types';
 import {
+  ArrowUpRight,
   ArrowRight,
-  Sparkles,
-  Coins,
-  GraduationCap,
-  Users,
   Repeat,
-  CheckCircle2,
-  Code,
-  Palette,
-  Globe,
-  Video,
-  Mic,
-  Binary,
-  Star,
-  Shield,
-  Layers,
+  Coins,
   BookOpen,
-  Compass,
+  ShieldCheck,
+  Video,
+  Sparkles,
+  Users,
+  CheckCircle2,
+  Code2,
+  Palette,
+  Calculator,
+  Briefcase,
+  Film,
+  PenTool,
+  Star,
 } from 'lucide-react';
 
-export default function HomePage() {
-  const { skills, isLoading } = useApp();
-  const { user, allUsers, isLoading: authLoading } = useAuth();
-  const [selectedSkillToBook, setSelectedSkillToBook] = useState<Skill | null>(null);
+const SUBJECT_AREAS = [
+  { name: 'Programming & Tech', icon: Code2 },
+  { name: 'Design & Creative', icon: Palette },
+  { name: 'Academics & Science', icon: Calculator },
+  { name: 'Business & Career', icon: Briefcase },
+  { name: 'Media & Production', icon: Film },
+  { name: 'Language & Writing', icon: PenTool },
+];
 
-  // Real skills sorted with popular listings first (up to 6)
-  const featuredSkills = useMemo(() => {
-    return [...skills]
-      .sort((a, b) => Number(Boolean(b.isPopular)) - Number(Boolean(a.isPopular)))
-      .slice(0, 6);
-  }, [skills]);
+export default function LandingPage() {
+  const { skills, isLoading: skillsLoading } = useApp();
+  const { user, allUsers } = useAuth();
+  const [selectedSkill, setSelectedSkill] = useState<Skill | null>(null);
 
-  // Real peers from Supabase (or active student profiles with teaching goals)
-  const activePeers = useMemo(() => {
-    return allUsers
-      .filter((u) => u.skillsToTeach.length > 0 || u.skillsToLearn.length > 0)
-      .slice(0, 3);
-  }, [allUsers]);
+  const featuredSkills = skills.slice(0, 6);
+  const activePeers = allUsers.slice(0, 4);
 
   return (
-    <div className="flex flex-col min-h-screen bg-[#F8FAFC]">
+    <div className="bg-[#171715] text-[#F7F5F0]">
       {/* Hero Section */}
-      <section className="relative overflow-hidden pt-12 pb-20 md:pt-16 md:pb-24 border-b border-slate-200/80">
-        {/* Subtle background mesh glow */}
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[400px] bg-gradient-to-b from-emerald-100/30 to-transparent blur-3xl -z-10 rounded-full pointer-events-none" />
-
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
-            {/* Left Column: Headline, Copy & CTAs */}
-            <div className="lg:col-span-7 space-y-6 text-center lg:text-left">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-50 border border-emerald-200/80 text-emerald-800 text-xs font-semibold shadow-2xs">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                <span>ADYPU Student Network • Learn a skill. Teach a skill. Grow together.</span>
-              </div>
-
-              <h1 className="text-4xl sm:text-5xl lg:text-[54px] font-extrabold tracking-tight text-slate-900 leading-[1.12]">
-                Your next skill is <br className="hidden sm:inline" />
-                <span className="text-emerald-700">one connection away.</span>
-              </h1>
-
-              <p className="text-base sm:text-lg text-slate-600 max-w-xl mx-auto lg:mx-0 leading-relaxed font-normal">
-                Learn a skill. Teach a skill. Grow together. Exchange 1-on-1 peer tutoring using non-monetary platform credits—no cash tuition fees required.
-              </p>
-
-              {/* CTAs */}
-              <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-3 pt-2">
-                <Link
-                  href={user ? '/dashboard' : '/signup'}
-                  className="w-full sm:w-auto px-6 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-sm shadow-xs shadow-emerald-600/30 transition-all flex items-center justify-center gap-2 group"
-                >
-                  {user ? 'Go to Dashboard' : 'Start Learning for Free'}
-                  <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
-                </Link>
-
-                <Link
-                  href="/skills"
-                  className="w-full sm:w-auto px-6 py-3 rounded-xl border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 font-semibold text-sm transition-colors flex items-center justify-center"
-                >
-                  Explore Skills
-                </Link>
-              </div>
-
-              {/* Three Value Pillars in Hero */}
-              <div className="pt-6 grid grid-cols-1 sm:grid-cols-3 gap-4 border-t border-slate-200/80 max-w-lg mx-auto lg:mx-0 text-left">
-                <div>
-                  <p className="text-xs font-bold text-slate-900">1:1 Peer Sessions</p>
-                  <p className="text-[11px] text-slate-500 mt-0.5">Direct campus calls</p>
-                </div>
-                <div>
-                  <p className="text-xs font-bold text-slate-900">Platform Credits</p>
-                  <p className="text-[11px] text-slate-500 mt-0.5">Non-monetary learning time</p>
-                </div>
-                <div>
-                  <p className="text-xs font-bold text-slate-900">Verified ADYPU Campus</p>
-                  <p className="text-[11px] text-slate-500 mt-0.5">Peer-to-peer accountability</p>
-                </div>
-              </div>
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-12 pb-16 lg:pt-20 lg:pb-24">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-12 items-center">
+          {/* Left Hero Copy */}
+          <div className="lg:col-span-6 space-y-7">
+            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#22211F] border border-[#37332E] text-xs font-bold uppercase tracking-wider text-[#FF9B45]">
+              <Sparkles className="w-3.5 h-3.5" />
+              Campus Time-Credit Skill Exchange
             </div>
 
-            {/* Right Column: Honest Campus Exchange Mechanism Card */}
-            <div className="lg:col-span-5">
-              <div className="relative mx-auto max-w-md bg-white rounded-2xl p-6 shadow-md border border-slate-200/90 space-y-4">
-                <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-                  <div className="flex items-center gap-2">
-                    <div className="w-6 h-6 rounded-md bg-emerald-600 text-white flex items-center justify-center">
-                      <Repeat className="w-3.5 h-3.5" />
-                    </div>
-                    <span className="text-[11px] font-semibold text-slate-700 uppercase tracking-wider">
-                      Credit Cycle Overview
-                    </span>
+            <h1 className="text-4xl sm:text-5xl lg:text-[52px] font-extrabold tracking-tight text-[#F7F5F0] leading-[1.08]">
+              Learn a skill.{' '}
+              <span className="text-[#FF9B45]">Teach a skill.</span>{' '}
+              Grow together.
+            </h1>
+
+            <p className="text-base sm:text-lg text-[#AAA69F] leading-relaxed max-w-xl">
+              SwapStudy replaces costly tutoring with an equal-footing student exchange. Teach 1 hour of what you know, earn time credits, and book verified 1-on-1 peer sessions across your campus.
+            </p>
+
+            <div className="flex flex-wrap items-center gap-4 pt-1">
+              {user ? (
+                <Link
+                  href="/dashboard"
+                  className="inline-flex items-center gap-2 px-7 py-3.5 rounded-full bg-[#FF9B45] hover:bg-[#F5B66B] text-[#171715] text-base font-bold transition-colors"
+                >
+                  Open Workspace
+                  <ArrowUpRight className="w-5 h-5" />
+                </Link>
+              ) : (
+                <Link
+                  href="/signup"
+                  className="inline-flex items-center gap-2 px-7 py-3.5 rounded-full bg-[#FF9B45] hover:bg-[#F5B66B] text-[#171715] text-base font-bold transition-colors"
+                >
+                  Start Swapping Free
+                  <ArrowUpRight className="w-5 h-5" />
+                </Link>
+              )}
+
+              <Link
+                href="/skills"
+                className="inline-flex items-center gap-2 px-6 py-3.5 rounded-full bg-[#22211F] hover:bg-[#2B2824] border border-[#37332E] text-[#F7F5F0] text-base font-semibold transition-colors"
+              >
+                Explore Marketplace
+                <ArrowRight className="w-4 h-4 text-[#AAA69F]" />
+              </Link>
+            </div>
+
+            <div className="pt-2 flex flex-wrap items-center gap-6 text-sm text-[#AAA69F]">
+              <span className="inline-flex items-center gap-2">
+                <ShieldCheck className="w-4 h-4 text-[#65C995]" />
+                Escrow-protected bookings
+              </span>
+              <span className="inline-flex items-center gap-2">
+                <Video className="w-4 h-4 text-[#F5B66B]" />
+                Integrated Google Meet links
+              </span>
+            </div>
+          </div>
+
+          {/* Right LearnWell-Inspired Editorial Showcase Panel */}
+          <div className="lg:col-span-6">
+            <div className="hero-bronze rounded-3xl p-6 sm:p-8 shadow-2xl space-y-6">
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-wider text-[#F7F5F0]/80">
+                    How Credits Circulate
+                  </p>
+                  <h2 className="text-xl sm:text-2xl font-extrabold text-[#F7F5F0] mt-1">
+                    One fair campus currency
+                  </h2>
+                </div>
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#171715]/30 border border-[#F7F5F0]/20 text-xs font-bold text-[#F7F5F0]">
+                  <Repeat className="w-3.5 h-3.5 text-[#FF9B45]" />
+                  1 Hr = 1 Credit
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+                <div className="bg-[#F7F5F0] text-[#171715] rounded-2xl p-4 flex flex-col justify-between min-h-[168px]">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-extrabold text-[#7D5736]">01</span>
+                    <BookOpen className="w-5 h-5 text-[#171715]" />
                   </div>
-                  <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 text-[10px] font-bold border border-emerald-200/70">
-                    Platform Credits
-                  </span>
+                  <div className="pt-4">
+                    <h3 className="text-base font-extrabold leading-snug">Teach a Skill</h3>
+                    <p className="text-xs text-[#171715]/75 mt-1 leading-relaxed">
+                      Host a 60-min peer session in coding, design, or coursework.
+                    </p>
+                  </div>
                 </div>
 
-                {/* Step A: Teach */}
-                <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200/80 space-y-1.5">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-[11px] font-semibold text-emerald-700 uppercase tracking-wide">
-                      1 • Share a Skill You Know
-                    </span>
-                    <span className="text-[11px] font-bold text-emerald-700 bg-emerald-100/80 px-2 py-0.5 rounded-md">
-                      Earn 1–5 Credits/hr
-                    </span>
+                <div className="bg-[#F5B66B] text-[#171715] rounded-2xl p-4 flex flex-col justify-between min-h-[168px]">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-extrabold text-[#171715]/70">02</span>
+                    <Coins className="w-5 h-5 text-[#171715]" />
                   </div>
-                  <p className="text-xs text-slate-600 leading-relaxed">
-                    Publish a topic you can teach (e.g., Python, Figma, Calculus) and earn non-monetary time credits when completed.
-                  </p>
-                </div>
-
-                <div className="flex items-center justify-center -my-2 relative z-10">
-                  <div className="px-3 py-1 rounded-full bg-white border border-slate-200 text-slate-600 text-[10px] font-bold flex items-center gap-1.5 shadow-2xs">
-                    <Shield className="w-3 h-3 text-emerald-600" />
-                    <span>Escrow Protected Until Session Completion</span>
+                  <div className="pt-4">
+                    <h3 className="text-base font-extrabold leading-snug">Earn Credits</h3>
+                    <p className="text-xs text-[#171715]/80 mt-1 leading-relaxed">
+                      Credits release automatically from escrow after completion.
+                    </p>
                   </div>
                 </div>
 
-                {/* Step B: Learn or Mutual Swap */}
-                <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200/80 space-y-1.5">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-[11px] font-semibold text-indigo-700 uppercase tracking-wide">
-                      2 • Learn or Match Reciprocally
-                    </span>
-                    <span className="text-[11px] font-bold text-slate-700 bg-slate-200/70 px-2 py-0.5 rounded-md">
-                      Zero Real Money
-                    </span>
+                <div className="bg-[#E6DFD5] text-[#171715] rounded-2xl p-4 flex flex-col justify-between min-h-[168px]">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-extrabold text-[#7D5736]">03</span>
+                    <Repeat className="w-5 h-5 text-[#171715]" />
                   </div>
-                  <p className="text-xs text-slate-600 leading-relaxed">
-                    Book a 1-on-1 lesson with credits, or match reciprocally with a student who wants what you teach and teaches what you want.
-                  </p>
+                  <div className="pt-4">
+                    <h3 className="text-base font-extrabold leading-snug">Learn Any Topic</h3>
+                    <p className="text-xs text-[#171715]/75 mt-1 leading-relaxed">
+                      Redeem credits for 1-on-1 help or propose a mutual swap.
+                    </p>
+                  </div>
                 </div>
+              </div>
 
-                <div className="p-3 rounded-xl bg-emerald-950 text-white text-center text-xs space-y-0.5">
-                  <p className="font-semibold text-emerald-300">
-                    3 Free Starter Credits on Signup
-                  </p>
-                  <p className="text-slate-300 text-[11px]">
-                    Platform credits carry no monetary value and only represent peer learning hours.
-                  </p>
-                </div>
+              <div className="bg-[#171715]/35 border border-[#F7F5F0]/15 rounded-2xl px-4 py-3 flex items-center justify-between gap-3">
+                <p className="text-xs sm:text-sm font-medium text-[#F7F5F0]">
+                  Zero tuition fees. Built for mutual peer accountability.
+                </p>
+                <Link
+                  href="/credits"
+                  className="inline-flex items-center gap-1 px-3.5 py-1.5 rounded-full bg-[#FF9B45] hover:bg-[#F5B66B] text-[#171715] text-xs font-bold shrink-0 transition-colors"
+                >
+                  Wallet Rules
+                  <ArrowUpRight className="w-3.5 h-3.5" />
+                </Link>
               </div>
             </div>
           </div>
         </div>
       </section>
 
-      {/* How It Works Section */}
-      <section id="how-it-works" className="py-20 bg-white border-b border-slate-200/80 scroll-mt-16">
+      {/* How It Works */}
+      <section id="how-it-works" className="border-t border-[#37332E] bg-[#111110]/70 py-16 lg:py-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center max-w-2xl mx-auto space-y-3 mb-14">
-            <span className="text-xs font-bold uppercase tracking-wider text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-md border border-emerald-200/60">
-              Three Steps
-            </span>
-            <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-              How SwapStudy Works
-            </h2>
-            <p className="text-sm sm:text-base text-slate-600">
-              A sustainable cycle where every student can be both a teacher and a learner.
+          <div className="max-w-2xl mb-12 space-y-2.5">
+            <p className="text-xs font-bold uppercase tracking-wider text-[#FF9B45]">
+              Workflow
             </p>
+            <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-[#F7F5F0]">
+              From listing to live session in three clear steps
+            </h2>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {/* Step 1 */}
-            <div className="card-subtle rounded-xl p-6 space-y-4 relative flex flex-col justify-between">
-              <div className="space-y-3">
-                <div className="w-9 h-9 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200/60 flex items-center justify-center font-bold text-sm">
-                  01
-                </div>
-                <h3 className="text-base font-bold text-slate-900">Share What You Know</h3>
-                <p className="text-xs text-slate-600 leading-relaxed">
-                  List skills you feel comfortable explaining—from coding basics and design systems to calculus exam strategies. Outline topics in 2 minutes.
-                </p>
+            <div className="bg-[#22211F] border border-[#37332E] rounded-2xl p-6 space-y-4">
+              <div className="w-11 h-11 rounded-xl bg-[#2B2824] border border-[#37332E] text-[#FF9B45] flex items-center justify-center">
+                <Sparkles className="w-5 h-5" />
               </div>
-              <div className="pt-3 border-t border-slate-100 text-[11px] font-medium text-emerald-700 flex items-center gap-1.5">
-                <CheckCircle2 className="w-3.5 h-3.5" />
-                <span>Publish your listing to the student marketplace</span>
-              </div>
-            </div>
-
-            {/* Step 2 */}
-            <div className="card-subtle rounded-xl p-6 space-y-4 relative flex flex-col justify-between">
-              <div className="space-y-3">
-                <div className="w-9 h-9 rounded-lg bg-emerald-600 text-white flex items-center justify-center font-bold text-sm shadow-xs shadow-emerald-600/30">
-                  02
-                </div>
-                <h3 className="text-base font-bold text-slate-900">Teach & Earn Credits</h3>
-                <p className="text-xs text-slate-600 leading-relaxed">
-                  Accept booking requests, jump on a 1-on-1 video call, review code or projects, and earn 1 to 3 platform credits when the session concludes.
-                </p>
-              </div>
-              <div className="pt-3 border-t border-slate-100 text-[11px] font-medium text-emerald-700 flex items-center gap-1.5">
-                <Coins className="w-3.5 h-3.5 text-emerald-600" />
-                <span>Credits deposited directly into your wallet</span>
-              </div>
-            </div>
-
-            {/* Step 3 */}
-            <div className="card-subtle rounded-xl p-6 space-y-4 relative flex flex-col justify-between">
-              <div className="space-y-3">
-                <div className="w-9 h-9 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200/60 flex items-center justify-center font-bold text-sm">
-                  03
-                </div>
-                <h3 className="text-base font-bold text-slate-900">Learn What You Love</h3>
-                <p className="text-xs text-slate-600 leading-relaxed">
-                  Spend your credits to book sessions with knowledgeable peers. Get personalized feedback, interview practice, or portfolio reviews.
-                </p>
-              </div>
-              <div className="pt-3 border-t border-slate-100 text-[11px] font-medium text-emerald-700 flex items-center gap-1.5">
-                <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
-                <span>3 starter credits granted on registration</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Featured Skills Section */}
-      <section className="py-20 bg-slate-50/70 border-b border-slate-200/80">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-10">
-            <div>
-              <span className="text-xs font-bold uppercase tracking-wider text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-md border border-emerald-200/60">
-                Skills Directory
-              </span>
-              <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight mt-2">
-                Campus Skills Marketplace
-              </h2>
-              <p className="text-xs sm:text-sm text-slate-500 mt-1">
-                Real peer-taught sessions listed by verified ADYPU &amp; campus students.
+              <h3 className="text-xl font-bold text-[#F7F5F0]">1. Match by Skills</h3>
+              <p className="text-sm sm:text-base text-[#AAA69F] leading-relaxed">
+                Add what you can teach and what you want to learn. SwapStudy highlights mutual exchanges and direct peer listings.
               </p>
             </div>
 
-            <Link
-              href="/skills"
-              className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-700 hover:text-emerald-800 shrink-0"
-            >
-              Browse All Skills
-              <ArrowRight className="w-3.5 h-3.5" />
-            </Link>
-          </div>
+            <div className="bg-[#22211F] border border-[#37332E] rounded-2xl p-6 space-y-4">
+              <div className="w-11 h-11 rounded-xl bg-[#2B2824] border border-[#37332E] text-[#F5B66B] flex items-center justify-center">
+                <ShieldCheck className="w-5 h-5" />
+              </div>
+              <h3 className="text-xl font-bold text-[#F7F5F0]">2. Schedule with Escrow</h3>
+              <p className="text-sm sm:text-base text-[#AAA69F] leading-relaxed">
+                Pick a future IST date and time. Credits are securely held in escrow until the session is completed or refunded in full if declined.
+              </p>
+            </div>
 
-          {/* Grid of Featured Skills (Live Supabase Data or Honest Empty State) */}
-          {isLoading ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-              {[0, 1, 2].map((skeleton) => (
-                <div
-                  key={skeleton}
-                  className="bg-white rounded-xl border border-slate-200 p-5 h-56 animate-pulse flex flex-col justify-between"
-                >
-                  <div className="space-y-3">
-                    <div className="h-4 w-28 bg-slate-200 rounded" />
-                    <div className="h-5 w-3/4 bg-slate-200 rounded" />
-                    <div className="h-3 w-full bg-slate-100 rounded" />
-                    <div className="h-3 w-5/6 bg-slate-100 rounded" />
-                  </div>
-                  <div className="h-8 w-full bg-slate-100 rounded-lg" />
-                </div>
-              ))}
-            </div>
-          ) : featuredSkills.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-              {featuredSkills.map((skill: Skill) => (
-                <SkillCard
-                  key={skill.id}
-                  skill={skill}
-                  onBook={(s: Skill) => setSelectedSkillToBook(s)}
-                />
-              ))}
-            </div>
-          ) : (
-            <div className="bg-white rounded-2xl border border-slate-200/90 p-8 sm:p-10 text-center max-w-2xl mx-auto space-y-4 shadow-xs">
-              <div className="w-11 h-11 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 flex items-center justify-center mx-auto">
-                <BookOpen className="w-5 h-5" />
+            <div className="bg-[#22211F] border border-[#37332E] rounded-2xl p-6 space-y-4">
+              <div className="w-11 h-11 rounded-xl bg-[#2B2824] border border-[#37332E] text-[#65C995] flex items-center justify-center">
+                <Video className="w-5 h-5" />
               </div>
-              <div className="space-y-1.5">
-                <h3 className="text-base font-bold text-slate-900">
-                  {user
-                    ? 'Be the first ADYPU student to list a skill'
-                    : 'Verified ADYPU Campus Directory'}
-                </h3>
-                <p className="text-xs sm:text-sm text-slate-500 max-w-md mx-auto leading-relaxed">
-                  {user
-                    ? 'No peer skill listings are published in your campus directory yet. Share something you know to start earning credits.'
-                    : 'Skill listings are visible to signed-in ADYPU & campus students. Sign in or create your student account to view live peer offerings and request swaps.'}
-                </p>
-              </div>
-              <div className="flex flex-wrap items-center justify-center gap-3 pt-1">
-                {user ? (
-                  <Link
-                    href="/teach"
-                    className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold shadow-xs transition-colors"
-                  >
-                    + Offer to Teach a Skill
-                  </Link>
-                ) : (
-                  <>
-                    <Link
-                      href="/signup"
-                      className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold shadow-xs transition-colors"
-                    >
-                      Join with Campus Email
-                    </Link>
-                    <Link
-                      href="/login"
-                      className="px-5 py-2.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold transition-colors"
-                    >
-                      Sign In
-                    </Link>
-                  </>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* Quick Categories Bar */}
-          <div className="mt-10 p-5 bg-white rounded-xl border border-slate-200/90 text-center">
-            <h4 className="text-xs font-bold text-slate-900 mb-3 uppercase tracking-wider">
-              Browse by Subject Area
-            </h4>
-            <div className="flex flex-wrap justify-center gap-2">
-              {[
-                { label: 'Python & Algorithms', icon: Code, href: '/skills?category=Programming+%26+Tech' },
-                { label: 'UI/UX & Figma', icon: Palette, href: '/skills?category=Design+%26+Creative' },
-                { label: 'Web Development', icon: Globe, href: '/skills?category=Programming+%26+Tech' },
-                { label: 'Video & Editing', icon: Video, href: '/skills?category=Media+%26+Production' },
-                { label: 'Public Speaking', icon: Mic, href: '/skills?category=Business+%26+Career' },
-                { label: 'Math & Sciences', icon: Binary, href: '/skills?category=Academics+%26+Science' },
-              ].map((cat, idx) => {
-                const Icon = cat.icon;
-                return (
-                  <Link
-                    key={idx}
-                    href={cat.href}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-50 border border-slate-200/70 text-xs font-medium text-slate-700 hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-300 transition-colors"
-                  >
-                    <Icon className="w-3.5 h-3.5 text-emerald-600" />
-                    {cat.label}
-                  </Link>
-                );
-              })}
+              <h3 className="text-xl font-bold text-[#F7F5F0]">3. Meet & Complete</h3>
+              <p className="text-sm sm:text-base text-[#AAA69F] leading-relaxed">
+                Teachers share a verified Google Meet link directly on the session card. After meeting, submit feedback to release credits.
+              </p>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Campus Student Profiles (Real Supabase Data) */}
-      <section className="py-20 bg-white border-b border-slate-200/80">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center max-w-2xl mx-auto mb-12">
-            <span className="text-xs font-bold uppercase tracking-wider text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-md border border-emerald-200/60">
-              ADYPU &amp; Peer Network
-            </span>
-            <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight mt-2">
-              Meet Campus Learners &amp; Mentors
-            </h2>
-            <p className="text-xs sm:text-sm text-slate-500 mt-1">
-              Real students sharing knowledge across ADYPU and partner campuses.
+      {/* Featured Skills & Subject Areas */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 lg:py-20 space-y-10">
+        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+          <div className="space-y-2">
+            <p className="text-xs font-bold uppercase tracking-wider text-[#FF9B45]">
+              Live Marketplace
             </p>
+            <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-[#F7F5F0]">
+              Featured campus skills
+            </h2>
+          </div>
+          <Link
+            href="/skills"
+            className="inline-flex items-center gap-1.5 text-sm font-bold text-[#FF9B45] hover:text-[#F5B66B] transition-colors"
+          >
+            Browse all skills
+            <ArrowRight className="w-4 h-4" />
+          </Link>
+        </div>
+
+        {/* Subject Area Pills */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+          {SUBJECT_AREAS.map((area) => {
+            const Icon = area.icon;
+            return (
+              <Link
+                key={area.name}
+                href={`/skills?category=${encodeURIComponent(area.name)}`}
+                className="bg-[#22211F] hover:bg-[#2B2824] border border-[#37332E] hover:border-[#FF9B45]/50 rounded-2xl p-4 flex flex-col gap-2.5 transition-all group"
+              >
+                <Icon className="w-5 h-5 text-[#FF9B45]" />
+                <span className="text-sm font-semibold text-[#F7F5F0] group-hover:text-[#FF9B45] transition-colors leading-snug">
+                  {area.name}
+                </span>
+              </Link>
+            );
+          })}
+        </div>
+
+        {/* Skills Grid */}
+        {skillsLoading ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {[1, 2, 3].map((i) => (
+              <div
+                key={i}
+                className="h-64 rounded-2xl bg-[#22211F] border border-[#37332E] animate-pulse"
+              />
+            ))}
+          </div>
+        ) : featuredSkills.length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {featuredSkills.map((skill) => (
+              <SkillCard
+                key={skill.id}
+                skill={skill}
+                onBook={(s) => setSelectedSkill(s)}
+              />
+            ))}
+          </div>
+        ) : (
+          <div className="bg-[#22211F] border border-[#37332E] rounded-2xl p-10 text-center space-y-4">
+            <BookOpen className="w-8 h-8 text-[#FF9B45] mx-auto" />
+            <h3 className="text-xl font-bold text-[#F7F5F0]">No skill listings published yet</h3>
+            <p className="text-sm text-[#AAA69F] max-w-md mx-auto">
+              Be the first peer mentor to list a session and help kickstart your campus skill exchange.
+            </p>
+            <Link
+              href="/teach"
+              className="inline-flex items-center gap-2 px-6 py-2.5 rounded-full bg-[#FF9B45] hover:bg-[#F5B66B] text-[#171715] text-sm font-bold transition-colors"
+            >
+              Offer to Teach
+              <ArrowUpRight className="w-4 h-4" />
+            </Link>
+          </div>
+        )}
+      </section>
+
+      {/* Active Campus Peers */}
+      <section className="border-t border-[#37332E] bg-[#111110]/70 py-16 lg:py-20">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-10">
+          <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+            <div className="space-y-2">
+              <p className="text-xs font-bold uppercase tracking-wider text-[#FF9B45]">
+                Campus Network
+              </p>
+              <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-[#F7F5F0]">
+                Peers ready to collaborate
+              </h2>
+            </div>
+            <Link
+              href="/community"
+              className="inline-flex items-center gap-1.5 text-sm font-bold text-[#FF9B45] hover:text-[#F5B66B]"
+            >
+              Open Community Hub
+              <ArrowRight className="w-4 h-4" />
+            </Link>
           </div>
 
-          {authLoading ? (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {[0, 1, 2].map((i) => (
-                <div key={i} className="card-subtle rounded-xl p-5 h-44 animate-pulse bg-slate-50" />
-              ))}
-            </div>
-          ) : activePeers.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {activePeers.length > 0 ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
               {activePeers.map((peer) => (
-                <div key={peer.id} className="card-subtle rounded-xl p-5 space-y-4">
+                <div
+                  key={peer.id}
+                  className="bg-[#22211F] border border-[#37332E] rounded-2xl p-5 flex flex-col justify-between space-y-4"
+                >
                   <div className="flex items-center gap-3">
                     <img
                       src={peer.avatar}
                       alt={peer.name}
-                      className="w-11 h-11 rounded-full object-cover ring-1 ring-slate-200 bg-slate-100"
+                      className="w-11 h-11 rounded-full object-cover border border-[#37332E] bg-[#171715] shrink-0"
                     />
                     <div className="min-w-0">
-                      <p className="text-xs font-bold text-slate-900 truncate">{peer.name}</p>
-                      <p className="text-[11px] text-slate-500 truncate">
-                        {peer.major} • {peer.university}
-                      </p>
-                      <div className="flex items-center gap-2 text-[10px] text-slate-400 mt-0.5">
-                        {peer.totalHoursTaught > 0 ? (
-                          <>
-                            <span className="flex items-center text-amber-600 font-medium">
-                              <Star className="w-3 h-3 fill-amber-400 text-amber-400 mr-0.5" />
-                              {peer.repRating.toFixed(1)}
-                            </span>
-                            <span>•</span>
-                            <span>{peer.totalHoursTaught} hrs taught</span>
-                          </>
-                        ) : (
-                          <span>Campus Peer • Class of {peer.graduationYear}</span>
-                        )}
-                      </div>
+                      <h3 className="text-base font-bold text-[#F7F5F0] truncate">{peer.name}</h3>
+                      <p className="text-xs text-[#AAA69F] truncate">{peer.major || peer.university}</p>
                     </div>
                   </div>
 
-                  <div className="space-y-2 text-xs pt-2 border-t border-slate-100">
-                    {peer.skillsToTeach.length > 0 && (
-                      <div>
-                        <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
-                          Teaches:
-                        </span>
-                        <div className="flex flex-wrap gap-1 mt-1">
-                          {peer.skillsToTeach.slice(0, 3).map((t, idx) => (
-                            <span
-                              key={idx}
-                              className="px-2 py-0.5 rounded bg-emerald-50 text-emerald-800 text-[10px] font-medium border border-emerald-200/60"
-                            >
-                              {t}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                    {peer.skillsToLearn.length > 0 && (
-                      <div>
-                        <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
-                          Wants to Learn:
-                        </span>
-                        <div className="flex flex-wrap gap-1 mt-1">
-                          {peer.skillsToLearn.slice(0, 3).map((l, idx) => (
-                            <span
-                              key={idx}
-                              className="px-2 py-0.5 rounded bg-slate-100 text-slate-700 text-[10px] font-medium"
-                            >
-                              {l}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    )}
+                  <div className="flex flex-wrap gap-1.5">
+                    {peer.skillsToTeach.slice(0, 3).map((tag, i) => (
+                      <span
+                        key={i}
+                        className="px-2.5 py-1 rounded-lg bg-[#171715] border border-[#37332E] text-xs font-medium text-[#AAA69F]"
+                      >
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+
+                  <div className="pt-3 border-t border-[#37332E] flex items-center justify-between text-xs text-[#AAA69F]">
+                    <span className="inline-flex items-center gap-1 font-bold text-[#F7F5F0]">
+                      <Star className="w-3.5 h-3.5 text-[#FF9B45] fill-[#FF9B45]" />
+                      {peer.repRating > 0 ? peer.repRating.toFixed(1) : 'New'}
+                    </span>
+                    <span>{peer.totalHoursTaught}h taught</span>
                   </div>
                 </div>
               ))}
             </div>
           ) : (
-            <div className="bg-slate-50/80 border border-slate-200/90 rounded-2xl p-8 text-center max-w-2xl mx-auto space-y-3">
-              <div className="w-10 h-10 rounded-xl bg-white border border-slate-200 text-emerald-700 flex items-center justify-center mx-auto shadow-2xs">
-                <Compass className="w-5 h-5" />
+            <div className="bg-[#22211F] border border-[#37332E] rounded-2xl p-8 flex flex-col sm:flex-row items-center justify-between gap-4">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-2xl bg-[#2B2824] border border-[#37332E] flex items-center justify-center text-[#FF9B45] shrink-0">
+                  <Users className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-[#F7F5F0]">Connect with ADYPU classmates</h3>
+                  <p className="text-sm text-[#AAA69F]">
+                    Sign in to discover verified campus peers, smart swap matches, and active study circles.
+                  </p>
+                </div>
               </div>
-              <h3 className="text-sm font-bold text-slate-900">
-                {user
-                  ? 'You are among the founding peers on campus!'
-                  : 'Connect with verified ADYPU peers'}
-              </h3>
-              <p className="text-xs text-slate-500 max-w-md mx-auto leading-relaxed">
-                {user
-                  ? 'Complete your teaching & learning goals in your profile and post in Campus Community to discover classmates looking for skill swaps.'
-                  : 'For student privacy, peer profiles are only visible after signing in with your campus account. Sign up in under a minute to see classmates offering sessions.'}
-              </p>
-              <div className="pt-1 flex flex-wrap justify-center gap-2.5">
-                <Link
-                  href={user ? '/community' : '/signup'}
-                  className="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold transition-colors"
-                >
-                  {user ? 'Open Campus Community' : 'Create Student Account'}
-                </Link>
-                {user && (
-                  <Link
-                    href="/profile"
-                    className="px-4 py-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold transition-colors"
-                  >
-                    Update My Profile
-                  </Link>
-                )}
-              </div>
+              <Link
+                href="/community"
+                className="px-5 py-2.5 rounded-full bg-[#2B2824] hover:bg-[#37332E] border border-[#37332E] text-sm font-semibold text-[#F7F5F0] shrink-0"
+              >
+                Explore Community
+              </Link>
             </div>
           )}
         </div>
       </section>
 
-      {/* Benefits Section */}
-      <section className="py-20 bg-slate-50/70 border-b border-slate-200/80">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center max-w-2xl mx-auto space-y-3 mb-14">
-            <span className="text-xs font-bold uppercase tracking-wider text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-md border border-emerald-200/60">
-              Why Peer Learning
-            </span>
-            <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-              Built for Student Growth
+      {/* Why Peer Learning + Final CTA */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 lg:py-24 space-y-16">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
+          {[
+            {
+              title: 'Reciprocal Fairness',
+              desc: 'Mutual swaps pair two learners teaching one another with symmetric credit accountability.',
+            },
+            {
+              title: 'Zero Financial Barrier',
+              desc: 'Every student starts with onboarding time credits and earns more by mentoring classmates.',
+            },
+            {
+              title: 'Verified Campus Scope',
+              desc: 'Collaborate inside a focused student ecosystem with shared academic schedules.',
+            },
+            {
+              title: 'Direct Communication',
+              desc: 'Coordinate topics via built-in messaging before confirming session times or Meet rooms.',
+            },
+          ].map((item) => (
+            <div
+              key={item.title}
+              className="bg-[#22211F] border border-[#37332E] rounded-2xl p-6 space-y-3"
+            >
+              <CheckCircle2 className="w-5 h-5 text-[#65C995]" />
+              <h3 className="text-lg font-bold text-[#F7F5F0]">{item.title}</h3>
+              <p className="text-sm text-[#AAA69F] leading-relaxed">{item.desc}</p>
+            </div>
+          ))}
+        </div>
+
+        {/* Final Bronze CTA */}
+        <div className="hero-bronze rounded-3xl p-8 sm:p-12 flex flex-col lg:flex-row lg:items-center justify-between gap-8">
+          <div className="space-y-3 max-w-2xl">
+            <h2 className="text-3xl sm:text-4xl font-extrabold text-[#F7F5F0] tracking-tight">
+              Ready to exchange your first skill this week?
             </h2>
-            <p className="text-sm text-slate-600">
-              Traditional tutoring is expensive and one-way. SwapStudy creates an equal two-sided exchange.
+            <p className="text-base text-[#F7F5F0]/85 leading-relaxed">
+              Create your student profile in minutes, list a topic you already understand well, and learn from peers across campus.
             </p>
           </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
-            <div className="card-subtle rounded-xl p-5 space-y-2.5">
-              <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center">
-                <Users className="w-4 h-4" />
-              </div>
-              <h3 className="text-sm font-bold text-slate-900">Peer Language</h3>
-              <p className="text-xs text-slate-500 leading-relaxed">
-                Students who recently passed a course explain concepts in straightforward, accessible terms without academic pretense.
-              </p>
-            </div>
-
-            <div className="card-subtle rounded-xl p-5 space-y-2.5">
-              <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center">
-                <GraduationCap className="w-4 h-4" />
-              </div>
-              <h3 className="text-sm font-bold text-slate-900">Master by Teaching</h3>
-              <p className="text-xs text-slate-500 leading-relaxed">
-                Explaining complex topics to another student forces you to organize your mental models and uncover gaps in your own knowledge.
-              </p>
-            </div>
-
-            <div className="card-subtle rounded-xl p-5 space-y-2.5">
-              <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center">
-                <Layers className="w-4 h-4" />
-              </div>
-              <h3 className="text-sm font-bold text-slate-900">Project-Based</h3>
-              <p className="text-xs text-slate-500 leading-relaxed">
-                Work through real Figma prototypes, coding repos, and presentation slide decks rather than generic theoretical problems.
-              </p>
-            </div>
-
-            <div className="card-subtle rounded-xl p-5 space-y-2.5">
-              <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center">
-                <Shield className="w-4 h-4" />
-              </div>
-              <h3 className="text-sm font-bold text-slate-900">Credit Escrow</h3>
-              <p className="text-xs text-slate-500 leading-relaxed">
-                Zero financial risk. Credits stay in escrow until the session completes and both students confirm the swap.
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Final Call to Action */}
-      <section className="py-16 bg-slate-900 text-white border-t border-slate-800">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center space-y-5">
-          <div className="w-10 h-10 rounded-xl bg-slate-800 text-emerald-400 border border-slate-700 flex items-center justify-center mx-auto">
-            <Coins className="w-5 h-5" />
-          </div>
-          <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
-            Ready to exchange skills with fellow students?
-          </h2>
-          <p className="text-slate-400 max-w-lg mx-auto text-xs sm:text-sm leading-relaxed">
-            Create your account today and receive 3 complimentary starter credits to book your first peer tutoring session right away.
-          </p>
-          <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3">
+          <div className="flex flex-wrap items-center gap-3 shrink-0">
             <Link
-              href="/signup"
-              className="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs shadow-xs transition-colors"
+              href={user ? '/dashboard' : '/signup'}
+              className="inline-flex items-center gap-2 px-7 py-3.5 rounded-full bg-[#FF9B45] hover:bg-[#F5B66B] text-[#171715] text-base font-bold transition-colors"
             >
-              Claim 3 Free Credits
-            </Link>
-            <Link
-              href="/skills"
-              className="w-full sm:w-auto px-6 py-2.5 rounded-xl border border-slate-700 bg-slate-800/80 hover:bg-slate-800 text-slate-200 font-semibold text-xs transition-colors"
-            >
-              Explore Tutors
+              {user ? 'Go to Dashboard' : 'Create Free Account'}
+              <ArrowUpRight className="w-5 h-5" />
             </Link>
           </div>
         </div>
       </section>
 
-      {/* Booking Modal */}
-      {selectedSkillToBook && (
-        <BookingModal
-          skill={selectedSkillToBook}
-          onClose={() => setSelectedSkillToBook(null)}
-        />
+      {selectedSkill && (
+        <BookingModal skill={selectedSkill} onClose={() => setSelectedSkill(null)} />
       )}
     </div>
   );

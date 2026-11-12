@@ -2,173 +2,143 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { CommunityPost, Skill } from '@/types';
+import { CommunityPost, User } from '@/types';
 import { useAuth } from '@/context/AuthContext';
 import { useCommunity } from '@/context/CommunityContext';
 import {
   Heart,
   MessageSquare,
   Bookmark,
-  Share2,
-  ShieldCheck,
   ExternalLink,
-  BookOpen,
+  ShieldCheck,
   Send,
-  Check,
+  BookOpen,
+  Clock,
 } from 'lucide-react';
 
 interface CommunityPostCardProps {
   post: CommunityPost;
-  onViewAuthorProfile: (authorId: string) => void;
-  onBookRelatedSkill?: (skillId: string) => void;
-  availableSkills?: Skill[];
+  onViewProfile?: (student: User) => void;
 }
 
-export default function CommunityPostCard({
-  post,
-  onViewAuthorProfile,
-  onBookRelatedSkill,
-  availableSkills = [],
-}: CommunityPostCardProps) {
-  const { user } = useAuth();
+const CATEGORY_STYLES: Record<string, string> = {
+  Discussions: 'bg-[#FF9B45]/15 text-[#FF9B45] border-[#FF9B45]/30',
+  Questions: 'bg-[#F5B66B]/15 text-[#F5B66B] border-[#F5B66B]/30',
+  Resources: 'bg-[#65C995]/15 text-[#65C995] border-[#65C995]/30',
+  Achievements: 'bg-[#F7F5F0]/10 text-[#F7F5F0] border-[#F7F5F0]/25',
+};
+
+export default function CommunityPostCard({ post, onViewProfile }: CommunityPostCardProps) {
+  const { user, allUsers } = useAuth();
   const { likePost, commentPost, savePost, savedPostIds } = useCommunity();
 
   const [showComments, setShowComments] = useState(false);
-  const [commentInput, setCommentInput] = useState('');
-  const [copiedLink, setCopiedLink] = useState(false);
-  const [commentError, setCommentError] = useState<string | null>(null);
+  const [commentText, setCommentText] = useState('');
+  const [commentError, setCommentError] = useState('');
 
   const isLiked = user ? post.likedBy.includes(user.id) : false;
-  const isSaved = savedPostIds.includes(post.id);
+  const isSaved = savedPostIds.includes(post.id) || (user ? post.savedBy.includes(user.id) : false);
 
-  const handleLike = () => {
-    if (!user) return;
-    likePost(post.id);
-  };
+  const authorUser =
+    (user && user.id === post.authorId ? user : null) ||
+    allUsers.find((u) => u.id === post.authorId);
 
-  const handleSave = () => {
-    if (!user) return;
-    savePost(post.id);
-  };
-
-  const handleShare = () => {
-    if (typeof window !== 'undefined') {
-      navigator.clipboard?.writeText(window.location.href);
-      setCopiedLink(true);
-      setTimeout(() => setCopiedLink(false), 2000);
+  const handleAuthorClick = () => {
+    if (authorUser && onViewProfile) {
+      onViewProfile(authorUser);
     }
   };
 
-  const handleAddComment = (e: React.FormEvent) => {
+  const handleCommentSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    setCommentError(null);
-    if (!commentInput.trim()) {
-      setCommentError('Comment cannot be empty.');
+    if (!commentText.trim()) return;
+
+    const res = commentPost(post.id, commentText.trim());
+    if (!res.success) {
+      setCommentError(res.error || 'Could not post reply.');
       return;
     }
-    const res = commentPost(post.id, commentInput.trim());
-    if (res.success) {
-      setCommentInput('');
-    } else {
-      setCommentError(res.error || 'Failed to post comment.');
-    }
+
+    setCommentError('');
+    setCommentText('');
   };
 
-  const getCategoryBadgeClass = (category: string) => {
-    switch (category) {
-      case 'Discussions':
-        return 'bg-blue-50 text-blue-700 border-blue-200/60';
-      case 'Questions':
-        return 'bg-amber-50 text-amber-700 border-amber-200/60';
-      case 'Resources':
-        return 'bg-emerald-50 text-emerald-700 border-emerald-200/60';
-      case 'Achievements':
-        return 'bg-purple-50 text-purple-700 border-purple-200/60';
-      default:
-        return 'bg-slate-100 text-slate-700 border-slate-200';
-    }
-  };
+  const categoryClass =
+    CATEGORY_STYLES[post.category] || 'bg-[#2B2824] text-[#F5B66B] border-[#37332E]';
 
-  // Find related skill if available
-  const relatedSkill = post.relatedSkillId
-    ? availableSkills.find((s) => s.id === post.relatedSkillId)
-    : null;
+  const formattedDate = (() => {
+    const parsed = new Date(post.createdAt);
+    if (Number.isNaN(parsed.getTime())) return post.createdAt;
+    return parsed.toLocaleDateString('en-IN', {
+      month: 'short',
+      day: 'numeric',
+    });
+  })();
 
   return (
-    <article className="card-subtle rounded-2xl p-5 space-y-4 border border-slate-200/80 bg-white hover:border-slate-300 transition-all">
-      {/* Author Header */}
-      <div className="flex items-start justify-between gap-3">
+    <article className="bg-[#22211F] border border-[#37332E] hover:border-[#4F4942] rounded-2xl p-6 space-y-4 transition-colors">
+      {/* Author & Category Header */}
+      <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="flex items-center gap-3 min-w-0">
           <button
-            onClick={() => onViewAuthorProfile(post.authorId)}
-            className="shrink-0 relative group"
-            title="View student profile"
+            type="button"
+            onClick={handleAuthorClick}
+            disabled={!authorUser || !onViewProfile}
+            className="shrink-0 disabled:cursor-default cursor-pointer"
           >
             <img
               src={post.authorAvatar}
               alt={post.authorName}
-              className="w-10 h-10 rounded-full object-cover border border-slate-200 ring-2 ring-transparent group-hover:ring-emerald-500/30 transition-all"
+              className="w-10 h-10 rounded-full object-cover border border-[#37332E] bg-[#171715]"
             />
           </button>
-
           <div className="min-w-0">
-            <div className="flex items-center gap-1.5 flex-wrap">
+            <div className="flex items-center gap-1.5">
               <button
-                onClick={() => onViewAuthorProfile(post.authorId)}
-                className="text-xs font-bold text-slate-900 hover:text-emerald-700 transition-colors truncate"
+                type="button"
+                onClick={handleAuthorClick}
+                disabled={!authorUser || !onViewProfile}
+                className="text-sm font-bold text-[#F7F5F0] hover:text-[#FF9B45] transition-colors truncate disabled:hover:text-[#F7F5F0] cursor-pointer disabled:cursor-default"
               >
                 {post.authorName}
               </button>
-              {post.isAuthorVerified ? (
-                <span
-                  className="inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200/60 text-[10px] font-semibold"
-                  title="Verified College Student"
-                >
-                  <ShieldCheck className="w-3 h-3 text-emerald-600" />
-                  Verified Peer
-                </span>
-              ) : (
-                <span
-                  className="inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded-full bg-slate-100 text-slate-500 border border-slate-200 text-[10px] font-medium"
-                  title="Unverified Student"
-                >
-                  Student
-                </span>
+              {post.isAuthorVerified && (
+                <ShieldCheck className="w-4 h-4 text-[#65C995] shrink-0" />
               )}
             </div>
-            <p className="text-[11px] text-slate-500 truncate mt-0.5">
-              {post.authorMajor} • <time className="text-slate-400">{post.createdAt}</time>
+            <p className="text-xs text-[#AAA69F] flex items-center gap-1.5 truncate">
+              <span>{post.authorMajor || 'Student'}</span>
+              <span>·</span>
+              <span className="inline-flex items-center gap-1">
+                <Clock className="w-3 h-3" />
+                {formattedDate}
+              </span>
             </p>
           </div>
         </div>
 
-        {/* Category Pill */}
-        <span
-          className={`shrink-0 text-[11px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full border ${getCategoryBadgeClass(
-            post.category
-          )}`}
-        >
+        <span className={`px-3 py-1 rounded-full text-xs font-bold border ${categoryClass}`}>
           {post.category}
         </span>
       </div>
 
-      {/* Post Title & Content */}
-      <div className="space-y-2">
-        <h3 className="text-sm sm:text-base font-bold text-slate-900 leading-snug">
+      {/* Body Content */}
+      <div className="space-y-2.5">
+        <h3 className="text-lg sm:text-xl font-bold text-[#F7F5F0] leading-snug">
           {post.title}
         </h3>
-        <p className="text-xs sm:text-[13px] text-slate-700 leading-relaxed whitespace-pre-line">
+        <p className="text-sm sm:text-[15px] text-[#AAA69F] leading-relaxed whitespace-pre-line">
           {post.content}
         </p>
       </div>
 
       {/* Tags */}
       {post.tags && post.tags.length > 0 && (
-        <div className="flex flex-wrap gap-1.5 pt-1">
+        <div className="flex flex-wrap gap-1.5">
           {post.tags.map((tag, idx) => (
             <span
               key={idx}
-              className="text-[11px] font-medium text-slate-600 bg-slate-100/80 hover:bg-slate-200/80 px-2 py-0.5 rounded-md transition-colors cursor-pointer"
+              className="px-2.5 py-1 rounded-lg bg-[#171715] border border-[#37332E] text-xs font-medium text-[#AAA69F]"
             >
               #{tag}
             </span>
@@ -176,178 +146,129 @@ export default function CommunityPostCard({
         </div>
       )}
 
-      {/* Related Skill or Resource Attachment Card */}
-      {(post.relatedSkillTitle || post.resourceUrl) && (
-        <div className="pt-1 flex flex-col sm:flex-row gap-2">
-          {/* Related Skill Attachment */}
-          {post.relatedSkillTitle && (
-            <div className="flex-1 p-2.5 rounded-xl bg-emerald-50/70 border border-emerald-200/70 flex items-center justify-between gap-3 text-xs">
-              <div className="flex items-center gap-2 min-w-0">
-                <div className="w-7 h-7 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
-                  <BookOpen className="w-3.5 h-3.5" />
-                </div>
-                <div className="min-w-0">
-                  <span className="text-[10px] uppercase font-bold text-emerald-800 tracking-wider">
-                    Associated Skill
-                  </span>
-                  <p className="font-semibold text-slate-900 truncate text-xs">
-                    {post.relatedSkillTitle}
-                  </p>
-                </div>
-              </div>
-
-              {post.relatedSkillId && (
-                <div className="shrink-0 flex items-center gap-1.5">
-                  <Link
-                    href={`/skills/${post.relatedSkillId}`}
-                    className="px-2.5 py-1 rounded-lg bg-white border border-emerald-200 text-emerald-700 hover:bg-emerald-50 text-[11px] font-semibold transition-colors"
-                  >
-                    View Course
-                  </Link>
-                  {onBookRelatedSkill && relatedSkill && (
-                    <button
-                      onClick={() => onBookRelatedSkill(post.relatedSkillId!)}
-                      className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] font-semibold transition-colors shadow-2xs"
-                    >
-                      Book Swap
-                    </button>
-                  )}
-                </div>
-              )}
-            </div>
+      {/* Related Skill or Resource Link */}
+      {(post.relatedSkillId || post.resourceUrl) && (
+        <div className="flex flex-wrap gap-2.5 pt-1">
+          {post.relatedSkillId && post.relatedSkillTitle && (
+            <Link
+              href={`/skills/${post.relatedSkillId}`}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#2B2824] hover:bg-[#37332E] border border-[#37332E] text-xs font-bold text-[#FF9B45] transition-colors"
+            >
+              <BookOpen className="w-3.5 h-3.5" />
+              Related Skill: {post.relatedSkillTitle}
+            </Link>
           )}
-
-          {/* External Resource URL */}
           {post.resourceUrl && (
             <a
               href={post.resourceUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="p-2.5 rounded-xl bg-slate-50 border border-slate-200 hover:border-slate-300 text-slate-700 flex items-center gap-2 text-xs transition-colors shrink-0 max-w-full sm:max-w-xs"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#2B2824] hover:bg-[#37332E] border border-[#37332E] text-xs font-bold text-[#65C995] transition-colors"
             >
-              <ExternalLink className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-              <span className="truncate text-[11px] font-medium text-slate-600">
-                {post.resourceUrl.replace(/^https?:\/\//, '')}
-              </span>
+              Open Shared Resource
+              <ExternalLink className="w-3.5 h-3.5" />
             </a>
           )}
         </div>
       )}
 
-      {/* Interaction Footer */}
-      <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-xs">
-        <div className="flex items-center gap-1 sm:gap-2">
-          {/* Like Button */}
+      {/* Action Footer */}
+      <div className="pt-4 border-t border-[#37332E] flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
           <button
-            onClick={handleLike}
-            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-semibold transition-all text-xs ${
+            type="button"
+            onClick={() => likePost(post.id)}
+            className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold border transition-colors cursor-pointer ${
               isLiked
-                ? 'bg-rose-50 text-rose-600 border border-rose-200/60'
-                : 'text-slate-600 hover:bg-slate-100'
+                ? 'bg-[#FF9B45]/15 border-[#FF9B45]/40 text-[#FF9B45]'
+                : 'bg-[#171715] border-[#37332E] text-[#AAA69F] hover:text-[#F7F5F0]'
             }`}
           >
-            <Heart className={`w-3.5 h-3.5 ${isLiked ? 'fill-rose-500 text-rose-500' : ''}`} />
-            <span>{post.likesCount}</span>
+            <Heart className={`w-3.5 h-3.5 ${isLiked ? 'fill-[#FF9B45]' : ''}`} />
+            {post.likesCount}
           </button>
 
-          {/* Comment Toggle Button */}
           <button
+            type="button"
             onClick={() => setShowComments(!showComments)}
-            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-semibold transition-all text-xs ${
-              showComments
-                ? 'bg-slate-100 text-slate-900'
-                : 'text-slate-600 hover:bg-slate-100'
-            }`}
+            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-[#171715] border border-[#37332E] text-xs font-bold text-[#AAA69F] hover:text-[#F7F5F0] transition-colors cursor-pointer"
           >
             <MessageSquare className="w-3.5 h-3.5" />
-            <span>{post.comments.length}</span>
-          </button>
-
-          {/* Save Post */}
-          <button
-            onClick={handleSave}
-            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-semibold transition-all text-xs ${
-              isSaved
-                ? 'bg-emerald-50 text-emerald-700 border border-emerald-200/60'
-                : 'text-slate-600 hover:bg-slate-100'
-            }`}
-            title={isSaved ? 'Saved to bookmarks' : 'Save post'}
-          >
-            <Bookmark className={`w-3.5 h-3.5 ${isSaved ? 'fill-emerald-600 text-emerald-600' : ''}`} />
-            <span className="hidden sm:inline">{isSaved ? 'Saved' : 'Save'}</span>
+            {post.comments.length}
           </button>
         </div>
 
-        {/* Share Button */}
         <button
-          onClick={handleShare}
-          className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-slate-500 hover:text-slate-800 hover:bg-slate-100 text-xs transition-colors"
-          title="Copy link"
+          type="button"
+          onClick={() => savePost(post.id)}
+          className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold border transition-colors cursor-pointer ${
+            isSaved
+              ? 'bg-[#F5B66B]/15 border-[#F5B66B]/40 text-[#F5B66B]'
+              : 'bg-[#171715] border-[#37332E] text-[#AAA69F] hover:text-[#F7F5F0]'
+          }`}
         >
-          {copiedLink ? (
-            <>
-              <Check className="w-3.5 h-3.5 text-emerald-600" />
-              <span className="text-emerald-700 font-semibold text-[11px]">Copied</span>
-            </>
-          ) : (
-            <>
-              <Share2 className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Share</span>
-            </>
-          )}
+          <Bookmark className={`w-3.5 h-3.5 ${isSaved ? 'fill-[#F5B66B]' : ''}`} />
+          {isSaved ? 'Saved' : 'Save'}
         </button>
       </div>
 
-      {/* Expandable Comments Thread */}
+      {/* Expandable Comments Section */}
       {showComments && (
-        <div className="pt-3 border-t border-slate-100 space-y-3 animate-in fade-in duration-150">
-          {/* Comments List */}
-          {post.comments.length > 0 ? (
-            <div className="space-y-2.5 max-h-72 overflow-y-auto pr-1">
-              {post.comments.map((comm) => (
+        <div className="pt-4 border-t border-[#37332E] space-y-4">
+          {post.comments.length > 0 && (
+            <div className="space-y-3">
+              {post.comments.map((comment) => (
                 <div
-                  key={comm.id}
-                  className="p-3 rounded-xl bg-slate-50/80 border border-slate-200/60 text-xs space-y-1"
+                  key={comment.id}
+                  className="bg-[#171715] border border-[#37332E] rounded-xl p-3.5 space-y-1.5"
                 >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-1.5">
-                      <span className="font-bold text-slate-900">{comm.authorName}</span>
-                      {comm.isAuthorVerified && (
-                        <span title="Verified Student">
-                          <ShieldCheck className="w-3 h-3 text-emerald-600 shrink-0" />
-                        </span>
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <img
+                        src={comment.authorAvatar}
+                        alt={comment.authorName}
+                        className="w-6 h-6 rounded-full object-cover border border-[#37332E]"
+                      />
+                      <span className="text-xs font-bold text-[#F7F5F0]">
+                        {comment.authorName}
+                      </span>
+                      {comment.isAuthorVerified && (
+                        <ShieldCheck className="w-3.5 h-3.5 text-[#65C995]" />
                       )}
                     </div>
-                    <time className="text-[10px] text-slate-400">{comm.createdAt}</time>
+                    <span className="text-[11px] text-[#AAA69F]">
+                      {new Date(comment.createdAt).toLocaleDateString('en-IN', {
+                        month: 'short',
+                        day: 'numeric',
+                      })}
+                    </span>
                   </div>
-                  <p className="text-slate-700 leading-relaxed">{comm.content}</p>
+                  <p className="text-sm text-[#AAA69F] pl-8">{comment.content}</p>
                 </div>
               ))}
             </div>
-          ) : (
-            <p className="text-xs text-slate-400 italic py-1">No comments yet. Start the conversation!</p>
           )}
 
-          {/* Add Comment Input */}
-          <form onSubmit={handleAddComment} className="pt-1 flex items-center gap-2">
-            <input
-              type="text"
-              value={commentInput}
-              onChange={(e) => setCommentInput(e.target.value)}
-              placeholder="Add your reply or swap notes..."
-              className="flex-1 text-xs px-3.5 py-2 rounded-xl border border-slate-200 bg-slate-50/50 focus:outline-hidden focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 text-slate-900"
-            />
-            <button
-              type="submit"
-              disabled={!commentInput.trim()}
-              className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-semibold text-xs transition-colors flex items-center gap-1 shrink-0 shadow-2xs"
-            >
-              <Send className="w-3 h-3" />
-              Reply
-            </button>
-          </form>
-          {commentError && (
-            <p className="text-[11px] text-rose-600">{commentError}</p>
+          {user && (
+            <form onSubmit={handleCommentSubmit} className="space-y-2">
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={commentText}
+                  onChange={(e) => setCommentText(e.target.value)}
+                  placeholder="Write a helpful reply..."
+                  className="flex-1 px-4 py-2 rounded-full bg-[#171715] border border-[#37332E] focus:border-[#FF9B45] text-sm text-[#F7F5F0] placeholder-[#AAA69F]/60 focus:outline-none"
+                />
+                <button
+                  type="submit"
+                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#FF9B45] hover:bg-[#F5B66B] text-[#171715] text-xs font-bold transition-colors cursor-pointer shrink-0"
+                >
+                  <Send className="w-3.5 h-3.5" />
+                  Reply
+                </button>
+              </div>
+              {commentError && <p className="text-xs text-[#F07878]">{commentError}</p>}
+            </form>
           )}
         </div>
       )}

@@ -1,337 +1,257 @@
 'use client';
 
-import React, { useState, useEffect, useRef, Suspense } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
+import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
+import { Skill, User } from '@/types';
 import { useAuth } from '@/context/AuthContext';
-import { useApp } from '@/context/AppContext';
-import { useCommunity } from '@/context/CommunityContext';
 import { useMessaging } from '@/context/MessagingContext';
 import ConversationList from '@/components/messaging/ConversationList';
 import ActiveChat from '@/components/messaging/ActiveChat';
 import ConversationDetails from '@/components/messaging/ConversationDetails';
 import NewConversationModal from '@/components/messaging/NewConversationModal';
-import SkillSwapInviteModal from '@/components/messaging/SkillSwapInviteModal';
 import ShareResourceModal from '@/components/messaging/ShareResourceModal';
-import BookingModal from '@/components/BookingModal';
+import SkillSwapInviteModal from '@/components/messaging/SkillSwapInviteModal';
 import StudentProfileModal from '@/components/StudentProfileModal';
-import { User, Skill } from '@/types';
-import {
-  MessageSquare,
-  ShieldCheck,
-  Sparkles,
-  Plus,
-  AlertCircle,
-  ChevronLeft,
-  Loader2,
-} from 'lucide-react';
-import Link from 'next/link';
+import BookingModal from '@/components/BookingModal';
+import { MessageSquare, Plus, X, Info } from 'lucide-react';
 
 function MessagesContent() {
-  const { user, allUsers, isLoading: authLoading } = useAuth();
-  const { skills } = useApp();
-  const { currentCollege } = useCommunity();
+  const { user, isLoading: authLoading } = useAuth();
   const {
     conversations,
     activeConversationId,
     activeConversation,
     activeChatPartner,
     messages,
-    isLoading: messagingLoading,
-    selectConversation,
-    startConversationWith,
     toast,
     clearToast,
+    selectConversation,
+    startConversationWith,
+    isLoading: messagingLoading,
   } = useMessaging();
 
   const searchParams = useSearchParams();
+  const paramConvId = searchParams.get('conversationId');
+  const paramStudentId = searchParams.get('studentId');
 
-  // Modals state
-  const [isNewChatModalOpen, setIsNewChatModalOpen] = useState(false);
-  const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
-  const [isResourceModalOpen, setIsResourceModalOpen] = useState(false);
+  const [mobileShowChat, setMobileShowChat] = useState(false);
+  const [showDetailsDrawer, setShowDetailsDrawer] = useState(false);
+  const [showNewChatModal, setShowNewChatModal] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [showInviteModal, setShowInviteModal] = useState(false);
+  const [viewingStudent, setViewingStudent] = useState<User | null>(null);
   const [bookingSkill, setBookingSkill] = useState<Skill | null>(null);
-  const [inspectingStudent, setInspectingStudent] = useState<User | null>(null);
-  const [isMobileChatOpen, setIsMobileChatOpen] = useState(false);
-  const handledStudentParamRef = useRef<string | null>(null);
 
-  // Handle query parameter for auto-selecting conversation or student
   useEffect(() => {
-    const paramConvId = searchParams.get('conversationId');
-    const paramStudentId = searchParams.get('studentId');
-
+    if (!user) return;
     if (paramConvId) {
       selectConversation(paramConvId);
-      setIsMobileChatOpen(true);
-      return;
+    } else if (paramStudentId) {
+      startConversationWith(paramStudentId);
     }
+  }, [user, paramConvId, paramStudentId, selectConversation, startConversationWith]);
 
-    if (
-      paramStudentId &&
-      user &&
-      allUsers.some((u) => u.id === paramStudentId) &&
-      handledStudentParamRef.current !== `${user.id}:${paramStudentId}`
-    ) {
-      handledStudentParamRef.current = `${user.id}:${paramStudentId}`;
-      let cancelled = false;
-      (async () => {
-        const res = await startConversationWith(paramStudentId);
-        if (!cancelled && res.success && res.conversationId) {
-          setIsMobileChatOpen(true);
-        }
-      })();
-      return () => {
-        cancelled = true;
-      };
-    }
-  }, [searchParams, user, allUsers, selectConversation, startConversationWith]);
-
-  // Handle select conversation
-  const handleSelectConv = (convId: string) => {
-    selectConversation(convId);
-    setIsMobileChatOpen(true);
+  const handleSelectConversation = (id: string) => {
+    selectConversation(id);
+    setMobileShowChat(true);
   };
 
-  // When an invitation is accepted, booking modal opens for that skill
-  const handleBookFromInvitation = (skillId: string, fallbackTitle: string) => {
-    const matched = skills.find((s) => s.id === skillId || s.title === fallbackTitle);
-    if (matched) {
-      setBookingSkill(matched);
-    } else if (activeChatPartner) {
-      // Create a fallback skill object if not directly listed
-      const partnerSkill: Skill = {
-        id: skillId || '',
-        teacherId: activeChatPartner.id,
-        teacherName: activeChatPartner.name,
-        teacherAvatar: activeChatPartner.avatar,
-        teacherUniversity: activeChatPartner.university,
-        teacherMajor: activeChatPartner.major,
-        teacherRating: activeChatPartner.repRating,
-        title: fallbackTitle,
-        category: 'Programming & Tech',
-        level: 'All Levels',
-        hourlyCredits: 1,
-        description: `1-to-1 Skill Swap session with ${activeChatPartner.name} on ${fallbackTitle}.`,
-        topics: [fallbackTitle, '1-on-1 Practice & Feedback'],
-        sessionDurationMinutes: 60,
-        reviewsCount: 0,
-      };
-      setBookingSkill(partnerSkill);
-    }
-  };
-
-  if (authLoading) {
+  if (authLoading || messagingLoading) {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center p-6 text-center bg-slate-50 min-h-[60vh] gap-2">
-        <Loader2 className="w-6 h-6 text-emerald-600 animate-spin" />
-        <p className="text-xs font-semibold text-slate-500">Loading SwapStudy Direct...</p>
+      <div className="flex-1 flex items-center justify-center p-6 bg-[#171715]">
+        <div className="w-full max-w-5xl h-[540px] rounded-2xl bg-[#22211F] border border-[#37332E] animate-pulse" />
       </div>
     );
   }
 
   if (!user) {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center p-6 text-center bg-slate-50 min-h-[60vh]">
-        <div className="w-12 h-12 rounded-2xl bg-emerald-100 text-emerald-700 flex items-center justify-center mb-3">
-          <MessageSquare className="w-6 h-6" />
+      <div className="flex-1 flex items-center justify-center px-4 py-16 bg-[#171715]">
+        <div className="max-w-md w-full bg-[#22211F] border border-[#37332E] rounded-2xl p-8 text-center space-y-5">
+          <MessageSquare className="w-10 h-10 text-[#FF9B45] mx-auto" />
+          <div className="space-y-2">
+            <h1 className="text-2xl font-extrabold text-[#F7F5F0]">
+              Sign in to SwapStudy Direct
+            </h1>
+            <p className="text-sm text-[#AAA69F]">
+              Message connected peers, share study links, and propose mutual skill exchanges.
+            </p>
+          </div>
+          <div className="flex items-center justify-center gap-3">
+            <Link
+              href="/login"
+              className="px-6 py-2.5 rounded-full bg-[#FF9B45] hover:bg-[#F5B66B] text-[#171715] text-sm font-bold"
+            >
+              Log in
+            </Link>
+            <Link
+              href="/signup"
+              className="px-6 py-2.5 rounded-full bg-[#2B2824] border border-[#37332E] text-[#F7F5F0] text-sm font-semibold"
+            >
+              Sign up
+            </Link>
+          </div>
         </div>
-        <h2 className="text-lg font-bold text-slate-900 mb-1">Student Sign-In Required</h2>
-        <p className="text-xs text-slate-500 max-w-sm mb-4">
-          SwapStudy Direct messaging is exclusively available for verified college students. Sign in to chat with peers.
-        </p>
-        <Link
-          href="/login"
-          className="px-4 py-2 rounded-xl bg-emerald-600 text-white font-semibold text-xs shadow-xs hover:bg-emerald-500 transition-colors"
-        >
-          Sign In to SwapStudy
-        </Link>
       </div>
     );
   }
 
   return (
-    <div className="flex-1 flex flex-col h-[calc(100vh-3.75rem)] overflow-hidden bg-slate-100/70">
-      {/* Toast Notification */}
+    <div className="flex-1 min-h-0 flex flex-col bg-[#171715]">
+      {/* Messaging Toast Bar */}
       {toast && (
-        <div className="fixed top-18 right-6 z-50 animate-in fade-in slide-in-from-top-4 duration-200 max-w-sm">
-          <div
-            className={`px-4 py-2.5 rounded-xl text-xs font-semibold shadow-lg border flex items-center gap-2 ${
-              toast.type === 'success'
-                ? 'bg-emerald-900 text-emerald-100 border-emerald-700'
-                : toast.type === 'warning'
-                ? 'bg-rose-950 text-rose-100 border-rose-700'
-                : 'bg-slate-900 text-white border-slate-700'
-            }`}
+        <div
+          className={`px-4 py-2.5 border-b border-[#37332E] flex items-center justify-between gap-3 text-xs sm:text-sm font-medium shrink-0 ${
+            toast.type === 'warning'
+              ? 'bg-[#F5B66B]/15 text-[#F5B66B]'
+              : toast.type === 'success'
+              ? 'bg-[#65C995]/15 text-[#65C995]'
+              : 'bg-[#22211F] text-[#F7F5F0]'
+          }`}
+        >
+          <span className="flex items-center gap-2">
+            <Info className="w-4 h-4 shrink-0" />
+            {toast.message}
+          </span>
+          <button
+            type="button"
+            onClick={clearToast}
+            className="p-1 rounded-lg hover:bg-black/20 cursor-pointer"
           >
-            {toast.type === 'warning' ? (
-              <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
-            ) : (
-              <Sparkles className="w-4 h-4 text-emerald-400 shrink-0" />
-            )}
-            <span>{toast.message}</span>
-            <button
-              onClick={clearToast}
-              className="ml-2 text-white/70 hover:text-white font-bold"
-            >
-              ✕
-            </button>
-          </div>
+            <X className="w-4 h-4" />
+          </button>
         </div>
       )}
 
-      {/* Subheader Network Bar */}
-      <div className="bg-white border-b border-slate-200 px-4 py-2 flex items-center justify-between text-xs shrink-0">
-        <div className="flex items-center gap-2">
-          <span className="font-extrabold text-slate-900 tracking-tight flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-emerald-500" />
-            SwapStudy Direct
-          </span>
-          <span className="text-slate-300">|</span>
-          <span className="text-[11px] font-semibold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200/60 flex items-center gap-1">
-            <ShieldCheck className="w-3 h-3 text-emerald-600" />
-            {currentCollege.name} ({currentCollege.shortName}) Network
-          </span>
-        </div>
-
-        <div className="flex items-center gap-3 text-[11px] text-slate-500">
-          <span className="hidden sm:inline">
-            Active Persona: <strong className="text-slate-800">{user.name}</strong>
-          </span>
-          <button
-            onClick={() => setIsNewChatModalOpen(true)}
-            className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold transition-colors flex items-center gap-1 shadow-2xs"
-          >
-            <Plus className="w-3 h-3" />
-            Start Messaging
-          </button>
-        </div>
-      </div>
-
-      {/* Three Panel Messaging Container */}
-      <div className="flex-1 flex overflow-hidden">
-        {/* Panel 1: Left Conversations Panel (Desktop visible, mobile conditional) */}
+      {/* 3-Panel Responsive Layout */}
+      <div className="flex-1 min-h-0 flex overflow-hidden relative">
+        {/* Left: Conversation List */}
         <div
-          className={`w-full md:w-80 lg:w-88 shrink-0 h-full ${
-            isMobileChatOpen ? 'hidden md:flex' : 'flex'
+          className={`w-full md:w-[320px] xl:w-[340px] shrink-0 min-h-0 ${
+            mobileShowChat && activeConversation ? 'hidden md:block' : 'block'
           }`}
         >
           <ConversationList
             conversations={conversations}
-            activeConversationId={activeConversationId}
-            onSelectConversation={handleSelectConv}
-            onOpenNewMessageModal={() => setIsNewChatModalOpen(true)}
+            activeId={activeConversationId}
+            onSelect={handleSelectConversation}
+            onNewChat={() => setShowNewChatModal(true)}
           />
         </div>
 
-        {/* Panel 2: Middle Active Chat Panel (Desktop visible, mobile conditional) */}
+        {/* Center: Active Chat */}
         <div
-          className={`flex-1 h-full flex flex-col ${
-            !isMobileChatOpen ? 'hidden md:flex' : 'flex'
+          className={`flex-1 min-w-0 min-h-0 ${
+            !mobileShowChat && activeConversation ? 'hidden md:flex md:flex-col' : 'flex flex-col'
           }`}
         >
-          {activeConversation ? (
+          {activeConversation && activeChatPartner ? (
             <ActiveChat
               conversation={activeConversation}
-              messages={messages}
               partner={activeChatPartner}
-              onOpenInviteModal={() => setIsInviteModalOpen(true)}
-              onOpenResourceModal={() => setIsResourceModalOpen(true)}
-              onViewProfile={(partnerUser) => setInspectingStudent(partnerUser)}
-              onBookSkillFromInvitation={handleBookFromInvitation}
-              onBackMobile={() => setIsMobileChatOpen(false)}
+              messages={messages}
+              onBack={() => setMobileShowChat(false)}
+              onOpenDetails={() => setShowDetailsDrawer(!showDetailsDrawer)}
+              onOpenShareResource={() => setShowShareModal(true)}
+              onOpenInviteSwap={() => setShowInviteModal(true)}
+              onViewProfile={(student) => setViewingStudent(student)}
             />
           ) : (
-            <div className="flex-1 flex flex-col items-center justify-center p-8 text-center bg-white space-y-3 relative">
-              {isMobileChatOpen && (
-                <button
-                  onClick={() => setIsMobileChatOpen(false)}
-                  className="md:hidden absolute top-4 left-4 px-2.5 py-1.5 rounded-lg border border-slate-200 text-slate-700 text-xs font-semibold flex items-center gap-1"
-                >
-                  <ChevronLeft className="w-4 h-4" />
-                  Conversations
-                </button>
-              )}
-              <div className="w-14 h-14 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
-                {messagingLoading ? (
-                  <Loader2 className="w-7 h-7 animate-spin" />
-                ) : (
-                  <MessageSquare className="w-7 h-7" />
-                )}
+            <div className="flex-1 flex flex-col items-center justify-center p-8 text-center space-y-5 bg-[#171715]">
+              <div className="w-16 h-16 rounded-2xl bg-[#22211F] border border-[#37332E] text-[#FF9B45] flex items-center justify-center">
+                <MessageSquare className="w-8 h-8" />
               </div>
-              <div className="max-w-sm">
-                <h3 className="text-base font-bold text-slate-900 mb-1">
-                  {messagingLoading ? 'Loading Conversations...' : 'Select a Conversation'}
-                </h3>
-                <p className="text-xs text-slate-500 leading-relaxed">
-                  Choose a classmate from the left panel or start a new message to coordinate credit-neutral skill swaps.
+              <div className="space-y-1.5 max-w-sm">
+                <h2 className="text-xl font-bold text-[#F7F5F0]">Select a conversation</h2>
+                <p className="text-sm text-[#AAA69F]">
+                  Choose a thread from the left or start a new conversation with a connected classmate.
                 </p>
               </div>
               <button
-                onClick={() => setIsNewChatModalOpen(true)}
-                className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs shadow-xs transition-colors flex items-center gap-1.5"
+                type="button"
+                onClick={() => setShowNewChatModal(true)}
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-[#FF9B45] hover:bg-[#F5B66B] text-[#171715] text-sm font-bold transition-colors cursor-pointer"
               >
                 <Plus className="w-4 h-4" />
-                Start Messaging
+                Start New Chat
               </button>
             </div>
           )}
         </div>
 
-        {/* Panel 3: Right Conversation Details Panel (Desktop lg+ visible) */}
+        {/* Right: Peer Details (Desktop always when active; slide-over on smaller screens when toggled) */}
         {activeConversation && activeChatPartner && (
-          <div className="hidden lg:flex w-76 xl:w-80 shrink-0 h-full">
-            <ConversationDetails
-              partner={activeChatPartner}
-              conversationId={activeConversation.id}
-              onOpenInviteModal={() => setIsInviteModalOpen(true)}
-              onBookSkill={(skill) => setBookingSkill(skill)}
-              onViewProfile={(partnerUser) => setInspectingStudent(partnerUser)}
-            />
-          </div>
+          <>
+            <div className="hidden xl:block w-[300px] shrink-0 min-h-0">
+              <ConversationDetails
+                partner={activeChatPartner}
+                onViewProfile={(student) => setViewingStudent(student)}
+                onBookSkill={(skill) => setBookingSkill(skill)}
+                onOpenInviteSwap={() => setShowInviteModal(true)}
+              />
+            </div>
+
+            {showDetailsDrawer && (
+              <div className="fixed inset-y-0 right-0 z-40 w-[300px] max-w-[90vw] xl:hidden shadow-2xl">
+                <ConversationDetails
+                  partner={activeChatPartner}
+                  onViewProfile={(student) => {
+                    setShowDetailsDrawer(false);
+                    setViewingStudent(student);
+                  }}
+                  onBookSkill={(skill) => {
+                    setShowDetailsDrawer(false);
+                    setBookingSkill(skill);
+                  }}
+                  onOpenInviteSwap={() => {
+                    setShowDetailsDrawer(false);
+                    setShowInviteModal(true);
+                  }}
+                  onClose={() => setShowDetailsDrawer(false)}
+                />
+              </div>
+            )}
+          </>
         )}
       </div>
 
       {/* Modals */}
-      {isNewChatModalOpen && (
+      {showNewChatModal && (
         <NewConversationModal
-          onClose={() => setIsNewChatModalOpen(false)}
-          onSelectStudent={() => {
-            setIsMobileChatOpen(true);
+          onClose={() => setShowNewChatModal(false)}
+          onConversationStarted={(convId) => {
+            selectConversation(convId);
+            setMobileShowChat(true);
           }}
-          onViewProfile={(student) => setInspectingStudent(student)}
         />
       )}
 
-      {isInviteModalOpen && activeChatPartner && activeConversation && (
-        <SkillSwapInviteModal
-          partner={activeChatPartner}
-          conversationId={activeConversation.id}
-          onClose={() => setIsInviteModalOpen(false)}
-        />
-      )}
-
-      {isResourceModalOpen && activeConversation && (
+      {showShareModal && activeConversationId && (
         <ShareResourceModal
-          conversationId={activeConversation.id}
-          onClose={() => setIsResourceModalOpen(false)}
+          conversationId={activeConversationId}
+          onClose={() => setShowShareModal(false)}
+        />
+      )}
+
+      {showInviteModal && activeConversationId && activeChatPartner && (
+        <SkillSwapInviteModal
+          conversationId={activeConversationId}
+          partner={activeChatPartner}
+          onClose={() => setShowInviteModal(false)}
+        />
+      )}
+
+      {viewingStudent && (
+        <StudentProfileModal
+          student={viewingStudent}
+          onClose={() => setViewingStudent(null)}
+          onSelectSkill={(skill) => setBookingSkill(skill)}
         />
       )}
 
       {bookingSkill && (
-        <BookingModal
-          skill={bookingSkill}
-          onClose={() => setBookingSkill(null)}
-          onSuccess={() => {
-            setBookingSkill(null);
-          }}
-        />
-      )}
-
-      {inspectingStudent && (
-        <StudentProfileModal
-          student={inspectingStudent}
-          onClose={() => setInspectingStudent(null)}
-          availableSkills={skills}
-        />
+        <BookingModal skill={bookingSkill} onClose={() => setBookingSkill(null)} />
       )}
     </div>
   );
@@ -341,8 +261,8 @@ export default function MessagesPage() {
   return (
     <Suspense
       fallback={
-        <div className="flex-1 flex items-center justify-center p-12 text-slate-400 text-xs font-semibold">
-          Loading SwapStudy Direct...
+        <div className="flex-1 flex items-center justify-center p-6 bg-[#171715]">
+          <div className="w-full max-w-5xl h-[540px] rounded-2xl bg-[#22211F] border border-[#37332E] animate-pulse" />
         </div>
       }
     >

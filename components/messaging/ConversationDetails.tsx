@@ -1,262 +1,177 @@
 'use client';
 
-import React, { useMemo } from 'react';
-import { User, Skill } from '@/types';
+import React from 'react';
+import { Skill, User } from '@/types';
 import { useAuth } from '@/context/AuthContext';
 import { useApp } from '@/context/AppContext';
 import {
-  GraduationCap,
+  X,
   Star,
+  GraduationCap,
+  Repeat,
+  ArrowUpRight,
   Clock,
-  Sparkles,
-  ArrowRightLeft,
-  ShieldCheck,
-  BookOpen,
+  Coins,
   User as UserIcon,
 } from 'lucide-react';
 
 interface ConversationDetailsProps {
-  partner: User | null;
-  conversationId?: string;
-  onOpenInviteModal: () => void;
+  partner: User;
+  onViewProfile: (student: User) => void;
   onBookSkill: (skill: Skill) => void;
-  onViewProfile: (user: User) => void;
+  onOpenInviteSwap: () => void;
+  onClose?: () => void;
 }
 
 export default function ConversationDetails({
   partner,
-  onOpenInviteModal,
-  onBookSkill,
   onViewProfile,
+  onBookSkill,
+  onOpenInviteSwap,
+  onClose,
 }: ConversationDetailsProps) {
   const { user } = useAuth();
   const { skills } = useApp();
 
-  // Skills taught by partner
-  const partnerSkills = useMemo(() => {
-    if (!partner) return [];
-    return skills.filter((s) => s.teacherId === partner.id);
-  }, [skills, partner]);
+  const partnerListings = skills.filter((s) => s.teacherId === partner.id);
 
-  // Calculate mutual swap synergy
-  const mutualCompatibility = useMemo(() => {
-    if (!user || !partner) return null;
-
-    const userTeaches = user.skillsToTeach || [];
-    const userWants = user.skillsToLearn || [];
-    const partnerTeaches = partner.skillsToTeach || [];
-    const partnerWants = partner.skillsToLearn || [];
-
-    // Partner wants what user teaches
-    const userHelpsPartner = userTeaches.some((ut) =>
-      partnerWants.some((pw) => pw.toLowerCase().includes(ut.toLowerCase()) || ut.toLowerCase().includes(pw.toLowerCase()))
-    );
-
-    // User wants what partner teaches
-    const partnerHelpsUser = partnerTeaches.some((pt) =>
-      userWants.some((uw) => uw.toLowerCase().includes(pt.toLowerCase()) || pt.toLowerCase().includes(uw.toLowerCase()))
-    );
-
-    const isMutual = userHelpsPartner && partnerHelpsUser;
-    const isOneWay = userHelpsPartner || partnerHelpsUser;
-
-    return {
-      isMutual,
-      isOneWay,
-      score: isMutual ? 96 : isOneWay ? 78 : 65,
-    };
-  }, [user, partner]);
-
-  if (!partner) {
-    return (
-      <div className="p-6 text-center text-slate-400 text-xs">
-        Select a conversation to view peer details.
-      </div>
-    );
-  }
+  const hasMutualSynergy = Boolean(
+    user &&
+      partner.skillsToTeach.some((s) =>
+        user.skillsToLearn.some((w) => s.toLowerCase().includes(w.toLowerCase()))
+      ) &&
+      user.skillsToTeach.some((s) =>
+        partner.skillsToLearn.some((w) => s.toLowerCase().includes(w.toLowerCase()))
+      )
+  );
 
   return (
-    <div className="flex flex-col h-full bg-slate-50/50 border-l border-slate-200/90 overflow-y-auto p-4 space-y-4 text-xs select-none">
-      {/* Student Profile Card */}
-      <div className="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-xs space-y-3">
-        <div className="flex items-center gap-3">
-          <img
-            src={partner.avatar}
-            alt={partner.name}
-            className="w-12 h-12 rounded-full object-cover border-2 border-emerald-500/20"
-          />
-          <div className="min-w-0">
-            <div className="flex items-center gap-1.5">
-              <h2 className="text-sm font-bold text-slate-900 truncate">{partner.name}</h2>
-              {partner.isCollegeVerified && (
-                <span title="Verified Student" className="text-emerald-600">
-                  <ShieldCheck className="w-3.5 h-3.5 fill-emerald-100" />
-                </span>
-              )}
-            </div>
-            <p className="text-[11px] text-slate-500 truncate flex items-center gap-1 mt-0.5">
-              <GraduationCap className="w-3 h-3 text-slate-400" />
-              {partner.major}
-            </p>
-            <p className="text-[10px] text-slate-400 truncate">
-              {partner.university} • Class of {partner.graduationYear || '2026'}
-            </p>
-          </div>
-        </div>
-
-        {/* Stats Row */}
-        <div className="grid grid-cols-3 gap-2 pt-2 border-t border-slate-100 text-center">
-          <div className="bg-slate-50 p-1.5 rounded-lg">
-            <span className="text-[10px] text-slate-400 block font-medium">Reputation</span>
-            <span className="text-xs font-bold text-slate-800 flex items-center justify-center gap-0.5 mt-0.5">
-              <Star className="w-3 h-3 text-amber-500 fill-amber-400" />
-              {partner.repRating?.toFixed(1) || '5.0'}
-            </span>
-          </div>
-          <div className="bg-slate-50 p-1.5 rounded-lg">
-            <span className="text-[10px] text-slate-400 block font-medium">Taught</span>
-            <span className="text-xs font-bold text-slate-800 mt-0.5 block">
-              {partner.totalHoursTaught || 0} hrs
-            </span>
-          </div>
-          <div className="bg-slate-50 p-1.5 rounded-lg">
-            <span className="text-[10px] text-slate-400 block font-medium">Learned</span>
-            <span className="text-xs font-bold text-slate-800 mt-0.5 block">
-              {partner.totalHoursLearned || 0} hrs
-            </span>
-          </div>
-        </div>
-
-        {/* Quick Connection Badge */}
-        <div className="flex items-center justify-between text-[11px] px-2.5 py-1.5 rounded-lg bg-emerald-50/80 border border-emerald-200/60 text-emerald-800">
-          <span className="font-semibold flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-            Accepted Peer Connection
+    <div className="flex flex-col h-full bg-[#111110] border-l border-[#37332E] overflow-y-auto p-5 space-y-6">
+      {onClose && (
+        <div className="flex items-center justify-between xl:hidden">
+          <span className="text-xs font-bold uppercase tracking-wider text-[#AAA69F]">
+            Peer Details
           </span>
-          <span className="text-[10px] font-bold text-emerald-700 uppercase tracking-wider">
-            {partner.university.split(' ')[0]}
-          </span>
-        </div>
-      </div>
-
-      {/* Mutual Swap Compatibility Card */}
-      {mutualCompatibility && (
-        <div className="bg-gradient-to-br from-emerald-500/10 via-teal-500/5 to-slate-50 rounded-2xl p-3.5 border border-emerald-200/80 space-y-2">
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-900 flex items-center gap-1">
-              <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
-              Swap Synergy
-            </span>
-            <span className="px-2 py-0.5 rounded-full bg-emerald-600 text-white font-extrabold text-[10px]">
-              {mutualCompatibility.score}% Match
-            </span>
-          </div>
-          <p className="text-[11px] text-slate-600 leading-relaxed">
-            {mutualCompatibility.isMutual ? (
-              <span>
-                <strong>Perfect Mutual Exchange!</strong> You teach what {partner.name.split(' ')[0]} wants to learn, and they teach what you desire.
-              </span>
-            ) : (
-              <span>
-                <strong>High Learning Compatibility.</strong> Strong alignment in technical curriculum and study goals.
-              </span>
-            )}
-          </p>
-
           <button
-            onClick={onOpenInviteModal}
-            className="w-full mt-1 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-[11px] shadow-xs transition-colors flex items-center justify-center gap-1.5"
+            type="button"
+            onClick={onClose}
+            className="p-1.5 rounded-lg bg-[#22211F] border border-[#37332E] text-[#AAA69F]"
           >
-            <ArrowRightLeft className="w-3.5 h-3.5" />
-            Propose Skill Swap
+            <X className="w-4 h-4" />
           </button>
         </div>
       )}
 
-      {/* Skills They Teach */}
-      <div className="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-xs space-y-2.5">
-        <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center justify-between">
-          <span className="flex items-center gap-1.5">
-            <BookOpen className="w-3.5 h-3.5 text-emerald-600" />
-            Skills They Teach
-          </span>
-          <span className="text-[10px] text-slate-400 lowercase font-normal">
-            {partnerSkills.length} listings
-          </span>
-        </h3>
-
-        <div className="space-y-2">
-          {partnerSkills.map((skill) => (
-            <div
-              key={skill.id}
-              className="p-2.5 rounded-xl bg-slate-50 hover:bg-emerald-50/50 border border-slate-200/80 transition-colors flex items-center justify-between gap-2"
-            >
-              <div className="min-w-0">
-                <span className="font-semibold text-slate-800 text-xs block truncate">
-                  {skill.title}
-                </span>
-                <span className="text-[10px] text-slate-500 flex items-center gap-1">
-                  <span>{skill.category}</span>
-                  <span>•</span>
-                  <span className="text-emerald-700 font-semibold">{skill.hourlyCredits} Cr/hr</span>
-                </span>
-              </div>
-              <button
-                onClick={() => onBookSkill(skill)}
-                className="px-2 py-1 rounded-lg bg-white border border-slate-200 hover:border-emerald-500 text-slate-700 hover:text-emerald-700 text-[10px] font-bold shadow-2xs transition-colors shrink-0"
-              >
-                Book
-              </button>
-            </div>
-          ))}
-
-          {partnerSkills.length === 0 && (
-            <div className="flex flex-wrap gap-1">
-              {partner.skillsToTeach?.map((s, idx) => (
-                <span
-                  key={idx}
-                  className="px-2 py-1 rounded-md bg-emerald-50 text-emerald-800 text-[11px] font-medium border border-emerald-200/60"
-                >
-                  {s}
-                </span>
-              ))}
-            </div>
-          )}
+      {/* Partner Card */}
+      <div className="bg-[#22211F] border border-[#37332E] rounded-2xl p-5 text-center space-y-3">
+        <img
+          src={partner.avatar}
+          alt={partner.name}
+          className="w-16 h-16 rounded-full object-cover border border-[#37332E] bg-[#171715] mx-auto"
+        />
+        <div>
+          <h3 className="text-base font-bold text-[#F7F5F0]">{partner.name}</h3>
+          <p className="text-xs text-[#AAA69F] flex items-center justify-center gap-1 mt-0.5">
+            <GraduationCap className="w-3.5 h-3.5 text-[#FF9B45]" />
+            {partner.major || partner.university}
+          </p>
         </div>
-      </div>
 
-      {/* What They Want to Learn */}
-      <div className="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-xs space-y-2.5">
-        <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
-          <Clock className="w-3.5 h-3.5 text-blue-600" />
-          Learning Wishlist
-        </h3>
-        <div className="flex flex-wrap gap-1.5">
-          {partner.skillsToLearn && partner.skillsToLearn.length > 0 ? (
-            partner.skillsToLearn.map((skill, idx) => (
-              <span
-                key={idx}
-                className="px-2.5 py-1 rounded-lg bg-slate-100 text-slate-700 border border-slate-200 text-[11px] font-medium"
-              >
-                {skill}
-              </span>
-            ))
-          ) : (
-            <span className="text-slate-400 text-xs">No wishlist listed</span>
-          )}
+        <div className="flex items-center justify-center gap-4 pt-1 text-xs text-[#AAA69F]">
+          <span className="inline-flex items-center gap-1 font-bold text-[#F7F5F0]">
+            <Star className="w-3.5 h-3.5 text-[#FF9B45] fill-[#FF9B45]" />
+            {partner.repRating > 0 ? partner.repRating.toFixed(1) : 'New'}
+          </span>
+          <span>{partner.totalHoursTaught}h taught</span>
         </div>
-      </div>
 
-      {/* Quick Action Buttons */}
-      <div className="space-y-2 pt-1">
         <button
+          type="button"
           onClick={() => onViewProfile(partner)}
-          className="w-full px-3 py-2 rounded-xl bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 font-semibold text-xs transition-colors flex items-center justify-center gap-1.5 shadow-xs"
+          className="w-full inline-flex items-center justify-center gap-1.5 py-2 rounded-full bg-[#2B2824] hover:bg-[#37332E] border border-[#37332E] text-xs font-semibold text-[#F7F5F0] transition-colors cursor-pointer"
         >
-          <UserIcon className="w-3.5 h-3.5 text-slate-500" />
-          View Full Student Profile
+          <UserIcon className="w-3.5 h-3.5 text-[#AAA69F]" />
+          View Full Profile
         </button>
       </div>
+
+      {/* Synergy Box */}
+      {hasMutualSynergy && (
+        <div className="bg-[#65C995]/10 border border-[#65C995]/30 rounded-2xl p-4 space-y-2.5">
+          <div className="flex items-center gap-1.5 text-xs font-bold text-[#65C995]">
+            <Repeat className="w-4 h-4" />
+            Mutual Skill Synergy
+          </div>
+          <p className="text-xs text-[#F7F5F0]/85 leading-relaxed">
+            You both have skills on each other&apos;s wishlist. Send a swap invite directly!
+          </p>
+          <button
+            type="button"
+            onClick={onOpenInviteSwap}
+            className="w-full py-2 rounded-full bg-[#65C995] hover:bg-[#53b984] text-[#171715] text-xs font-bold transition-colors cursor-pointer"
+          >
+            Send Swap Invite
+          </button>
+        </div>
+      )}
+
+      {/* Partner Listings */}
+      <div className="space-y-3">
+        <p className="text-xs font-bold uppercase tracking-wider text-[#AAA69F]">
+          Skills They Teach ({partnerListings.length})
+        </p>
+        {partnerListings.length > 0 ? (
+          <div className="space-y-2.5">
+            {partnerListings.map((skill) => (
+              <div
+                key={skill.id}
+                className="bg-[#22211F] border border-[#37332E] rounded-xl p-3.5 space-y-2.5"
+              >
+                <p className="text-sm font-bold text-[#F7F5F0] leading-snug">{skill.title}</p>
+                <div className="flex items-center justify-between text-xs text-[#AAA69F]">
+                  <span className="inline-flex items-center gap-1">
+                    <Clock className="w-3 h-3" />
+                    {skill.sessionDurationMinutes}m
+                  </span>
+                  <span className="inline-flex items-center gap-1 font-bold text-[#FF9B45]">
+                    <Coins className="w-3 h-3" />
+                    {skill.hourlyCredits} Cr
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => onBookSkill(skill)}
+                  className="w-full inline-flex items-center justify-center gap-1 py-2 rounded-full bg-[#FF9B45] hover:bg-[#F5B66B] text-[#171715] text-xs font-bold transition-colors cursor-pointer"
+                >
+                  Book Session
+                  <ArrowUpRight className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-xs text-[#AAA69F]">No active listings published yet.</p>
+        )}
+      </div>
+
+      {/* Wishlist */}
+      {partner.skillsToLearn.length > 0 && (
+        <div className="space-y-2.5">
+          <p className="text-xs font-bold uppercase tracking-wider text-[#AAA69F]">
+            Looking to Learn
+          </p>
+          <div className="flex flex-wrap gap-1.5">
+            {partner.skillsToLearn.map((tag, i) => (
+              <span
+                key={i}
+                className="px-2.5 py-1 rounded-lg bg-[#22211F] border border-[#37332E] text-xs font-medium text-[#AAA69F]"
+              >
+                {tag}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

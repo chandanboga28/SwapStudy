@@ -3,138 +3,125 @@
 import React from 'react';
 import Link from 'next/link';
 import { Skill } from '@/types';
-import { useAuth } from '@/context/AuthContext';
-import { Star, Coins, ArrowRight } from 'lucide-react';
+import { Star, Clock, Coins, ArrowUpRight, Repeat, Sparkles } from 'lucide-react';
 
 interface SkillCardProps {
   skill: Skill;
   onBook?: (skill: Skill) => void;
-  matchBadge?: string;
+  matchBadge?: 'wishlist' | 'mutual' | null;
 }
 
 export default function SkillCard({ skill, onBook, matchBadge }: SkillCardProps) {
-  const { user } = useAuth();
-  const isOwnListing = user?.id === skill.teacherId;
-  const campusLabel = skill.teacherUniversity.includes('Ajeenkya')
-    ? 'ADYPU'
-    : skill.teacherUniversity.split(' ')[0];
-  const getCategoryBadge = (cat: string) => {
-    switch (cat) {
-      case 'Programming & Tech':
-        return 'bg-blue-50/70 text-blue-700 border-blue-200/60';
-      case 'Design & Creative':
-        return 'bg-purple-50/70 text-purple-700 border-purple-200/60';
-      case 'Academics & Science':
-        return 'bg-amber-50/70 text-amber-700 border-amber-200/60';
-      case 'Media & Production':
-        return 'bg-rose-50/70 text-rose-700 border-rose-200/60';
-      case 'Business & Career':
-        return 'bg-emerald-50/70 text-emerald-700 border-emerald-200/60';
-      default:
-        return 'bg-slate-100 text-slate-700 border-slate-200';
-    }
-  };
-
   return (
-    <div className="card-subtle-hover rounded-xl flex flex-col justify-between group overflow-hidden border border-slate-200/90">
-      <div className="p-5">
-        {/* Top Badges */}
-        <div className="flex items-center justify-between gap-2 mb-3">
-          <div className="flex items-center gap-1.5 flex-wrap">
-            <span
-              className={`text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded border ${getCategoryBadge(
-                skill.category
-              )}`}
-            >
+    <div className="bg-[#22211F] border border-[#37332E] hover:border-[#4F4942] rounded-2xl p-6 flex flex-col justify-between transition-all duration-200 group">
+      <div>
+        {/* Top Row: Category, Match Indicator & Credit Cost */}
+        <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-[#2B2824] border border-[#37332E] text-[#F5B66B]">
               {skill.category}
             </span>
-            {matchBadge && (
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 border border-emerald-300/70">
-                {matchBadge}
+            {matchBadge === 'mutual' && (
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-[#65C995]/15 border border-[#65C995]/30 text-[#65C995]">
+                <Repeat className="w-3 h-3" />
+                Mutual Swap
+              </span>
+            )}
+            {matchBadge === 'wishlist' && (
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-[#FF9B45]/15 border border-[#FF9B45]/30 text-[#FF9B45]">
+                <Sparkles className="w-3 h-3" />
+                Wishlist Match
               </span>
             )}
           </div>
-          <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 border border-emerald-200/70 text-emerald-800 text-xs font-semibold shrink-0">
-            <Coins className="w-3 h-3 text-emerald-600" />
-            <span>{skill.hourlyCredits} {skill.hourlyCredits === 1 ? 'Credit' : 'Credits'}</span>
-          </div>
+
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-[#171715] border border-[#37332E] text-[#FF9B45] shrink-0">
+            <Coins className="w-3.5 h-3.5" />
+            {skill.hourlyCredits} {skill.hourlyCredits === 1 ? 'Credit' : 'Credits'}
+          </span>
         </div>
 
         {/* Title */}
-        <h3 className="text-base font-semibold text-slate-900 group-hover:text-emerald-700 transition-colors line-clamp-1 mb-2">
-          <Link href={`/skills/${skill.id}`}>{skill.title}</Link>
-        </h3>
+        <Link href={`/skills/${skill.id}`} className="block mb-2">
+          <h3 className="text-lg sm:text-xl font-bold text-[#F7F5F0] group-hover:text-[#FF9B45] transition-colors leading-snug line-clamp-2">
+            {skill.title}
+          </h3>
+        </Link>
+
+        {/* Level & Duration Meta */}
+        <div className="flex items-center gap-3 text-xs font-medium text-[#AAA69F] mb-3">
+          <span>{skill.level}</span>
+          <span className="w-1 h-1 rounded-full bg-[#37332E]" />
+          <span className="inline-flex items-center gap-1">
+            <Clock className="w-3.5 h-3.5 text-[#AAA69F]" />
+            {skill.sessionDurationMinutes} min session
+          </span>
+        </div>
 
         {/* Description */}
-        <p className="text-xs text-slate-500 line-clamp-2 mb-4 leading-relaxed">
+        <p className="text-sm text-[#AAA69F] leading-relaxed line-clamp-2 mb-4">
           {skill.description}
         </p>
 
-        {/* Topics Pills */}
-        <div className="flex flex-wrap gap-1 mb-2">
-          {skill.topics.slice(0, 3).map((topic, i) => (
-            <span
-              key={i}
-              className="text-[10px] bg-slate-50 text-slate-600 border border-slate-200/60 px-2 py-0.5 rounded font-medium"
-            >
-              {topic}
-            </span>
-          ))}
-          {skill.topics.length > 3 && (
-            <span className="text-[10px] text-slate-400 self-center pl-0.5">
-              +{skill.topics.length - 3}
-            </span>
-          )}
-        </div>
+        {/* Topics Tags */}
+        {skill.topics && skill.topics.length > 0 && (
+          <div className="flex flex-wrap gap-1.5 mb-5">
+            {skill.topics.slice(0, 3).map((topic, idx) => (
+              <span
+                key={idx}
+                className="px-2.5 py-1 rounded-lg text-xs font-medium bg-[#171715] border border-[#37332E] text-[#AAA69F]"
+              >
+                {topic}
+              </span>
+            ))}
+            {skill.topics.length > 3 && (
+              <span className="px-2 py-1 text-xs font-medium text-[#AAA69F]">
+                +{skill.topics.length - 3}
+              </span>
+            )}
+          </div>
+        )}
       </div>
 
-      {/* Instructor Footer */}
-      <div className="px-5 py-3.5 bg-slate-50/60 border-t border-slate-100 flex items-center justify-between gap-3">
+      {/* Footer: Teacher & Action */}
+      <div className="pt-4 border-t border-[#37332E] flex items-center justify-between gap-3">
         <div className="flex items-center gap-2.5 min-w-0">
           <img
             src={skill.teacherAvatar}
             alt={skill.teacherName}
-            className="w-7 h-7 rounded-full object-cover shrink-0 ring-1 ring-slate-200"
+            className="w-9 h-9 rounded-full object-cover border border-[#37332E] bg-[#171715] shrink-0"
           />
           <div className="min-w-0">
-            <p className="text-xs font-medium text-slate-900 truncate">{skill.teacherName}</p>
-            <div className="flex items-center gap-1.5 text-[11px] text-slate-500">
-              <span className="truncate">{campusLabel}</span>
-              <span>•</span>
-              <span className="flex items-center text-amber-600 font-medium">
-                <Star className="w-3 h-3 fill-amber-400 text-amber-400 mr-0.5" />
-                {skill.teacherRating}
+            <p className="text-sm font-bold text-[#F7F5F0] truncate">{skill.teacherName}</p>
+            <div className="flex items-center gap-1.5 text-xs text-[#AAA69F]">
+              <Star className="w-3.5 h-3.5 text-[#FF9B45] fill-[#FF9B45] shrink-0" />
+              <span className="font-semibold text-[#F7F5F0]">
+                {skill.teacherRating > 0 ? skill.teacherRating.toFixed(1) : 'New'}
               </span>
+              {skill.reviewsCount > 0 && (
+                <span>({skill.reviewsCount})</span>
+              )}
             </div>
           </div>
         </div>
 
-        <div className="shrink-0">
-          {isOwnListing ? (
-            <Link
-              href={`/skills/${skill.id}`}
-              className="px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors inline-flex items-center gap-1"
-            >
-              Manage
-            </Link>
-          ) : onBook ? (
-            <button
-              onClick={() => onBook(skill)}
-              className="px-3 py-1 rounded-lg text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white shadow-2xs transition-colors flex items-center gap-1"
-            >
-              Book
-              <ArrowRight className="w-3 h-3" />
-            </button>
-          ) : (
-            <Link
-              href={`/skills/${skill.id}`}
-              className="px-3 py-1 rounded-lg text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white shadow-2xs transition-colors flex items-center gap-1"
-            >
-              View
-              <ArrowRight className="w-3 h-3" />
-            </Link>
-          )}
-        </div>
+        {onBook ? (
+          <button
+            onClick={() => onBook(skill)}
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#FF9B45] hover:bg-[#F5B66B] text-[#171715] text-sm font-bold transition-colors shrink-0 cursor-pointer"
+          >
+            Book
+            <ArrowUpRight className="w-4 h-4" />
+          </button>
+        ) : (
+          <Link
+            href={`/skills/${skill.id}`}
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#2B2824] hover:bg-[#37332E] border border-[#37332E] text-[#F7F5F0] text-sm font-semibold transition-colors shrink-0"
+          >
+            Details
+            <ArrowUpRight className="w-4 h-4 text-[#FF9B45]" />
+          </Link>
+        )}
       </div>
     </div>
   );

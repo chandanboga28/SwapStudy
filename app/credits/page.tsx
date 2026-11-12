@@ -1,275 +1,308 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
 import { useApp } from '@/context/AppContext';
 import {
   Coins,
-  ArrowUpRight,
-  ArrowDownLeft,
-  Sparkles,
-  HelpCircle,
+  TrendingUp,
+  TrendingDown,
+  ShieldCheck,
   Repeat,
-  Lock,
+  Clock,
+  ArrowUpRight,
+  HelpCircle,
 } from 'lucide-react';
 
-export default function CreditsPage() {
-  const { user } = useAuth();
-  const { transactions } = useApp();
+export default function CreditsWalletPage() {
+  const { user, isLoading: authLoading } = useAuth();
+  const { transactions, isLoading: appLoading } = useApp();
+  const [filter, setFilter] = useState<'all' | 'earned' | 'spent'>('all');
 
-  const [filterType, setFilterType] = useState<'all' | 'earned' | 'spent'>('all');
+  const userTransactions = useMemo(() => {
+    if (!user) return [];
+    return transactions.filter((t) => t.userId === user.id);
+  }, [transactions, user]);
 
-  const userTransactions = transactions.filter((t) => {
-    if (!user) return true;
-    return t.userId === user.id;
-  });
-
-  const filteredTransactions = userTransactions.filter((tx) => {
-    if (filterType === 'earned') return tx.amount > 0;
-    if (filterType === 'spent') return tx.amount < 0;
-    return true;
-  });
-
-  const totalEarned = userTransactions
-    .filter((t) => t.amount > 0)
-    .reduce((sum, t) => sum + t.amount, 0);
-
-  const totalSpent = Math.abs(
-    userTransactions
-      .filter((t) => t.amount < 0)
-      .reduce((sum, t) => sum + t.amount, 0)
+  const totalEarned = useMemo(
+    () => userTransactions.filter((t) => t.amount > 0).reduce((acc, t) => acc + t.amount, 0),
+    [userTransactions]
   );
 
+  const totalSpent = useMemo(
+    () =>
+      userTransactions
+        .filter((t) => t.amount < 0)
+        .reduce((acc, t) => acc + Math.abs(t.amount), 0),
+    [userTransactions]
+  );
+
+  const filteredTransactions = useMemo(() => {
+    if (filter === 'earned') return userTransactions.filter((t) => t.amount > 0);
+    if (filter === 'spent') return userTransactions.filter((t) => t.amount < 0);
+    return userTransactions;
+  }, [userTransactions, filter]);
+
+  const faqs = [
+    {
+      q: 'How are time credits valued?',
+      a: '1 Credit represents one standard peer learning session hour (typically 45–60 minutes). Mentors can list skills at 1–3 credits depending on prep depth.',
+    },
+    {
+      q: 'What happens when a session request is pending?',
+      a: 'Your credit is held safely in SwapStudy escrow rather than sent immediately. If the teacher declines or you cancel before completion, the escrow is refunded automatically.',
+    },
+    {
+      q: 'How do mutual swaps affect credit balances?',
+      a: 'Both sessions use symmetric escrow protection. Once both sessions are completed, each student pays 1 credit for learning and earns 1 credit for teaching—resulting in zero net cost.',
+    },
+    {
+      q: 'How do I earn more credits when my balance is low?',
+      a: 'Publish a skill listing under Offer to Teach. Whenever a classmate books your listing and completes the session, credits transfer directly into your wallet.',
+    },
+  ];
+
+  if (authLoading || appLoading) {
+    return (
+      <div className="max-w-6xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-10 space-y-6">
+        <div className="h-44 rounded-3xl bg-[#22211F] border border-[#37332E] animate-pulse" />
+        <div className="h-80 rounded-2xl bg-[#22211F] border border-[#37332E] animate-pulse" />
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen py-8 bg-[#F8FAFC]">
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
-        {/* Header */}
-        <div className="text-center sm:text-left space-y-1.5">
-          <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-50 border border-emerald-200/60 text-[11px] font-semibold text-emerald-800">
-            <Coins className="w-3 h-3 text-emerald-600" />
-            <span>Platform Credit Economy & Ledger</span>
+    <div className="max-w-6xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-8 sm:py-10 space-y-8">
+      {/* Header */}
+      <div className="space-y-1.5">
+        <p className="text-xs font-bold uppercase tracking-wider text-[#FF9B45]">
+          Time-Credit Economy
+        </p>
+        <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-[#F7F5F0]">
+          Credit Wallet & Ledger
+        </h1>
+        <p className="text-sm sm:text-base text-[#AAA69F] max-w-2xl">
+          Track earned credits, escrow holds, refunds, and session settlements across every exchange.
+        </p>
+      </div>
+
+      {/* Balance Overview Banner */}
+      {user ? (
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+          <div className="lg:col-span-6 hero-bronze rounded-3xl p-7 flex flex-col justify-between gap-6">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold uppercase tracking-wider text-[#F7F5F0]/80">
+                Current Available Balance
+              </span>
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#171715]/30 border border-[#F7F5F0]/20 text-xs font-bold text-[#F7F5F0]">
+                <ShieldCheck className="w-3.5 h-3.5 text-[#65C995]" />
+                Escrow Protected
+              </span>
+            </div>
+
+            <div className="flex items-baseline gap-3">
+              <span className="text-5xl font-extrabold text-[#F7F5F0] tabular-nums">
+                {user.credits}
+              </span>
+              <span className="text-lg font-bold text-[#FF9B45]">Time Credits</span>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-3">
+              <Link
+                href="/teach"
+                className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-full bg-[#FF9B45] hover:bg-[#F5B66B] text-[#171715] text-sm font-bold transition-colors"
+              >
+                Earn Credits Teaching
+                <ArrowUpRight className="w-4 h-4" />
+              </Link>
+              <Link
+                href="/skills"
+                className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-full bg-[#171715]/35 hover:bg-[#171715]/55 border border-[#F7F5F0]/20 text-[#F7F5F0] text-sm font-semibold transition-colors"
+              >
+                Spend on Sessions
+              </Link>
+            </div>
           </div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-            How Credits Work
-          </h1>
-          <p className="text-xs sm:text-sm text-slate-500 max-w-xl leading-relaxed">
-            SwapStudy uses non-monetary platform credits—not real money—so every student can trade tutoring hours fairly. Teach classmates to earn credits, then spend them to learn any skill on campus.
+
+          <div className="lg:col-span-6 grid grid-cols-1 sm:grid-cols-2 gap-5">
+            <div className="bg-[#22211F] border border-[#37332E] rounded-2xl p-6 flex flex-col justify-between">
+              <div className="w-11 h-11 rounded-xl bg-[#65C995]/15 border border-[#65C995]/30 text-[#65C995] flex items-center justify-center">
+                <TrendingUp className="w-5 h-5" />
+              </div>
+              <div className="pt-6">
+                <p className="text-xs font-bold uppercase tracking-wider text-[#AAA69F]">
+                  Lifetime Earned
+                </p>
+                <p className="text-3xl font-extrabold text-[#65C995] mt-1 tabular-nums">
+                  +{totalEarned}
+                </p>
+                <p className="text-xs text-[#AAA69F] mt-1">
+                  Includes onboarding bonus, teaching & refunds
+                </p>
+              </div>
+            </div>
+
+            <div className="bg-[#22211F] border border-[#37332E] rounded-2xl p-6 flex flex-col justify-between">
+              <div className="w-11 h-11 rounded-xl bg-[#FF9B45]/15 border border-[#FF9B45]/30 text-[#FF9B45] flex items-center justify-center">
+                <TrendingDown className="w-5 h-5" />
+              </div>
+              <div className="pt-6">
+                <p className="text-xs font-bold uppercase tracking-wider text-[#AAA69F]">
+                  Total Escrow & Spent
+                </p>
+                <p className="text-3xl font-extrabold text-[#F7F5F0] mt-1 tabular-nums">
+                  -{totalSpent}
+                </p>
+                <p className="text-xs text-[#AAA69F] mt-1">
+                  Reserved across learning bookings
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="bg-[#22211F] border border-[#37332E] rounded-2xl p-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="space-y-1">
+            <h2 className="text-xl font-bold text-[#F7F5F0]">Track your live credit ledger</h2>
+            <p className="text-sm text-[#AAA69F]">
+              Log in or create a free student account to view your credit balance and session ledger.
+            </p>
+          </div>
+          <div className="flex items-center gap-3 shrink-0">
+            <Link
+              href="/login"
+              className="px-5 py-2.5 rounded-full bg-[#FF9B45] hover:bg-[#F5B66B] text-[#171715] text-sm font-bold"
+            >
+              Log in
+            </Link>
+            <Link
+              href="/signup"
+              className="px-5 py-2.5 rounded-full bg-[#2B2824] border border-[#37332E] text-[#F7F5F0] text-sm font-semibold"
+            >
+              Sign up
+            </Link>
+          </div>
+        </div>
+      )}
+
+      {/* 3 Economy Pillars */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+        <div className="bg-[#22211F] border border-[#37332E] rounded-2xl p-6 space-y-3">
+          <Clock className="w-6 h-6 text-[#FF9B45]" />
+          <h2 className="text-lg font-bold text-[#F7F5F0]">Equal Time Value</h2>
+          <p className="text-sm text-[#AAA69F] leading-relaxed">
+            Every hour spent mentoring counts equally across coding, design, writing, and core academics.
           </p>
         </div>
 
-        {/* User Balance Strip */}
-        {user && (
-          <div className="card-subtle rounded-xl p-5 sm:p-6 bg-gradient-to-br from-white to-emerald-50/30 border border-emerald-200/70">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-center">
-              <div>
-                <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
-                  Your Current Balance
-                </span>
-                <div className="flex items-baseline gap-2 mt-0.5">
-                  <span className="text-3xl sm:text-4xl font-extrabold text-slate-900">{user.credits}</span>
-                  <span className="text-xs font-semibold text-emerald-700">Credits Available</span>
-                </div>
-                <p className="text-[11px] text-slate-500 mt-1">
-                  Enables {user.credits} hour(s) of peer tutoring sessions
-                </p>
-              </div>
-
-              <div className="flex items-center gap-6 border-y sm:border-y-0 sm:border-x border-slate-100 py-3 sm:py-0 sm:px-6">
-                <div>
-                  <span className="text-[11px] text-slate-400">Lifetime Earned</span>
-                  <p className="text-base font-bold text-emerald-600">+{totalEarned} Cr</p>
-                </div>
-                <div>
-                  <span className="text-[11px] text-slate-400">Lifetime Spent</span>
-                  <p className="text-base font-bold text-slate-700">-{totalSpent} Cr</p>
-                </div>
-              </div>
-
-              <div className="flex flex-col sm:flex-row gap-2">
-                <Link
-                  href="/teach"
-                  className="flex-1 py-2 px-3 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs text-center shadow-2xs"
-                >
-                  Earn More
-                </Link>
-                <Link
-                  href="/skills"
-                  className="flex-1 py-2 px-3 rounded-lg border border-slate-300 text-slate-700 font-semibold text-xs text-center hover:bg-slate-50"
-                >
-                  Spend Credits
-                </Link>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* The 3 Pillars of SwapStudy Economy */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-          <div className="card-subtle rounded-xl p-5 space-y-2.5">
-            <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center">
-              <Repeat className="w-4 h-4" />
-            </div>
-            <h3 className="text-sm font-bold text-slate-900">1:1 Fair Exchange</h3>
-            <p className="text-xs text-slate-500 leading-relaxed">
-              Every 1 hour you spend teaching earns you 1-3 platform credits. That exact amount allows you to book 1 hour of mentoring in another subject.
-            </p>
-          </div>
-
-          <div className="card-subtle rounded-xl p-5 space-y-2.5">
-            <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center">
-              <Sparkles className="w-4 h-4" />
-            </div>
-            <h3 className="text-sm font-bold text-slate-900">3 Starter Bonus Credits</h3>
-            <p className="text-xs text-slate-500 leading-relaxed">
-              Every student gets 3 complimentary credits upon joining, solving the cold-start problem so you can immediately experience learning from peers.
-            </p>
-          </div>
-
-          <div className="card-subtle rounded-xl p-5 space-y-2.5">
-            <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center">
-              <Lock className="w-4 h-4" />
-            </div>
-            <h3 className="text-sm font-bold text-slate-900">Escrow Quality Guarantee</h3>
-            <p className="text-xs text-slate-500 leading-relaxed">
-              When booking a session, credits are placed in secure escrow. They are only transferred to the teacher after you confirm the session was delivered.
-            </p>
-          </div>
+        <div className="bg-[#22211F] border border-[#37332E] rounded-2xl p-6 space-y-3">
+          <ShieldCheck className="w-6 h-6 text-[#65C995]" />
+          <h2 className="text-lg font-bold text-[#F7F5F0]">Escrow Refunds</h2>
+          <p className="text-sm text-[#AAA69F] leading-relaxed">
+            Credits stay locked until session completion and are returned automatically on declines or cancellations.
+          </p>
         </div>
 
-        {/* Ledger Transaction History */}
-        <div className="card-subtle rounded-xl p-5 sm:p-6 space-y-4">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
-            <div>
-              <h2 className="text-sm font-bold uppercase tracking-wider text-slate-900">
-                Credit Transaction Audit Trail
-              </h2>
-              <p className="text-xs text-slate-400 mt-0.5">
-                Every credit earned, spent, or refunded is immutably recorded below.
-              </p>
-            </div>
+        <div className="bg-[#22211F] border border-[#37332E] rounded-2xl p-6 space-y-3">
+          <Repeat className="w-6 h-6 text-[#F5B66B]" />
+          <h2 className="text-lg font-bold text-[#F7F5F0]">Reciprocal Swaps</h2>
+          <p className="text-sm text-[#AAA69F] leading-relaxed">
+            Swap skills directly with a peer so both sessions balance out to zero net credit cost.
+          </p>
+        </div>
+      </div>
 
-            <div className="flex items-center gap-1">
-              {(['all', 'earned', 'spent'] as const).map((ft) => (
+      {/* Transaction Ledger */}
+      {user && (
+        <section className="bg-[#22211F] border border-[#37332E] rounded-2xl p-6 space-y-5">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <h2 className="text-xl font-bold text-[#F7F5F0]">Transaction History</h2>
+
+            <div className="inline-flex p-1 rounded-full bg-[#171715] border border-[#37332E] self-start">
+              {[
+                { key: 'all', label: 'All' },
+                { key: 'earned', label: 'Earned / Refunds' },
+                { key: 'spent', label: 'Escrow / Spent' },
+              ].map((tab) => (
                 <button
-                  key={ft}
-                  onClick={() => setFilterType(ft)}
-                  className={`px-2.5 py-1 rounded-md text-xs font-semibold capitalize transition-colors ${
-                    filterType === ft
-                      ? 'bg-slate-900 text-white'
-                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  key={tab.key}
+                  type="button"
+                  onClick={() => setFilter(tab.key as 'all' | 'earned' | 'spent')}
+                  className={`px-4 py-1.5 rounded-full text-xs font-bold transition-colors cursor-pointer ${
+                    filter === tab.key
+                      ? 'bg-[#FF9B45] text-[#171715]'
+                      : 'text-[#AAA69F] hover:text-[#F7F5F0]'
                   }`}
                 >
-                  {ft}
+                  {tab.label}
                 </button>
               ))}
             </div>
           </div>
 
-          <div className="space-y-2.5">
-            {!user ? (
-              <div className="p-6 rounded-xl bg-slate-50 border border-slate-200/70 text-center space-y-2.5">
-                <p className="text-xs font-semibold text-slate-900">Sign in to inspect your personal credit ledger</p>
-                <p className="text-[11px] text-slate-500 max-w-md mx-auto">
-                  Every student receives 3 non-monetary starter platform credits upon signup and can track earned, held, and refunded credits here.
-                </p>
-                <Link
-                  href="/login"
-                  className="inline-flex px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold"
+          {filteredTransactions.length > 0 ? (
+            <div className="divide-y divide-[#37332E]">
+              {filteredTransactions.map((tx) => (
+                <div
+                  key={tx.id}
+                  className="py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
                 >
-                  Sign In
-                </Link>
-              </div>
-            ) : filteredTransactions.length > 0 ? (
-              filteredTransactions.map((tx) => {
-                const isPositive = tx.amount > 0;
-                return (
-                  <div
-                    key={tx.id}
-                    className="p-3.5 rounded-lg bg-slate-50 border border-slate-200/60 flex items-center justify-between gap-3 text-xs"
-                  >
-                    <div className="flex items-center gap-3 min-w-0">
-                      <div
-                        className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${
-                          isPositive
-                            ? 'bg-emerald-100 text-emerald-700'
-                            : 'bg-slate-200 text-slate-600'
-                        }`}
-                      >
-                        {isPositive ? (
-                          <ArrowUpRight className="w-4 h-4" />
-                        ) : (
-                          <ArrowDownLeft className="w-4 h-4" />
-                        )}
-                      </div>
-                      <div className="min-w-0">
-                        <p className="font-semibold text-slate-900 text-xs truncate">{tx.title}</p>
-                        <p className="text-slate-500 text-[11px] mt-0.5 line-clamp-2">{tx.description}</p>
-                      </div>
+                  <div className="flex items-start gap-3.5 min-w-0">
+                    <div
+                      className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border ${
+                        tx.amount >= 0
+                          ? 'bg-[#65C995]/15 border-[#65C995]/30 text-[#65C995]'
+                          : 'bg-[#F07878]/15 border-[#F07878]/30 text-[#F07878]'
+                      }`}
+                    >
+                      <Coins className="w-5 h-5" />
                     </div>
-
-                    <div className="text-right shrink-0">
-                      <span
-                        className={`text-xs font-bold ${
-                          isPositive ? 'text-emerald-700' : 'text-slate-700'
-                        }`}
-                      >
-                        {isPositive ? `+${tx.amount}` : tx.amount} Credits
-                      </span>
-                      <p className="text-[10px] text-slate-400 mt-0.5">{tx.date}</p>
+                    <div className="min-w-0">
+                      <p className="text-sm sm:text-base font-bold text-[#F7F5F0] truncate">
+                        {tx.title}
+                      </p>
+                      <p className="text-xs sm:text-sm text-[#AAA69F] mt-0.5">{tx.description}</p>
+                      <p className="text-xs text-[#AAA69F]/80 mt-1">{tx.date}</p>
                     </div>
                   </div>
-                );
-              })
-            ) : (
-              <div className="p-6 rounded-xl bg-slate-50 border border-slate-200/70 text-center space-y-2">
-                <p className="text-xs font-semibold text-slate-800">No matching transactions yet</p>
-                <p className="text-[11px] text-slate-500">
-                  Book a session or publish a skill listing to start earning and exchanging platform credits.
-                </p>
-              </div>
-            )}
-          </div>
+
+                  <span
+                    className={`text-lg font-extrabold tabular-nums shrink-0 ${
+                      tx.amount >= 0 ? 'text-[#65C995]' : 'text-[#F07878]'
+                    }`}
+                  >
+                    {tx.amount >= 0 ? `+${tx.amount}` : tx.amount} Cr
+                  </span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="py-8 text-center text-sm text-[#AAA69F]">
+              No transactions found in this category yet.
+            </div>
+          )}
+        </section>
+      )}
+
+      {/* FAQs */}
+      <section className="space-y-4">
+        <h2 className="text-xl font-bold text-[#F7F5F0] flex items-center gap-2">
+          <HelpCircle className="w-5 h-5 text-[#FF9B45]" />
+          Frequently Asked Questions
+        </h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {faqs.map((item) => (
+            <div
+              key={item.q}
+              className="bg-[#22211F] border border-[#37332E] rounded-2xl p-5 space-y-2"
+            >
+              <h3 className="text-base font-bold text-[#F7F5F0]">{item.q}</h3>
+              <p className="text-sm text-[#AAA69F] leading-relaxed">{item.a}</p>
+            </div>
+          ))}
         </div>
-
-        {/* FAQ Section */}
-        <div className="card-subtle rounded-xl p-5 sm:p-6 space-y-4">
-          <h3 className="text-xs font-bold uppercase tracking-wider text-slate-900 flex items-center gap-1.5">
-            <HelpCircle className="w-4 h-4 text-emerald-600" />
-            Frequently Asked Questions
-          </h3>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 text-xs text-slate-600">
-            <div className="space-y-1">
-              <h4 className="font-semibold text-slate-900 text-xs">Can I purchase credits with real money?</h4>
-              <p className="text-[11px] text-slate-500 leading-relaxed">
-                No. SwapStudy is intentionally non-monetary. The only way to obtain additional credits is by teaching your peers or referring active student contributors.
-              </p>
-            </div>
-
-            <div className="space-y-1">
-              <h4 className="font-semibold text-slate-900 text-xs">What happens if a tutor doesn&apos;t show up?</h4>
-              <p className="text-[11px] text-slate-500 leading-relaxed">
-                If a session is declined or cancelled, your credits are immediately refunded back into your active wallet balance with zero penalty.
-              </p>
-            </div>
-
-            <div className="space-y-1">
-              <h4 className="font-semibold text-slate-900 text-xs">How many credits should I charge?</h4>
-              <p className="text-[11px] text-slate-500 leading-relaxed">
-                Standard peer reviews and foundational courses are usually 1 or 2 credits per hour. Specialized topics like advanced algorithms or portfolio reviews can be 3 credits.
-              </p>
-            </div>
-
-            <div className="space-y-1">
-              <h4 className="font-semibold text-slate-900 text-xs">Do my credits expire?</h4>
-              <p className="text-[11px] text-slate-500 leading-relaxed">
-                Credits remain active indefinitely as long as you maintain an active student profile on SwapStudy.
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
+      </section>
     </div>
   );
 }
